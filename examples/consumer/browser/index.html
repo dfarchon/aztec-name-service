@@ -1,0 +1,107 @@
+<!doctype html>
+<html lang="en">
+  <meta charset="utf-8" /><meta
+    name="viewport"
+    content="width=device-width,initial-scale=1"
+  /><title>ANS SDK registration starter</title>
+  <style>
+    body {
+      font: 16px/1.6 system-ui;
+      max-width: 850px;
+      margin: 32px auto;
+      padding: 0 20px;
+    }
+    label {
+      display: block;
+      margin: 12px 0;
+    }
+    input,
+    select,
+    button {
+      font: inherit;
+      padding: 8px;
+      max-width: 100%;
+      box-sizing: border-box;
+    }
+    button {
+      margin: 4px;
+    }
+    pre {
+      white-space: pre-wrap;
+      overflow-wrap: anywhere;
+      background: #f5f5f5;
+      padding: 16px;
+    }
+    fieldset {
+      margin: 20px 0;
+    }
+    small {
+      display: block;
+    }
+    a {
+      color: #245dd0;
+    }
+  </style>
+  <h1>ANS SDK registration starter</h1>
+  <p>
+    Public testnet. Network fees are sponsored. Registration requires private balance in the quoted
+    project test token.
+  </p>
+  <fieldset>
+    <legend>1. Connect wallet</legend>
+    <button id="discover">Find wallets</button>
+    <div id="providers"></div>
+    <div id="verification" hidden>
+      <p id="symbols"></p>
+      <p>Compare these symbols with your wallet.</p>
+      <button id="approve">Symbols match</button><button id="cancel">Cancel</button>
+    </div>
+    <label
+      >Authorized account
+      <select id="account" disabled></select></label
+    ><label
+      >Recovery passphrase
+      <input id="passphrase" type="password" minlength="8" autocomplete="off" /></label
+    ><small
+      >Keep this passphrase to recover after a reload. It encrypts plans in this browser and is
+      never sent to a server.</small
+    ><button id="unlock" disabled>Unlock encrypted plans</button>
+  </fieldset>
+  <fieldset>
+    <legend>2. Review payment</legend>
+    <label>Name <input id="name" value="my-new-name" maxlength="31" /></label
+    ><label
+      >Years
+      <select id="years">
+        <option>1</option>
+        <option>2</option>
+        <option>3</option>
+        <option>4</option>
+        <option>5</option>
+      </select></label
+    ><button id="quote" disabled>Read quote and private balance</button>
+    <pre id="payment">Connect a wallet to begin.</pre>
+    <label
+      ><input id="accepted" type="checkbox" /> I accept this exact quote and token address.</label
+    ><button id="prepare" disabled>Save encrypted registration plan</button>
+  </fieldset>
+  <fieldset>
+    <legend>3. Submit or resume</legend>
+    <label
+      >Saved plan
+      <select id="plan" disabled></select></label
+    ><button id="commit" disabled>Commit or track existing hash</button
+    ><button id="check" disabled>Check registration window</button
+    ><button id="finish" disabled>Pay and register or track existing hash</button
+    ><small
+      >Each new transaction requires wallet approval. A known hash is tracked without resending.
+      Keep one active registration tab.</small
+    >
+  </fieldset>
+  <pre id="status" role="status" aria-live="polite">Loading deployment…</pre>
+  <p>
+    <a href="https://ans-testnet.huantian233.workers.dev/#/docs/sdk">SDK guide</a> ·
+    <a href="https://ans-testnet.huantian233.workers.dev/#/docs/pricing">Payment assets</a>
+  </p>
+  <script type="module" src="/main.ts"></script>
+</html>

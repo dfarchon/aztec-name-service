@@ -1,0 +1,28 @@
+{
+  "storage": {
+    "governance": "0x0000000000000000000000000000000000000000000000000000000000000001",
+    "governance_delay": "0x0000000000000000000000000000000000000000000000000000000000000002",
+    "legacy": "0x0000000000000000000000000000000000000000000000000000000000000004",
+    "modules": "0x0000000000000000000000000000000000000000000000000000000000000006",
+    "proposal": "0x0000000000000000000000000000000000000000000000000000000000000009",
+    "upgrade": "0x000000000000000000000000000000000000000000000000000000000000000d",
+    "allowed_resolvers": "0x000000000000000000000000000000000000000000000000000000000000000f",
+    "resolvers": "0x0000000000000000000000000000000000000000000000000000000000000010",
+    "names": "0x0000000000000000000000000000000000000000000000000000000000000011",
+    "owners": "0x0000000000000000000000000000000000000000000000000000000000000012",
+    "commits": "0x0000000000000000000000000000000000000000000000000000000000000013",
+    "records": "0x0000000000000000000000000000000000000000000000000000000000000014",
+    "primary": "0x0000000000000000000000000000000000000000000000000000000000000015",
+    "published_labels": "0x0000000000000000000000000000000000000000000000000000000000000016",
+    "protocol_upgrade": "0x0000000000000000000000000000000000000000000000000000000000000017",
+    "parents": "0x0000000000000000000000000000000000000000000000000000000000000019",
+    "managers": "0x000000000000000000000000000000000000000000000000000000000000001a",
+    "transfers": "0x000000000000000000000000000000000000000000000000000000000000001b",
+    "text_values": "0x000000000000000000000000000000000000000000000000000000000000001c",
+    "text_count": "0x000000000000000000000000000000000000000000000000000000000000001d",
+    "text_keys": "0x000000000000000000000000000000000000000000000000000000000000001e",
+    "text_seen": "0x000000000000000000000000000000000000000000000000000000000000001f"
+  },
+  "declarations": "governance:PublicMutable<AztecAddress,Context>,governance_delay:PublicImmutable<u64,Context>,legacy:PublicImmutable<AztecAddress,Context>,modules:PublicMutable<Modules,Context>,proposal:PublicMutable<Proposal,Context>,upgrade:PublicMutable<Upgrade,Context>,allowed_resolvers:Map<AztecAddress,PublicMutable<bool,Context>,Context>,resolvers:Map<Field,PublicMutable<AztecAddress,Context>,Context>,names:Map<Field,PublicMutable<NameMeta,Context>,Context>,owners:Map<Field,PublicMutable<Field,Context>,Context>,commits:Map<Field,PublicMutable<CommitRecord,Context>,Context>,records:Map<Field,PublicMutable<AddressRecord,Context>,Context>,primary:Map<Field,PublicMutable<PrimaryRecord,Context>,Context>,published_labels:Map<Field,PublicMutable<PublishedLabel,Context>,Context>,protocol_upgrade:PublicMutable<Upgrade,Context>,parents:Map<Field,PublicMutable<ParentLink,Context>,Context>,managers:Map<Field,PublicMutable<AztecAddress,Context>,Context>,transfers:Map<Field,PublicMutable<TransferOffer,Context>,Context>,text_values:Map<Field,PublicMutable<TextValue,Context>,Context>,text_count:Map<Field,PublicMutable<u32,Context>,Context>,text_keys:Map<Field,PublicMutable<Field,Context>,Context>,text_seen:Map<Field,PublicMutable<bool,Context>,Context>,",
+  "packedTypesSha256": "77c2ac90e9af35b3b89dd21fbd98d1d6011695b6882e9d9a3dc55e9bf7e857b9"
+}

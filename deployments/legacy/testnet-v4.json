@@ -1,0 +1,17 @@
+{
+  "network": "Aztec public testnet",
+  "aztecVersion": "5.2.1",
+  "nodeUrl": "https://v5.testnet.rpc.aztec-labs.com",
+  "chainId": "11155111",
+  "rollupVersion": "1821665230",
+  "registry": "0x15f7fb75c4f96e6c85c96824279a563ee4b1bb4cd7a2d60d03c9c4eddc5db804",
+  "registrar": "0x0240921a12b975f01fdcece4480ed64ac8c01d633567df30a3527d52cad65e3e",
+  "resolver": "0x04b774e5b7278bf5b44eafec1e98446cdfe292362848592f0fc3e1076e4ce160",
+  "feeToken": "0x147ed8e1d215b286ceeb828235207ad36710cc811df20894a35143d754756ee1",
+  "feeSymbol": "ANSF",
+  "feeDecimals": 6,
+  "annualPrice": "1000000",
+  "sponsoredFpc": "0x2ece607a8dba690c9aa4ee1d53a55286fa815543a27f9364bbaf65eb68e7315b",
+  "exampleName": "ans-v4-mv2n77ji",
+  "protocol": 4
+}

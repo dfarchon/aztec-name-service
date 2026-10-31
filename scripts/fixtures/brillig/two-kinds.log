@@ -1,0 +1,36 @@
+bug: Brillig function call isn't properly covered by a manual constraint
+   ┌─ /home/build/nargo/github.com/aztec-labs-eng/aztec-nr/v6.0.0/aztec/src/oracle/get_contract_instance.nr:18:29
+   │
+18 │     let instance = unsafe { get_contract_instance_internal(address) };
+   │                             --------------------------------------- This Brillig call's inputs and its return values haven't been sufficiently constrained. This should be done to prevent potential soundness vulnerabilities
+   │
+   = Call stack:
+     1: generate_private_external
+             at /home/build/nargo/github.com/aztec-labs-eng/aztec-nr/v6.0.0/aztec/src/macros/internals_functions_generation/external/private.nr:96:17
+     2: assert_is_initialized_private
+             at /home/build/nargo/github.com/aztec-labs-eng/aztec-nr/v6.0.0/aztec/src/macros/functions/initialization_utils.nr:119:20
+     3: get_contract_instance
+             at /home/build/nargo/github.com/aztec-labs-eng/aztec-nr/v6.0.0/aztec/src/oracle/get_contract_instance.nr:18:29
+
+bug: Input to Brillig function is in a separate subgraph to output
+     ┌─ /home/build/nargo/github.com/aztec-labs-eng/aztec-nr/v6.0.0/aztec/src/context/private_context.nr:1189:13
+     │  
+1189 │ ╭             call_private_function_internal(
+1190 │ │                 contract_address,
+1191 │ │                 function_selector,
+1192 │ │                 args_hash,
+1193 │ │                 start_side_effect_counter,
+1194 │ │                 is_static_call,
+1195 │ │             )
+     │ ╰─────────────' There is no path from the output of this Brillig call to either return values or inputs of the circuit, which creates an independent subgraph. This is quite likely a soundness vulnerability
+     │  
+     = Call stack:
+       1: NameRegistrar::commit
+               at name_registrar/src/main.nr:44:9
+       2: ContractSelfPrivate<Storage, CallSelf, EnqueueSelf, CallSelfStatic, EnqueueSelfStatic, CallInternal, CallSelfUtility>::call
+               at /home/build/nargo/github.com/aztec-labs-eng/aztec-nr/v6.0.0/aztec/src/contract_self/contract_self_private.nr:258:9
+       3: PrivateCall<M, N, T>::call
+               at /home/build/nargo/github.com/aztec-labs-eng/aztec-nr/v6.0.0/aztec/src/context/calls.nr:42:13
+       4: PrivateContext::call_private_function_with_args_hash
+               at /home/build/nargo/github.com/aztec-labs-eng/aztec-nr/v6.0.0/aztec/src/context/private_context.nr:1189:13
+

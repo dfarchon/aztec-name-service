@@ -1,0 +1,19 @@
+{
+  "name": "@ans/ops",
+  "version": "0.1.0",
+  "license": "Apache-2.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json",
+    "dev": "wrangler dev --port 5200",
+    "deploy": "wrangler deploy",
+    "test": "node --import tsx --test test/*.test.ts"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "5.20261008.1",
+    "typescript": "5.9.3",
+    "tsx": "4.23.15",
+    "@types/node": "24.10.7"
+  }
+}

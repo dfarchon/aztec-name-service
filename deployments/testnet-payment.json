@@ -1,0 +1,18 @@
+{
+  "network": {
+    "nodeUrl": "https://v5.testnet.rpc.aztec-labs.com",
+    "chainId": "11155111",
+    "rollupVersion": "1821665230"
+  },
+  "asset": {
+    "official": false,
+    "name": "ANS Mock AZTEC (test only)",
+    "symbol": "mAZTEC",
+    "decimals": 18,
+    "token": "0x212913baa4d8f6dd37e8e050c6cf02c43e4fbf7374994af0a3b5d016fb5c9e14",
+    "annualPrice": "1000000000000000000"
+  },
+  "treasury": "0x1b3270ef2b3e63701057d54d39d0fc39fb158b5229fce21ffa83d30ae99eb556",
+  "annualPrice": "1000000000000000000",
+  "priceVersion": 2
+}

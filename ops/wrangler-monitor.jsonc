@@ -1,0 +1,37 @@
+{
+  "$schema": "../node_modules/wrangler/config-schema.json",
+  "name": "ans-testnet-monitor",
+  "main": "src/probe-worker.ts",
+  "compatibility_date": "2026-10-08",
+  "workers_dev": false,
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "ans-testnet-monitor",
+      "database_id": "a6f1e2a2-7bd0-4c18-85fa-74d74c7b7e15"
+    }
+  ],
+  "observability": {
+    "enabled": true
+  },
+  "vars": {
+    "RPC_URL": "https://aztec-testnet.drpc.org",
+    "REGISTRY": "0x04393ee270097dcb7ba0d7cdcc924f9155fca1cce09508691409624925fb53e5",
+    "SPONSORED_FPC": "0x2d8fff82a3b0c15d0a89169e7d8d043e079ab94d52031f1de1e4972ebad169d3",
+    "SITE_URL": "https://ans-testnet.huantian233.workers.dev",
+    "CHAIN_ID": "11155111",
+    "ROLLUP_VERSION": "679261766",
+    "ROLLUP": "0x1f435a7f2da358caf887a470faeee7d5d5f4efba",
+    "FPC_LOW_WATERMARK": "1000000000000000000",
+    "BLOCK_STALE_SECONDS": "600"
+  },
+  "preview_urls": false,
+  "triggers": {
+    "crons": [
+      "* * * * *"
+    ]
+  },
+  "compatibility_flags": [
+    "global_fetch_strictly_public"
+  ]
+}

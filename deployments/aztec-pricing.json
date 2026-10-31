@@ -1,0 +1,20 @@
+{
+  "currency": "AZTEC",
+  "decimals": 18,
+  "annualPrice": "1000000000000000000",
+  "lengthPrices": {
+    "3": "128000000000000000000",
+    "4": "32000000000000000000"
+  },
+  "annualPriceStatus": "provisional",
+  "operations": ["register", "renew"],
+  "referenceAsset": {
+    "chainId": "1",
+    "address": "0xA27EC0006e59f245217Ff08CD52A7E8b169E62D2",
+    "source": "https://docs.aztec.network/participate/token"
+  },
+  "settlement": {
+    "status": "unconfigured",
+    "l2Token": null
+  }
+}

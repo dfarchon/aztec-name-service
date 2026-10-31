@@ -1,0 +1,29 @@
+# Aztec Name Service (ANS)
+
+Public names on Aztec. This repository pins Aztec 6.0.0 and Node >=24.12.
+Source: https://github.com/dfarchon/aztec-name-service.
+
+- User guides: /#/docs/getting-started
+- Pricing and active payment asset: /#/docs/pricing
+- SDK reads: /#/docs/sdk
+- Wallet integration: /#/docs/sdk-write
+- Network and contract versions: /#/docs/deployments
+- Help: /#/help
+- Current connection and service checks: /#/status
+- Full documentation as Markdown text: /llms-full.txt
+- All bilingual Markdown downloads: /downloads/docs/manifest.json
+- English getting-started guide: /downloads/docs/en/getting-started.md
+- Chinese getting-started guide: /downloads/docs/zh-CN/getting-started.md
+
+The documentation center has chapter navigation, bilingual guides, code copying, Markdown export and print/PDF views.
+Registration and renewal prices are tiered by name length (3 characters, 4 characters, 5 or more); quotes need the name. New root names cannot contain "--" or start with "0x". SDK 0.6.0 or later is required for the tiered Registrar.
+AZTEC is the selected target denomination (18 decimals). mAZTEC is a test stand-in without official backing. ANSF is the original test fee token. Fee Juice is network gas credit. Read the connected Registrar's actual payment token and quote on Pricing or Register; never infer active fees from a ticker or a website release.
+
+Capabilities depend on the connected registry class, not the website version.
+V2: root registration, renewal, Aztec address records, bidirectionally verified primary names.
+V3: replaceable registrar/resolver, delayed governance upgrades, holder migration from V2.
+V4: editor role, accepted transfers, parent-revocable subnames, public text and multi-chain address records.
+This site connects to the public Sepolia testnet. The connected registry and class are shown in Networks and versions. Release records in the repository distinguish local upgrade tests from public transactions with real proofs.
+
+Use RegistryReader for wallet-free reads and AnsContext for wallet writes. Check reader.extended before V4 APIs.
+Use resolvePrimary instead of trusting a reverse record alone. Multi-chain records do not transfer assets.

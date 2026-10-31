@@ -1,0 +1,1819 @@
+{
+  "toolchain": "6.0.0",
+  "aztecNr": "v6.0.0",
+  "total": 290,
+  "byKind": {
+    "covered": 288,
+    "subgraph": 2
+  },
+  "entries": [
+    {
+      "fingerprint": "covered | aztec-nr@v6.0.0/aztec/src/context/private_context.nr:1189:13 | ",
+      "kind": "covered",
+      "primary": "aztec-nr@v6.0.0/aztec/src/context/private_context.nr:1189:13",
+      "category": "upstream",
+      "count": 6,
+      "ansFrames": [],
+      "review": false,
+      "separateSubgraph": false
+    },
+    {
+      "fingerprint": "covered | aztec-nr@v6.0.0/aztec/src/context/private_context.nr:1189:13 | Token::_recurse_subtract_balance > Token::subtract_balance",
+      "kind": "covered",
+      "primary": "aztec-nr@v6.0.0/aztec/src/context/private_context.nr:1189:13",
+      "category": "test_token",
+      "count": 1,
+      "ansFrames": [
+        {
+          "function": "Token::_recurse_subtract_balance",
+          "file": "contracts/test_token/src/main.nr",
+          "line": 271,
+          "col": 9
+        },
+        {
+          "function": "Token::subtract_balance",
+          "file": "contracts/test_token/src/main.nr",
+          "line": 264,
+          "col": 13
+        }
+      ],
+      "review": false,
+      "separateSubgraph": false
+    },
+    {
+      "fingerprint": "covered | aztec-nr@v6.0.0/aztec/src/context/private_context.nr:1189:13 | Token::mint_to_private > Token::_prepare_private_balance_increase",
+      "kind": "covered",
+      "primary": "aztec-nr@v6.0.0/aztec/src/context/private_context.nr:1189:13",
+      "category": "test_token",
+      "count": 1,
+      "ansFrames": [
+        {
+          "function": "Token::mint_to_private",
+          "file": "contracts/test_token/src/main.nr",
+          "line": 433,
+          "col": 28
+        },
+        {
+          "function": "Token::_prepare_private_balance_increase",
+          "file": "contracts/test_token/src/main.nr",
+          "line": 352,
+          "col": 28
+        }
+      ],
+      "review": false,
+      "separateSubgraph": false
+    },
+    {
+      "fingerprint": "covered | aztec-nr@v6.0.0/aztec/src/context/private_context.nr:1189:13 | Token::prepare_private_balance_increase > Token::_prepare_private_balance_increase",
+      "kind": "covered",
+      "primary": "aztec-nr@v6.0.0/aztec/src/context/private_context.nr:1189:13",
+      "category": "test_token",
+      "count": 1,
+      "ansFrames": [
+        {
+          "function": "Token::prepare_private_balance_increase",
+          "file": "contracts/test_token/src/main.nr",
+          "line": 343,
+          "col": 9
+        },
+        {
+          "function": "Token::_prepare_private_balance_increase",
+          "file": "contracts/test_token/src/main.nr",
+          "line": 352,
+          "col": 28
+        }
+      ],
+      "review": false,
+      "separateSubgraph": false
+    },
+    {
+      "fingerprint": "covered | aztec-nr@v6.0.0/aztec/src/context/private_context.nr:1189:13 | Token::transfer_to_private > Token::_prepare_private_balance_increase",
+      "kind": "covered",
+      "primary": "aztec-nr@v6.0.0/aztec/src/context/private_context.nr:1189:13",
+      "category": "test_token",
+      "count": 1,
+      "ansFrames": [
+        {
+          "function": "Token::transfer_to_private",
+          "file": "contracts/test_token/src/main.nr",
+          "line": 331,
+          "col": 28
+        },
+        {
+          "function": "Token::_prepare_private_balance_increase",
+          "file": "contracts/test_token/src/main.nr",
+          "line": 352,
+          "col": 28
+        }
+      ],
+      "review": false,
+      "separateSubgraph": false
+    },
+    {
+      "fingerprint": "covered | aztec-nr@v6.0.0/aztec/src/context/private_context.nr:561:38 | ",
+      "kind": "covered",
+      "primary": "aztec-nr@v6.0.0/aztec/src/context/private_context.nr:561:38",
+      "category": "upstream",
+      "count": 60,
+      "ansFrames": [],
+      "review": false,
+      "separateSubgraph": false
+    },
+    {
+      "fingerprint": "covered | aztec-nr@v6.0.0/aztec/src/context/private_context.nr:829:36 | Token::_recurse_subtract_balance > Token::subtract_balance",
+      "kind": "covered",
+      "primary": "aztec-nr@v6.0.0/aztec/src/context/private_context.nr:829:36",
+      "category": "test_token",
+      "count": 1,
+      "ansFrames": [
+        {
+          "function": "Token::_recurse_subtract_balance",
+          "file": "contracts/test_token/src/main.nr",
+          "line": 271,
+          "col": 9
+        },
+        {
+          "function": "Token::subtract_balance",
+          "file": "contracts/test_token/src/main.nr",
+          "line": 251,
+          "col": 26
+        }
+      ],
+      "review": false,
+      "separateSubgraph": false
+    },
+    {
+      "fingerprint": "covered | aztec-nr@v6.0.0/aztec/src/context/private_context.nr:829:36 | Token::burn_private",
+      "kind": "covered",
+      "primary": "aztec-nr@v6.0.0/aztec/src/context/private_context.nr:829:36",
+      "category": "test_token",
+      "count": 1,
+      "ansFrames": [
+        {
+          "function": "Token::burn_private",
+          "file": "contracts/test_token/src/main.nr",
+          "line": 320,
+          "col": 9
+        }
+      ],
+      "review": false,
+      "separateSubgraph": false
+    },
+    {
+      "fingerprint": "covered | aztec-nr@v6.0.0/aztec/src/context/private_context.nr:829:36 | Token::finalize_transfer_to_private_from_private",
+      "kind": "covered",
+      "primary": "aztec-nr@v6.0.0/aztec/src/context/private_context.nr:829:36",
+      "category": "test_token",
+      "count": 1,
+      "ansFrames": [
+        {
+          "function": "Token::finalize_transfer_to_private_from_private",
+          "file": "contracts/test_token/src/main.nr",
+          "line": 390,
+          "col": 9
+        }
+      ],
+      "review": false,
+      "separateSubgraph": false
+    },
+    {
+      "fingerprint": "covered | aztec-nr@v6.0.0/aztec/src/context/private_context.nr:829:36 | Token::transfer > Token::subtract_balance",
+      "kind": "covered",
+      "primary": "aztec-nr@v6.0.0/aztec/src/context/private_context.nr:829:36",
+      "category": "test_token",
+      "count": 1,
+      "ansFrames": [
+        {
+          "function": "Token::transfer",
+          "file": "contracts/test_token/src/main.nr",
+          "line": 237,
+          "col": 22
+        },
+        {
+          "function": "Token::subtract_balance",
+          "file": "contracts/test_token/src/main.nr",
+          "line": 251,
+          "col": 26
+        }
+      ],
+      "review": false,
+      "separateSubgraph": false
+    },
+    {
+      "fingerprint": "covered | aztec-nr@v6.0.0/aztec/src/context/private_context.nr:829:36 | Token::transfer_in_private",
+      "kind": "covered",
+      "primary": "aztec-nr@v6.0.0/aztec/src/context/private_context.nr:829:36",
+      "category": "test_token",
+      "count": 1,
+      "ansFrames": [
+        {
+          "function": "Token::transfer_in_private",
+          "file": "contracts/test_token/src/main.nr",
+          "line": 289,
+          "col": 9
+        }
+      ],
+      "review": false,
+      "separateSubgraph": false
+    },
+    {
+      "fingerprint": "covered | aztec-nr@v6.0.0/aztec/src/context/private_context.nr:829:36 | Token::transfer_in_private_with_offchain_delivery",
+      "kind": "covered",
+      "primary": "aztec-nr@v6.0.0/aztec/src/context/private_context.nr:829:36",
+      "category": "test_token",
+      "count": 1,
+      "ansFrames": [
+        {
+          "function": "Token::transfer_in_private_with_offchain_delivery",
+          "file": "contracts/test_token/src/main.nr",
+          "line": 310,
+          "col": 9
+        }
+      ],
+      "review": false,
+      "separateSubgraph": false
+    },
+    {
+      "fingerprint": "covered | aztec-nr@v6.0.0/aztec/src/context/private_context.nr:829:36 | Token::transfer_to_public",
+      "kind": "covered",
+      "primary": "aztec-nr@v6.0.0/aztec/src/context/private_context.nr:829:36",
+      "category": "test_token",
+      "count": 1,
+      "ansFrames": [
+        {
+          "function": "Token::transfer_to_public",
+          "file": "contracts/test_token/src/main.nr",
+          "line": 194,
+          "col": 9
+        }
+      ],
+      "review": false,
+      "separateSubgraph": false
+    },
+    {
+      "fingerprint": "covered | aztec-nr@v6.0.0/aztec/src/context/private_context.nr:829:36 | Token::transfer_to_public_and_prepare_private_balance_increase",
+      "kind": "covered",
+      "primary": "aztec-nr@v6.0.0/aztec/src/context/private_context.nr:829:36",
+      "category": "test_token",
+      "count": 1,
+      "ansFrames": [
+        {
+          "function": "Token::transfer_to_public_and_prepare_private_balance_increase",
+          "file": "contracts/test_token/src/main.nr",
+          "line": 220,
+          "col": 9
+        }
+      ],
+      "review": false,
+      "separateSubgraph": false
+    },
+    {
+      "fingerprint": "covered | aztec-nr@v6.0.0/aztec/src/context/returns_hash.nr:30:33 | NameRegistrar::commit",
+      "kind": "covered",
+      "primary": "aztec-nr@v6.0.0/aztec/src/context/returns_hash.nr:30:33",
+      "category": "ans-business",
+      "count": 1,
+      "ansFrames": [
+        {
+          "function": "NameRegistrar::commit",
+          "file": "contracts/name_registrar/src/main.nr",
+          "line": 44,
+          "col": 9
+        }
+      ],
+      "review": true,
+      "separateSubgraph": false
+    },
+    {
+      "fingerprint": "covered | aztec-nr@v6.0.0/aztec/src/context/returns_hash.nr:30:33 | NameRegistrar::register > NameRegistrar::charge_fee",
+      "kind": "covered",
+      "primary": "aztec-nr@v6.0.0/aztec/src/context/returns_hash.nr:30:33",
+      "category": "ans-business",
+      "count": 1,
+      "ansFrames": [
+        {
+          "function": "NameRegistrar::register",
+          "file": "contracts/name_registrar/src/main.nr",
+          "line": 58,
+          "col": 9
+        },
+        {
+          "function": "NameRegistrar::charge_fee",
+          "file": "contracts/name_registrar/src/main.nr",
+          "line": 75,
+          "col": 13
+        }
+      ],
+      "review": true,
+      "separateSubgraph": false
+    },
+    {
+      "fingerprint": "covered | aztec-nr@v6.0.0/aztec/src/context/returns_hash.nr:30:33 | NameRegistrar::renew > NameRegistrar::charge_fee",
+      "kind": "covered",
+      "primary": "aztec-nr@v6.0.0/aztec/src/context/returns_hash.nr:30:33",
+      "category": "ans-business",
+      "count": 1,
+      "ansFrames": [
+        {
+          "function": "NameRegistrar::renew",
+          "file": "contracts/name_registrar/src/main.nr",
+          "line": 66,
+          "col": 9
+        },
+        {
+          "function": "NameRegistrar::charge_fee",
+          "file": "contracts/name_registrar/src/main.nr",
+          "line": 75,
+          "col": 13
+        }
+      ],
+      "review": true,
+      "separateSubgraph": false
+    },
+    {
+      "fingerprint": "covered | aztec-nr@v6.0.0/aztec/src/context/returns_hash.nr:30:33 | NameRegistrarTiered::commit",
+      "kind": "covered",
+      "primary": "aztec-nr@v6.0.0/aztec/src/context/returns_hash.nr:30:33",
+      "category": "ans-business",
+      "count": 1,
+      "ansFrames": [
+        {
+          "function": "NameRegistrarTiered::commit",
+          "file": "contracts/name_registrar_tiered/src/main.nr",
+          "line": 51,
+          "col": 9
+        }
+      ],
+      "review": true,
+      "separateSubgraph": false
+    },
+    {
+      "fingerprint": "covered | aztec-nr@v6.0.0/aztec/src/context/returns_hash.nr:30:33 | NameRegistrarTiered::register > NameRegistrarTiered::charge_fee",
+      "kind": "covered",
+      "primary": "aztec-nr@v6.0.0/aztec/src/context/returns_hash.nr:30:33",
+      "category": "ans-business",
+      "count": 1,
+      "ansFrames": [
+        {
+          "function": "NameRegistrarTiered::register",
+          "file": "contracts/name_registrar_tiered/src/main.nr",
+          "line": 66,
+          "col": 9
+        },
+        {
+          "function": "NameRegistrarTiered::charge_fee",
+          "file": "contracts/name_registrar_tiered/src/main.nr",
+          "line": 90,
+          "col": 13
+        }
+      ],
+      "review": true,
+      "separateSubgraph": false
+    },
+    {
+      "fingerprint": "covered | aztec-nr@v6.0.0/aztec/src/context/returns_hash.nr:30:33 | NameRegistrarTiered::renew > NameRegistrarTiered::charge_fee",
+      "kind": "covered",
+      "primary": "aztec-nr@v6.0.0/aztec/src/context/returns_hash.nr:30:33",
+      "category": "ans-business",
+      "count": 1,
+      "ansFrames": [
+        {
+          "function": "NameRegistrarTiered::renew",
+          "file": "contracts/name_registrar_tiered/src/main.nr",
+          "line": 77,
+          "col": 9
+        },
+        {
+          "function": "NameRegistrarTiered::charge_fee",
+          "file": "contracts/name_registrar_tiered/src/main.nr",
+          "line": 90,
+          "col": 13
+        }
+      ],
+      "review": true,
+      "separateSubgraph": false
+    },
+    {
+      "fingerprint": "covered | aztec-nr@v6.0.0/aztec/src/context/returns_hash.nr:30:33 | NameRegistry::register > NameRegistry::charge_fee",
+      "kind": "covered",
+      "primary": "aztec-nr@v6.0.0/aztec/src/context/returns_hash.nr:30:33",
+      "category": "ans-business",
+      "count": 1,
+      "ansFrames": [
+        {
+          "function": "NameRegistry::register",
+          "file": "contracts/name_registry/src/main.nr",
+          "line": 134,
+          "col": 9
+        },
+        {
+          "function": "NameRegistry::charge_fee",
+          "file": "contracts/name_registry/src/main.nr",
+          "line": 402,
+          "col": 13
+        }
+      ],
+      "review": true,
+      "separateSubgraph": false
+    },
+    {
+      "fingerprint": "covered | aztec-nr@v6.0.0/aztec/src/context/returns_hash.nr:30:33 | NameRegistry::renew > NameRegistry::charge_fee",
+      "kind": "covered",
+      "primary": "aztec-nr@v6.0.0/aztec/src/context/returns_hash.nr:30:33",
+      "category": "ans-business",
+      "count": 1,
+      "ansFrames": [
+        {
+          "function": "NameRegistry::renew",
+          "file": "contracts/name_registry/src/main.nr",
+          "line": 216,
+          "col": 9
+        },
+        {
+          "function": "NameRegistry::charge_fee",
+          "file": "contracts/name_registry/src/main.nr",
+          "line": 402,
+          "col": 13
+        }
+      ],
+      "review": true,
+      "separateSubgraph": false
+    },
+    {
+      "fingerprint": "covered | aztec-nr@v6.0.0/aztec/src/event/event_emission.nr:27:31 | Token::transfer",
+      "kind": "covered",
+      "primary": "aztec-nr@v6.0.0/aztec/src/event/event_emission.nr:27:31",
+      "category": "test_token",
+      "count": 1,
+      "ansFrames": [
+        {
+          "function": "Token::transfer",
+          "file": "contracts/test_token/src/main.nr",
+          "line": 246,
+          "col": 9
+        }
+      ],
+      "review": false,
+      "separateSubgraph": false
+    },
+    {
+      "fingerprint": "covered | aztec-nr@v6.0.0/aztec/src/event/event_emission.nr:27:31 | Token::transfer_in_private_with_offchain_delivery",
+      "kind": "covered",
+      "primary": "aztec-nr@v6.0.0/aztec/src/event/event_emission.nr:27:31",
+      "category": "test_token",
+      "count": 1,
+      "ansFrames": [
+        {
+          "function": "Token::transfer_in_private_with_offchain_delivery",
+          "file": "contracts/test_token/src/main.nr",
+          "line": 313,
+          "col": 9
+        }
+      ],
+      "review": false,
+      "separateSubgraph": false
+    },
+    {
+      "fingerprint": "covered | aztec-nr@v6.0.0/aztec/src/history/storage.nr:26:28 | NameRegistrar::commit",
+      "kind": "covered",
+      "primary": "aztec-nr@v6.0.0/aztec/src/history/storage.nr:26:28",
+      "category": "ans-business",
+      "count": 1,
+      "ansFrames": [
+        {
+          "function": "NameRegistrar::commit",
+          "file": "contracts/name_registrar/src/main.nr",
+          "line": 44,
+          "col": 38
+        }
+      ],
+      "review": true,
+      "separateSubgraph": false
+    },
+    {
+      "fingerprint": "covered | aztec-nr@v6.0.0/aztec/src/history/storage.nr:26:28 | NameRegistrar::register",
+      "kind": "covered",
+      "primary": "aztec-nr@v6.0.0/aztec/src/history/storage.nr:26:28",
+      "category": "ans-business",
+      "count": 1,
+      "ansFrames": [
+        {
+          "function": "NameRegistrar::register",
+          "file": "contracts/name_registrar/src/main.nr",
+          "line": 50,
+          "col": 24
+        }
+      ],
+      "review": true,
+      "separateSubgraph": false
+    },
+    {
+      "fingerprint": "covered | aztec-nr@v6.0.0/aztec/src/history/storage.nr:26:28 | NameRegistrar::renew",
+      "kind": "covered",
+      "primary": "aztec-nr@v6.0.0/aztec/src/history/storage.nr:26:28",
+      "category": "ans-business",
+      "count": 1,
+      "ansFrames": [
+        {
+          "function": "NameRegistrar::renew",
+          "file": "contracts/name_registrar/src/main.nr",
+          "line": 66,
+          "col": 34
+        }
+      ],
+      "review": true,
+      "separateSubgraph": false
+    },
+    {
+      "fingerprint": "covered | aztec-nr@v6.0.0/aztec/src/history/storage.nr:26:28 | NameRegistrarTiered::commit",
+      "kind": "covered",
+      "primary": "aztec-nr@v6.0.0/aztec/src/history/storage.nr:26:28",
+      "category": "ans-business",
+      "count": 1,
+      "ansFrames": [
+        {
+          "function": "NameRegistrarTiered::commit",
+          "file": "contracts/name_registrar_tiered/src/main.nr",
+          "line": 51,
+          "col": 38
+        }
+      ],
+      "review": true,
+      "separateSubgraph": false
+    },
+    {
+      "fingerprint": "covered | aztec-nr@v6.0.0/aztec/src/history/storage.nr:26:28 | NameRegistrarTiered::register",
+      "kind": "covered",
+      "primary": "aztec-nr@v6.0.0/aztec/src/history/storage.nr:26:28",
+      "category": "ans-business",
+      "count": 1,
+      "ansFrames": [
+        {
+          "function": "NameRegistrarTiered::register",
+          "file": "contracts/name_registrar_tiered/src/main.nr",
+          "line": 57,
+          "col": 24
+        }
+      ],
+      "review": true,
+      "separateSubgraph": false
+    },
+    {
+      "fingerprint": "covered | aztec-nr@v6.0.0/aztec/src/history/storage.nr:26:28 | NameRegistrarTiered::renew",
+      "kind": "covered",
+      "primary": "aztec-nr@v6.0.0/aztec/src/history/storage.nr:26:28",
+      "category": "ans-business",
+      "count": 1,
+      "ansFrames": [
+        {
+          "function": "NameRegistrarTiered::renew",
+          "file": "contracts/name_registrar_tiered/src/main.nr",
+          "line": 77,
+          "col": 34
+        }
+      ],
+      "review": true,
+      "separateSubgraph": false
+    },
+    {
+      "fingerprint": "covered | aztec-nr@v6.0.0/aztec/src/history/storage.nr:26:28 | NameRegistry::register",
+      "kind": "covered",
+      "primary": "aztec-nr@v6.0.0/aztec/src/history/storage.nr:26:28",
+      "category": "ans-business",
+      "count": 1,
+      "ansFrames": [
+        {
+          "function": "NameRegistry::register",
+          "file": "contracts/name_registry/src/main.nr",
+          "line": 118,
+          "col": 22
+        }
+      ],
+      "review": true,
+      "separateSubgraph": false
+    },
+    {
+      "fingerprint": "covered | aztec-nr@v6.0.0/aztec/src/history/storage.nr:26:28 | NameRegistry::renew",
+      "kind": "covered",
+      "primary": "aztec-nr@v6.0.0/aztec/src/history/storage.nr:26:28",
+      "category": "ans-business",
+      "count": 1,
+      "ansFrames": [
+        {
+          "function": "NameRegistry::renew",
+          "file": "contracts/name_registry/src/main.nr",
+          "line": 215,
+          "col": 22
+        }
+      ],
+      "review": true,
+      "separateSubgraph": false
+    },
+    {
+      "fingerprint": "covered | aztec-nr@v6.0.0/aztec/src/history/storage.nr:26:28 | NameResolver::set_address",
+      "kind": "covered",
+      "primary": "aztec-nr@v6.0.0/aztec/src/history/storage.nr:26:28",
+      "category": "ans-business",
+      "count": 1,
+      "ansFrames": [
+        {
+          "function": "NameResolver::set_address",
+          "file": "contracts/name_resolver/src/main.nr",
+          "line": 26,
+          "col": 41
+        }
+      ],
+      "review": true,
+      "separateSubgraph": false
+    },
+    {
+      "fingerprint": "covered | aztec-nr@v6.0.0/aztec/src/history/storage.nr:26:28 | Token::private_get_decimals",
+      "kind": "covered",
+      "primary": "aztec-nr@v6.0.0/aztec/src/history/storage.nr:26:28",
+      "category": "test_token",
+      "count": 1,
+      "ansFrames": [
+        {
+          "function": "Token::private_get_decimals",
+          "file": "contracts/test_token/src/main.nr",
+          "line": 127,
+          "col": 9
+        }
+      ],
+      "review": false,
+      "separateSubgraph": false
+    },
+    {
+      "fingerprint": "covered | aztec-nr@v6.0.0/aztec/src/history/storage.nr:26:28 | Token::private_get_name",
+      "kind": "covered",
+      "primary": "aztec-nr@v6.0.0/aztec/src/history/storage.nr:26:28",
+      "category": "test_token",
+      "count": 1,
+      "ansFrames": [
+        {
+          "function": "Token::private_get_name",
+          "file": "contracts/test_token/src/main.nr",
+          "line": 103,
+          "col": 9
+        }
+      ],
+      "review": false,
+      "separateSubgraph": false
+    },
+    {
+      "fingerprint": "covered | aztec-nr@v6.0.0/aztec/src/history/storage.nr:26:28 | Token::private_get_symbol",
+      "kind": "covered",
+      "primary": "aztec-nr@v6.0.0/aztec/src/history/storage.nr:26:28",
+      "category": "test_token",
+      "count": 1,
+      "ansFrames": [
+        {
+          "function": "Token::private_get_symbol",
+          "file": "contracts/test_token/src/main.nr",
+          "line": 115,
+          "col": 9
+        }
+      ],
+      "review": false,
+      "separateSubgraph": false
+    },
+    {
+      "fingerprint": "covered | aztec-nr@v6.0.0/aztec/src/keys/getters/mod.nr:27:51 | Token::_recurse_subtract_balance > Token::subtract_balance",
+      "kind": "covered",
+      "primary": "aztec-nr@v6.0.0/aztec/src/keys/getters/mod.nr:27:51",
+      "category": "test_token",
+      "count": 1,
+      "ansFrames": [
+        {
+          "function": "Token::_recurse_subtract_balance",
+          "file": "contracts/test_token/src/main.nr",
+          "line": 271,
+          "col": 9
+        },
+        {
+          "function": "Token::subtract_balance",
+          "file": "contracts/test_token/src/main.nr",
+          "line": 251,
+          "col": 26
+        }
+      ],
+      "review": false,
+      "separateSubgraph": false
+    },
+    {
+      "fingerprint": "covered | aztec-nr@v6.0.0/aztec/src/keys/getters/mod.nr:27:51 | Token::burn_private",
+      "kind": "covered",
+      "primary": "aztec-nr@v6.0.0/aztec/src/keys/getters/mod.nr:27:51",
+      "category": "test_token",
+      "count": 1,
+      "ansFrames": [
+        {
+          "function": "Token::burn_private",
+          "file": "contracts/test_token/src/main.nr",
+          "line": 320,
+          "col": 9
+        }
+      ],
+      "review": false,
+      "separateSubgraph": false
+    },
+    {
+      "fingerprint": "covered | aztec-nr@v6.0.0/aztec/src/keys/getters/mod.nr:27:51 | Token::finalize_transfer_to_private_from_private",
+      "kind": "covered",
+      "primary": "aztec-nr@v6.0.0/aztec/src/keys/getters/mod.nr:27:51",
+      "category": "test_token",
+      "count": 1,
+      "ansFrames": [
+        {
+          "function": "Token::finalize_transfer_to_private_from_private",
+          "file": "contracts/test_token/src/main.nr",
+          "line": 390,
+          "col": 9
+        }
+      ],
+      "review": false,
+      "separateSubgraph": false
+    },
+    {
+      "fingerprint": "covered | aztec-nr@v6.0.0/aztec/src/keys/getters/mod.nr:27:51 | Token::transfer > Token::subtract_balance",
+      "kind": "covered",
+      "primary": "aztec-nr@v6.0.0/aztec/src/keys/getters/mod.nr:27:51",
+      "category": "test_token",
+      "count": 1,
+      "ansFrames": [
+        {
+          "function": "Token::transfer",
+          "file": "contracts/test_token/src/main.nr",
+          "line": 237,
+          "col": 22
+        },
+        {
+          "function": "Token::subtract_balance",
+          "file": "contracts/test_token/src/main.nr",
+          "line": 251,
+          "col": 26
+        }
+      ],
+      "review": false,
+      "separateSubgraph": false
+    },
+    {
+      "fingerprint": "covered | aztec-nr@v6.0.0/aztec/src/keys/getters/mod.nr:27:51 | Token::transfer_in_private",
+      "kind": "covered",
+      "primary": "aztec-nr@v6.0.0/aztec/src/keys/getters/mod.nr:27:51",
+      "category": "test_token",
+      "count": 1,
+      "ansFrames": [
+        {
+          "function": "Token::transfer_in_private",
+          "file": "contracts/test_token/src/main.nr",
+          "line": 289,
+          "col": 9
+        }
+      ],
+      "review": false,
+      "separateSubgraph": false
+    },
+    {
+      "fingerprint": "covered | aztec-nr@v6.0.0/aztec/src/keys/getters/mod.nr:27:51 | Token::transfer_in_private_with_offchain_delivery",
+      "kind": "covered",
+      "primary": "aztec-nr@v6.0.0/aztec/src/keys/getters/mod.nr:27:51",
+      "category": "test_token",
+      "count": 1,
+      "ansFrames": [
+        {
+          "function": "Token::transfer_in_private_with_offchain_delivery",
+          "file": "contracts/test_token/src/main.nr",
+          "line": 310,
+          "col": 9
+        }
+      ],
+      "review": false,
+      "separateSubgraph": false
+    },
+    {
+      "fingerprint": "covered | aztec-nr@v6.0.0/aztec/src/keys/getters/mod.nr:27:51 | Token::transfer_to_public",
+      "kind": "covered",
+      "primary": "aztec-nr@v6.0.0/aztec/src/keys/getters/mod.nr:27:51",
+      "category": "test_token",
+      "count": 1,
+      "ansFrames": [
+        {
+          "function": "Token::transfer_to_public",
+          "file": "contracts/test_token/src/main.nr",
+          "line": 194,
+          "col": 9
+        }
+      ],
+      "review": false,
+      "separateSubgraph": false
+    },
+    {
+      "fingerprint": "covered | aztec-nr@v6.0.0/aztec/src/keys/getters/mod.nr:27:51 | Token::transfer_to_public_and_prepare_private_balance_increase",
+      "kind": "covered",
+      "primary": "aztec-nr@v6.0.0/aztec/src/keys/getters/mod.nr:27:51",
+      "category": "test_token",
+      "count": 1,
+      "ansFrames": [
+        {
+          "function": "Token::transfer_to_public_and_prepare_private_balance_increase",
+          "file": "contracts/test_token/src/main.nr",
+          "line": 220,
+          "col": 9
+        }
+      ],
+      "review": false,
+      "separateSubgraph": false
+    },
+    {
+      "fingerprint": "covered | aztec-nr@v6.0.0/aztec/src/messages/delivery/tag_derivation.nr:88:18 | Token::burn_private",
+      "kind": "covered",
+      "primary": "aztec-nr@v6.0.0/aztec/src/messages/delivery/tag_derivation.nr:88:18",
+      "category": "test_token",
+      "count": 1,
+      "ansFrames": [
+        {
+          "function": "Token::burn_private",
+          "file": "contracts/test_token/src/main.nr",
+          "line": 320,
+          "col": 9
+        }
+      ],
+      "review": false,
+      "separateSubgraph": false
+    },
+    {
+      "fingerprint": "covered | aztec-nr@v6.0.0/aztec/src/messages/delivery/tag_derivation.nr:88:18 | Token::finalize_transfer_to_private_from_private",
+      "kind": "covered",
+      "primary": "aztec-nr@v6.0.0/aztec/src/messages/delivery/tag_derivation.nr:88:18",
+      "category": "test_token",
+      "count": 1,
+      "ansFrames": [
+        {
+          "function": "Token::finalize_transfer_to_private_from_private",
+          "file": "contracts/test_token/src/main.nr",
+          "line": 390,
+          "col": 9
+        }
+      ],
+      "review": false,
+      "separateSubgraph": false
+    },
+    {
+      "fingerprint": "covered | aztec-nr@v6.0.0/aztec/src/messages/delivery/tag_derivation.nr:88:18 | Token::mint_to_private > Token::_prepare_private_balance_increase",
+      "kind": "covered",
+      "primary": "aztec-nr@v6.0.0/aztec/src/messages/delivery/tag_derivation.nr:88:18",
+      "category": "test_token",
+      "count": 1,
+      "ansFrames": [
+        {
+          "function": "Token::mint_to_private",
+          "file": "contracts/test_token/src/main.nr",
+          "line": 433,
+          "col": 28
+        },
+        {
+          "function": "Token::_prepare_private_balance_increase",
+          "file": "contracts/test_token/src/main.nr",
+          "line": 352,
+          "col": 28
+        }
+      ],
+      "review": false,
+      "separateSubgraph": false
+    },
+    {
+      "fingerprint": "covered | aztec-nr@v6.0.0/aztec/src/messages/delivery/tag_derivation.nr:88:18 | Token::prepare_private_balance_increase > Token::_prepare_private_balance_increase",
+      "kind": "covered",
+      "primary": "aztec-nr@v6.0.0/aztec/src/messages/delivery/tag_derivation.nr:88:18",
+      "category": "test_token",
+      "count": 1,
+      "ansFrames": [
+        {
+          "function": "Token::prepare_private_balance_increase",
+          "file": "contracts/test_token/src/main.nr",
+          "line": 343,
+          "col": 9
+        },
+        {
+          "function": "Token::_prepare_private_balance_increase",
+          "file": "contracts/test_token/src/main.nr",
+          "line": 352,
+          "col": 28
+        }
+      ],
+      "review": false,
+      "separateSubgraph": false
+    },
+    {
+      "fingerprint": "covered | aztec-nr@v6.0.0/aztec/src/messages/delivery/tag_derivation.nr:88:18 | Token::transfer",
+      "kind": "covered",
+      "primary": "aztec-nr@v6.0.0/aztec/src/messages/delivery/tag_derivation.nr:88:18",
+      "category": "test_token",
+      "count": 1,
+      "ansFrames": [
+        {
+          "function": "Token::transfer",
+          "file": "contracts/test_token/src/main.nr",
+          "line": 238,
+          "col": 9
+        }
+      ],
+      "review": false,
+      "separateSubgraph": false
+    },
+    {
+      "fingerprint": "covered | aztec-nr@v6.0.0/aztec/src/messages/delivery/tag_derivation.nr:88:18 | Token::transfer_in_private",
+      "kind": "covered",
+      "primary": "aztec-nr@v6.0.0/aztec/src/messages/delivery/tag_derivation.nr:88:18",
+      "category": "test_token",
+      "count": 1,
+      "ansFrames": [
+        {
+          "function": "Token::transfer_in_private",
+          "file": "contracts/test_token/src/main.nr",
+          "line": 289,
+          "col": 9
+        }
+      ],
+      "review": false,
+      "separateSubgraph": false
+    },
+    {
+      "fingerprint": "covered | aztec-nr@v6.0.0/aztec/src/messages/delivery/tag_derivation.nr:88:18 | Token::transfer_to_private > Token::_prepare_private_balance_increase",
+      "kind": "covered",
+      "primary": "aztec-nr@v6.0.0/aztec/src/messages/delivery/tag_derivation.nr:88:18",
+      "category": "test_token",
+      "count": 1,
+      "ansFrames": [
+        {
+          "function": "Token::transfer_to_private",
+          "file": "contracts/test_token/src/main.nr",
+          "line": 331,
+          "col": 28
+        },
+        {
+          "function": "Token::_prepare_private_balance_increase",
+          "file": "contracts/test_token/src/main.nr",
+          "line": 352,
+          "col": 28
+        }
+      ],
+      "review": false,
+      "separateSubgraph": false
+    },
+    {
+      "fingerprint": "covered | aztec-nr@v6.0.0/aztec/src/messages/delivery/tag_derivation.nr:88:18 | Token::transfer_to_public",
+      "kind": "covered",
+      "primary": "aztec-nr@v6.0.0/aztec/src/messages/delivery/tag_derivation.nr:88:18",
+      "category": "test_token",
+      "count": 1,
+      "ansFrames": [
+        {
+          "function": "Token::transfer_to_public",
+          "file": "contracts/test_token/src/main.nr",
+          "line": 194,
+          "col": 9
+        }
+      ],
+      "review": false,
+      "separateSubgraph": false
+    },
+    {
+      "fingerprint": "covered | aztec-nr@v6.0.0/aztec/src/messages/delivery/tag_derivation.nr:88:18 | Token::transfer_to_public_and_prepare_private_balance_increase",
+      "kind": "covered",
+      "primary": "aztec-nr@v6.0.0/aztec/src/messages/delivery/tag_derivation.nr:88:18",
+      "category": "test_token",
+      "count": 1,
+      "ansFrames": [
+        {
+          "function": "Token::transfer_to_public_and_prepare_private_balance_increase",
+          "file": "contracts/test_token/src/main.nr",
+          "line": 220,
+          "col": 9
+        }
+      ],
+      "review": false,
+      "separateSubgraph": false
+    },
+    {
+      "fingerprint": "covered | aztec-nr@v6.0.0/aztec/src/messages/delivery/tag.nr:52:37 | Token::mint_to_private > Token::_prepare_private_balance_increase",
+      "kind": "covered",
+      "primary": "aztec-nr@v6.0.0/aztec/src/messages/delivery/tag.nr:52:37",
+      "category": "test_token",
+      "count": 1,
+      "ansFrames": [
+        {
+          "function": "Token::mint_to_private",
+          "file": "contracts/test_token/src/main.nr",
+          "line": 433,
+          "col": 28
+        },
+        {
+          "function": "Token::_prepare_private_balance_increase",
+          "file": "contracts/test_token/src/main.nr",
+          "line": 352,
+          "col": 28
+        }
+      ],
+      "review": false,
+      "separateSubgraph": false
+    },
+    {
+      "fingerprint": "covered | aztec-nr@v6.0.0/aztec/src/messages/delivery/tag.nr:52:37 | Token::prepare_private_balance_increase > Token::_prepare_private_balance_increase",
+      "kind": "covered",
+      "primary": "aztec-nr@v6.0.0/aztec/src/messages/delivery/tag.nr:52:37",
+      "category": "test_token",
+      "count": 1,
+      "ansFrames": [
+        {
+          "function": "Token::prepare_private_balance_increase",
+          "file": "contracts/test_token/src/main.nr",
+          "line": 343,
+          "col": 9
+        },
+        {
+          "function": "Token::_prepare_private_balance_increase",
+          "file": "contracts/test_token/src/main.nr",
+          "line": 352,
+          "col": 28
+        }
+      ],
+      "review": false,
+      "separateSubgraph": false
+    },
+    {
+      "fingerprint": "covered | aztec-nr@v6.0.0/aztec/src/messages/delivery/tag.nr:52:37 | Token::transfer",
+      "kind": "covered",
+      "primary": "aztec-nr@v6.0.0/aztec/src/messages/delivery/tag.nr:52:37",
+      "category": "test_token",
+      "count": 1,
+      "ansFrames": [
+        {
+          "function": "Token::transfer",
+          "file": "contracts/test_token/src/main.nr",
+          "line": 238,
+          "col": 9
+        }
+      ],
+      "review": false,
+      "separateSubgraph": false
+    },
+    {
+      "fingerprint": "covered | aztec-nr@v6.0.0/aztec/src/messages/delivery/tag.nr:52:37 | Token::transfer_to_private > Token::_prepare_private_balance_increase",
+      "kind": "covered",
+      "primary": "aztec-nr@v6.0.0/aztec/src/messages/delivery/tag.nr:52:37",
+      "category": "test_token",
+      "count": 1,
+      "ansFrames": [
+        {
+          "function": "Token::transfer_to_private",
+          "file": "contracts/test_token/src/main.nr",
+          "line": 331,
+          "col": 28
+        },
+        {
+          "function": "Token::_prepare_private_balance_increase",
+          "file": "contracts/test_token/src/main.nr",
+          "line": 352,
+          "col": 28
+        }
+      ],
+      "review": false,
+      "separateSubgraph": false
+    },
+    {
+      "fingerprint": "covered | aztec-nr@v6.0.0/aztec/src/messages/delivery/tag.nr:52:37 | Token::transfer_to_public_and_prepare_private_balance_increase > Token::_prepare_private_balance_increase",
+      "kind": "covered",
+      "primary": "aztec-nr@v6.0.0/aztec/src/messages/delivery/tag.nr:52:37",
+      "category": "test_token",
+      "count": 1,
+      "ansFrames": [
+        {
+          "function": "Token::transfer_to_public_and_prepare_private_balance_increase",
+          "file": "contracts/test_token/src/main.nr",
+          "line": 224,
+          "col": 9
+        },
+        {
+          "function": "Token::_prepare_private_balance_increase",
+          "file": "contracts/test_token/src/main.nr",
+          "line": 352,
+          "col": 28
+        }
+      ],
+      "review": false,
+      "separateSubgraph": false
+    },
+    {
+      "fingerprint": "covered | aztec-nr@v6.0.0/aztec/src/messages/delivery/tag.nr:69:26 | Token::mint_to_private > Token::_prepare_private_balance_increase",
+      "kind": "covered",
+      "primary": "aztec-nr@v6.0.0/aztec/src/messages/delivery/tag.nr:69:26",
+      "category": "test_token",
+      "count": 1,
+      "ansFrames": [
+        {
+          "function": "Token::mint_to_private",
+          "file": "contracts/test_token/src/main.nr",
+          "line": 433,
+          "col": 28
+        },
+        {
+          "function": "Token::_prepare_private_balance_increase",
+          "file": "contracts/test_token/src/main.nr",
+          "line": 352,
+          "col": 28
+        }
+      ],
+      "review": false,
+      "separateSubgraph": false
+    },
+    {
+      "fingerprint": "covered | aztec-nr@v6.0.0/aztec/src/messages/delivery/tag.nr:69:26 | Token::prepare_private_balance_increase > Token::_prepare_private_balance_increase",
+      "kind": "covered",
+      "primary": "aztec-nr@v6.0.0/aztec/src/messages/delivery/tag.nr:69:26",
+      "category": "test_token",
+      "count": 1,
+      "ansFrames": [
+        {
+          "function": "Token::prepare_private_balance_increase",
+          "file": "contracts/test_token/src/main.nr",
+          "line": 343,
+          "col": 9
+        },
+        {
+          "function": "Token::_prepare_private_balance_increase",
+          "file": "contracts/test_token/src/main.nr",
+          "line": 352,
+          "col": 28
+        }
+      ],
+      "review": false,
+      "separateSubgraph": false
+    },
+    {
+      "fingerprint": "covered | aztec-nr@v6.0.0/aztec/src/messages/delivery/tag.nr:69:26 | Token::transfer",
+      "kind": "covered",
+      "primary": "aztec-nr@v6.0.0/aztec/src/messages/delivery/tag.nr:69:26",
+      "category": "test_token",
+      "count": 1,
+      "ansFrames": [
+        {
+          "function": "Token::transfer",
+          "file": "contracts/test_token/src/main.nr",
+          "line": 238,
+          "col": 9
+        }
+      ],
+      "review": false,
+      "separateSubgraph": false
+    },
+    {
+      "fingerprint": "covered | aztec-nr@v6.0.0/aztec/src/messages/delivery/tag.nr:69:26 | Token::transfer_to_private > Token::_prepare_private_balance_increase",
+      "kind": "covered",
+      "primary": "aztec-nr@v6.0.0/aztec/src/messages/delivery/tag.nr:69:26",
+      "category": "test_token",
+      "count": 1,
+      "ansFrames": [
+        {
+          "function": "Token::transfer_to_private",
+          "file": "contracts/test_token/src/main.nr",
+          "line": 331,
+          "col": 28
+        },
+        {
+          "function": "Token::_prepare_private_balance_increase",
+          "file": "contracts/test_token/src/main.nr",
+          "line": 352,
+          "col": 28
+        }
+      ],
+      "review": false,
+      "separateSubgraph": false
+    },
+    {
+      "fingerprint": "covered | aztec-nr@v6.0.0/aztec/src/messages/encryption/aes128.nr:260:25 | Token::burn_private",
+      "kind": "covered",
+      "primary": "aztec-nr@v6.0.0/aztec/src/messages/encryption/aes128.nr:260:25",
+      "category": "test_token",
+      "count": 1,
+      "ansFrames": [
+        {
+          "function": "Token::burn_private",
+          "file": "contracts/test_token/src/main.nr",
+          "line": 320,
+          "col": 9
+        }
+      ],
+      "review": false,
+      "separateSubgraph": false
+    },
+    {
+      "fingerprint": "covered | aztec-nr@v6.0.0/aztec/src/messages/encryption/aes128.nr:260:25 | Token::finalize_transfer_to_private_from_private",
+      "kind": "covered",
+      "primary": "aztec-nr@v6.0.0/aztec/src/messages/encryption/aes128.nr:260:25",
+      "category": "test_token",
+      "count": 1,
+      "ansFrames": [
+        {
+          "function": "Token::finalize_transfer_to_private_from_private",
+          "file": "contracts/test_token/src/main.nr",
+          "line": 390,
+          "col": 9
+        }
+      ],
+      "review": false,
+      "separateSubgraph": false
+    },
+    {
+      "fingerprint": "covered | aztec-nr@v6.0.0/aztec/src/messages/encryption/aes128.nr:260:25 | Token::transfer_in_private",
+      "kind": "covered",
+      "primary": "aztec-nr@v6.0.0/aztec/src/messages/encryption/aes128.nr:260:25",
+      "category": "test_token",
+      "count": 1,
+      "ansFrames": [
+        {
+          "function": "Token::transfer_in_private",
+          "file": "contracts/test_token/src/main.nr",
+          "line": 289,
+          "col": 9
+        }
+      ],
+      "review": false,
+      "separateSubgraph": false
+    },
+    {
+      "fingerprint": "covered | aztec-nr@v6.0.0/aztec/src/messages/encryption/aes128.nr:260:25 | Token::transfer_to_public",
+      "kind": "covered",
+      "primary": "aztec-nr@v6.0.0/aztec/src/messages/encryption/aes128.nr:260:25",
+      "category": "test_token",
+      "count": 1,
+      "ansFrames": [
+        {
+          "function": "Token::transfer_to_public",
+          "file": "contracts/test_token/src/main.nr",
+          "line": 194,
+          "col": 9
+        }
+      ],
+      "review": false,
+      "separateSubgraph": false
+    },
+    {
+      "fingerprint": "covered | aztec-nr@v6.0.0/aztec/src/messages/encryption/aes128.nr:260:25 | Token::transfer_to_public_and_prepare_private_balance_increase",
+      "kind": "covered",
+      "primary": "aztec-nr@v6.0.0/aztec/src/messages/encryption/aes128.nr:260:25",
+      "category": "test_token",
+      "count": 1,
+      "ansFrames": [
+        {
+          "function": "Token::transfer_to_public_and_prepare_private_balance_increase",
+          "file": "contracts/test_token/src/main.nr",
+          "line": 220,
+          "col": 9
+        }
+      ],
+      "review": false,
+      "separateSubgraph": false
+    },
+    {
+      "fingerprint": "covered | aztec-nr@v6.0.0/aztec/src/messages/encryption/aes128.nr:356:38 | Token::burn_private",
+      "kind": "covered",
+      "primary": "aztec-nr@v6.0.0/aztec/src/messages/encryption/aes128.nr:356:38",
+      "category": "test_token",
+      "count": 1,
+      "ansFrames": [
+        {
+          "function": "Token::burn_private",
+          "file": "contracts/test_token/src/main.nr",
+          "line": 320,
+          "col": 9
+        }
+      ],
+      "review": false,
+      "separateSubgraph": false
+    },
+    {
+      "fingerprint": "covered | aztec-nr@v6.0.0/aztec/src/messages/encryption/aes128.nr:356:38 | Token::finalize_transfer_to_private_from_private",
+      "kind": "covered",
+      "primary": "aztec-nr@v6.0.0/aztec/src/messages/encryption/aes128.nr:356:38",
+      "category": "test_token",
+      "count": 1,
+      "ansFrames": [
+        {
+          "function": "Token::finalize_transfer_to_private_from_private",
+          "file": "contracts/test_token/src/main.nr",
+          "line": 390,
+          "col": 9
+        }
+      ],
+      "review": false,
+      "separateSubgraph": false
+    },
+    {
+      "fingerprint": "covered | aztec-nr@v6.0.0/aztec/src/messages/encryption/aes128.nr:356:38 | Token::transfer_in_private",
+      "kind": "covered",
+      "primary": "aztec-nr@v6.0.0/aztec/src/messages/encryption/aes128.nr:356:38",
+      "category": "test_token",
+      "count": 1,
+      "ansFrames": [
+        {
+          "function": "Token::transfer_in_private",
+          "file": "contracts/test_token/src/main.nr",
+          "line": 289,
+          "col": 9
+        }
+      ],
+      "review": false,
+      "separateSubgraph": false
+    },
+    {
+      "fingerprint": "covered | aztec-nr@v6.0.0/aztec/src/messages/encryption/aes128.nr:356:38 | Token::transfer_to_public",
+      "kind": "covered",
+      "primary": "aztec-nr@v6.0.0/aztec/src/messages/encryption/aes128.nr:356:38",
+      "category": "test_token",
+      "count": 1,
+      "ansFrames": [
+        {
+          "function": "Token::transfer_to_public",
+          "file": "contracts/test_token/src/main.nr",
+          "line": 194,
+          "col": 9
+        }
+      ],
+      "review": false,
+      "separateSubgraph": false
+    },
+    {
+      "fingerprint": "covered | aztec-nr@v6.0.0/aztec/src/messages/encryption/aes128.nr:356:38 | Token::transfer_to_public_and_prepare_private_balance_increase",
+      "kind": "covered",
+      "primary": "aztec-nr@v6.0.0/aztec/src/messages/encryption/aes128.nr:356:38",
+      "category": "test_token",
+      "count": 1,
+      "ansFrames": [
+        {
+          "function": "Token::transfer_to_public_and_prepare_private_balance_increase",
+          "file": "contracts/test_token/src/main.nr",
+          "line": 220,
+          "col": 9
+        }
+      ],
+      "review": false,
+      "separateSubgraph": false
+    },
+    {
+      "fingerprint": "covered | aztec-nr@v6.0.0/aztec/src/note/lifecycle.nr:58:33 | Token::transfer",
+      "kind": "covered",
+      "primary": "aztec-nr@v6.0.0/aztec/src/note/lifecycle.nr:58:33",
+      "category": "test_token",
+      "count": 1,
+      "ansFrames": [
+        {
+          "function": "Token::transfer",
+          "file": "contracts/test_token/src/main.nr",
+          "line": 238,
+          "col": 9
+        }
+      ],
+      "review": false,
+      "separateSubgraph": false
+    },
+    {
+      "fingerprint": "covered | aztec-nr@v6.0.0/aztec/src/note/lifecycle.nr:58:33 | Token::transfer_in_private_with_offchain_delivery",
+      "kind": "covered",
+      "primary": "aztec-nr@v6.0.0/aztec/src/note/lifecycle.nr:58:33",
+      "category": "test_token",
+      "count": 1,
+      "ansFrames": [
+        {
+          "function": "Token::transfer_in_private_with_offchain_delivery",
+          "file": "contracts/test_token/src/main.nr",
+          "line": 310,
+          "col": 9
+        }
+      ],
+      "review": false,
+      "separateSubgraph": false
+    },
+    {
+      "fingerprint": "covered | aztec-nr@v6.0.0/aztec/src/note/note_getter.nr:173:39 | Token::_recurse_subtract_balance > Token::subtract_balance",
+      "kind": "covered",
+      "primary": "aztec-nr@v6.0.0/aztec/src/note/note_getter.nr:173:39",
+      "category": "test_token",
+      "count": 1,
+      "ansFrames": [
+        {
+          "function": "Token::_recurse_subtract_balance",
+          "file": "contracts/test_token/src/main.nr",
+          "line": 271,
+          "col": 9
+        },
+        {
+          "function": "Token::subtract_balance",
+          "file": "contracts/test_token/src/main.nr",
+          "line": 251,
+          "col": 26
+        }
+      ],
+      "review": false,
+      "separateSubgraph": false
+    },
+    {
+      "fingerprint": "covered | aztec-nr@v6.0.0/aztec/src/note/note_getter.nr:173:39 | Token::burn_private",
+      "kind": "covered",
+      "primary": "aztec-nr@v6.0.0/aztec/src/note/note_getter.nr:173:39",
+      "category": "test_token",
+      "count": 1,
+      "ansFrames": [
+        {
+          "function": "Token::burn_private",
+          "file": "contracts/test_token/src/main.nr",
+          "line": 320,
+          "col": 9
+        }
+      ],
+      "review": false,
+      "separateSubgraph": false
+    },
+    {
+      "fingerprint": "covered | aztec-nr@v6.0.0/aztec/src/note/note_getter.nr:173:39 | Token::finalize_transfer_to_private_from_private",
+      "kind": "covered",
+      "primary": "aztec-nr@v6.0.0/aztec/src/note/note_getter.nr:173:39",
+      "category": "test_token",
+      "count": 1,
+      "ansFrames": [
+        {
+          "function": "Token::finalize_transfer_to_private_from_private",
+          "file": "contracts/test_token/src/main.nr",
+          "line": 390,
+          "col": 9
+        }
+      ],
+      "review": false,
+      "separateSubgraph": false
+    },
+    {
+      "fingerprint": "covered | aztec-nr@v6.0.0/aztec/src/note/note_getter.nr:173:39 | Token::transfer > Token::subtract_balance",
+      "kind": "covered",
+      "primary": "aztec-nr@v6.0.0/aztec/src/note/note_getter.nr:173:39",
+      "category": "test_token",
+      "count": 1,
+      "ansFrames": [
+        {
+          "function": "Token::transfer",
+          "file": "contracts/test_token/src/main.nr",
+          "line": 237,
+          "col": 22
+        },
+        {
+          "function": "Token::subtract_balance",
+          "file": "contracts/test_token/src/main.nr",
+          "line": 251,
+          "col": 26
+        }
+      ],
+      "review": false,
+      "separateSubgraph": false
+    },
+    {
+      "fingerprint": "covered | aztec-nr@v6.0.0/aztec/src/note/note_getter.nr:173:39 | Token::transfer_in_private",
+      "kind": "covered",
+      "primary": "aztec-nr@v6.0.0/aztec/src/note/note_getter.nr:173:39",
+      "category": "test_token",
+      "count": 1,
+      "ansFrames": [
+        {
+          "function": "Token::transfer_in_private",
+          "file": "contracts/test_token/src/main.nr",
+          "line": 289,
+          "col": 9
+        }
+      ],
+      "review": false,
+      "separateSubgraph": false
+    },
+    {
+      "fingerprint": "covered | aztec-nr@v6.0.0/aztec/src/note/note_getter.nr:173:39 | Token::transfer_in_private_with_offchain_delivery",
+      "kind": "covered",
+      "primary": "aztec-nr@v6.0.0/aztec/src/note/note_getter.nr:173:39",
+      "category": "test_token",
+      "count": 1,
+      "ansFrames": [
+        {
+          "function": "Token::transfer_in_private_with_offchain_delivery",
+          "file": "contracts/test_token/src/main.nr",
+          "line": 310,
+          "col": 9
+        }
+      ],
+      "review": false,
+      "separateSubgraph": false
+    },
+    {
+      "fingerprint": "covered | aztec-nr@v6.0.0/aztec/src/note/note_getter.nr:173:39 | Token::transfer_to_public",
+      "kind": "covered",
+      "primary": "aztec-nr@v6.0.0/aztec/src/note/note_getter.nr:173:39",
+      "category": "test_token",
+      "count": 1,
+      "ansFrames": [
+        {
+          "function": "Token::transfer_to_public",
+          "file": "contracts/test_token/src/main.nr",
+          "line": 194,
+          "col": 9
+        }
+      ],
+      "review": false,
+      "separateSubgraph": false
+    },
+    {
+      "fingerprint": "covered | aztec-nr@v6.0.0/aztec/src/note/note_getter.nr:173:39 | Token::transfer_to_public_and_prepare_private_balance_increase",
+      "kind": "covered",
+      "primary": "aztec-nr@v6.0.0/aztec/src/note/note_getter.nr:173:39",
+      "category": "test_token",
+      "count": 1,
+      "ansFrames": [
+        {
+          "function": "Token::transfer_to_public_and_prepare_private_balance_increase",
+          "file": "contracts/test_token/src/main.nr",
+          "line": 220,
+          "col": 9
+        }
+      ],
+      "review": false,
+      "separateSubgraph": false
+    },
+    {
+      "fingerprint": "covered | aztec-nr@v6.0.0/aztec/src/nullifier/utils.nr:18:52 | ",
+      "kind": "covered",
+      "primary": "aztec-nr@v6.0.0/aztec/src/nullifier/utils.nr:18:52",
+      "category": "upstream",
+      "count": 65,
+      "ansFrames": [],
+      "review": false,
+      "separateSubgraph": false
+    },
+    {
+      "fingerprint": "covered | aztec-nr@v6.0.0/aztec/src/oracle/get_contract_instance.nr:18:29 | ",
+      "kind": "covered",
+      "primary": "aztec-nr@v6.0.0/aztec/src/oracle/get_contract_instance.nr:18:29",
+      "category": "upstream",
+      "count": 65,
+      "ansFrames": [],
+      "review": false,
+      "separateSubgraph": false
+    },
+    {
+      "fingerprint": "covered | aztec-nr@v6.0.0/aztec/src/utils/remove_constraints.nr:19:13 | Token::mint_to_private > Token::_prepare_private_balance_increase",
+      "kind": "covered",
+      "primary": "aztec-nr@v6.0.0/aztec/src/utils/remove_constraints.nr:19:13",
+      "category": "test_token",
+      "count": 1,
+      "ansFrames": [
+        {
+          "function": "Token::mint_to_private",
+          "file": "contracts/test_token/src/main.nr",
+          "line": 433,
+          "col": 28
+        },
+        {
+          "function": "Token::_prepare_private_balance_increase",
+          "file": "contracts/test_token/src/main.nr",
+          "line": 352,
+          "col": 28
+        }
+      ],
+      "review": false,
+      "separateSubgraph": false
+    },
+    {
+      "fingerprint": "covered | aztec-nr@v6.0.0/aztec/src/utils/remove_constraints.nr:19:13 | Token::prepare_private_balance_increase > Token::_prepare_private_balance_increase",
+      "kind": "covered",
+      "primary": "aztec-nr@v6.0.0/aztec/src/utils/remove_constraints.nr:19:13",
+      "category": "test_token",
+      "count": 1,
+      "ansFrames": [
+        {
+          "function": "Token::prepare_private_balance_increase",
+          "file": "contracts/test_token/src/main.nr",
+          "line": 343,
+          "col": 9
+        },
+        {
+          "function": "Token::_prepare_private_balance_increase",
+          "file": "contracts/test_token/src/main.nr",
+          "line": 352,
+          "col": 28
+        }
+      ],
+      "review": false,
+      "separateSubgraph": false
+    },
+    {
+      "fingerprint": "covered | aztec-nr@v6.0.0/aztec/src/utils/remove_constraints.nr:19:13 | Token::transfer",
+      "kind": "covered",
+      "primary": "aztec-nr@v6.0.0/aztec/src/utils/remove_constraints.nr:19:13",
+      "category": "test_token",
+      "count": 2,
+      "ansFrames": [
+        {
+          "function": "Token::transfer",
+          "file": "contracts/test_token/src/main.nr",
+          "line": 238,
+          "col": 9
+        }
+      ],
+      "review": false,
+      "separateSubgraph": false
+    },
+    {
+      "fingerprint": "covered | aztec-nr@v6.0.0/aztec/src/utils/remove_constraints.nr:19:13 | Token::transfer_in_private_with_offchain_delivery",
+      "kind": "covered",
+      "primary": "aztec-nr@v6.0.0/aztec/src/utils/remove_constraints.nr:19:13",
+      "category": "test_token",
+      "count": 2,
+      "ansFrames": [
+        {
+          "function": "Token::transfer_in_private_with_offchain_delivery",
+          "file": "contracts/test_token/src/main.nr",
+          "line": 313,
+          "col": 9
+        }
+      ],
+      "review": false,
+      "separateSubgraph": false
+    },
+    {
+      "fingerprint": "covered | aztec-nr@v6.0.0/aztec/src/utils/remove_constraints.nr:19:13 | Token::transfer_to_private > Token::_prepare_private_balance_increase",
+      "kind": "covered",
+      "primary": "aztec-nr@v6.0.0/aztec/src/utils/remove_constraints.nr:19:13",
+      "category": "test_token",
+      "count": 1,
+      "ansFrames": [
+        {
+          "function": "Token::transfer_to_private",
+          "file": "contracts/test_token/src/main.nr",
+          "line": 331,
+          "col": 28
+        },
+        {
+          "function": "Token::_prepare_private_balance_increase",
+          "file": "contracts/test_token/src/main.nr",
+          "line": 352,
+          "col": 28
+        }
+      ],
+      "review": false,
+      "separateSubgraph": false
+    },
+    {
+      "fingerprint": "covered | aztec-nr@v6.0.0/aztec/src/utils/remove_constraints.nr:19:13 | Token::transfer_to_public_and_prepare_private_balance_increase > Token::_prepare_private_balance_increase",
+      "kind": "covered",
+      "primary": "aztec-nr@v6.0.0/aztec/src/utils/remove_constraints.nr:19:13",
+      "category": "test_token",
+      "count": 1,
+      "ansFrames": [
+        {
+          "function": "Token::transfer_to_public_and_prepare_private_balance_increase",
+          "file": "contracts/test_token/src/main.nr",
+          "line": 224,
+          "col": 9
+        },
+        {
+          "function": "Token::_prepare_private_balance_increase",
+          "file": "contracts/test_token/src/main.nr",
+          "line": 352,
+          "col": 28
+        }
+      ],
+      "review": false,
+      "separateSubgraph": false
+    },
+    {
+      "fingerprint": "covered | aztec-nr@v6.0.0/uint-note/src/uint_note.nr:110:35 | Token::mint_to_private > Token::_prepare_private_balance_increase",
+      "kind": "covered",
+      "primary": "aztec-nr@v6.0.0/uint-note/src/uint_note.nr:110:35",
+      "category": "test_token",
+      "count": 1,
+      "ansFrames": [
+        {
+          "function": "Token::mint_to_private",
+          "file": "contracts/test_token/src/main.nr",
+          "line": 433,
+          "col": 28
+        },
+        {
+          "function": "Token::_prepare_private_balance_increase",
+          "file": "contracts/test_token/src/main.nr",
+          "line": 352,
+          "col": 28
+        }
+      ],
+      "review": false,
+      "separateSubgraph": false
+    },
+    {
+      "fingerprint": "covered | aztec-nr@v6.0.0/uint-note/src/uint_note.nr:110:35 | Token::prepare_private_balance_increase > Token::_prepare_private_balance_increase",
+      "kind": "covered",
+      "primary": "aztec-nr@v6.0.0/uint-note/src/uint_note.nr:110:35",
+      "category": "test_token",
+      "count": 1,
+      "ansFrames": [
+        {
+          "function": "Token::prepare_private_balance_increase",
+          "file": "contracts/test_token/src/main.nr",
+          "line": 343,
+          "col": 9
+        },
+        {
+          "function": "Token::_prepare_private_balance_increase",
+          "file": "contracts/test_token/src/main.nr",
+          "line": 352,
+          "col": 28
+        }
+      ],
+      "review": false,
+      "separateSubgraph": false
+    },
+    {
+      "fingerprint": "covered | aztec-nr@v6.0.0/uint-note/src/uint_note.nr:110:35 | Token::transfer_to_private > Token::_prepare_private_balance_increase",
+      "kind": "covered",
+      "primary": "aztec-nr@v6.0.0/uint-note/src/uint_note.nr:110:35",
+      "category": "test_token",
+      "count": 1,
+      "ansFrames": [
+        {
+          "function": "Token::transfer_to_private",
+          "file": "contracts/test_token/src/main.nr",
+          "line": 331,
+          "col": 28
+        },
+        {
+          "function": "Token::_prepare_private_balance_increase",
+          "file": "contracts/test_token/src/main.nr",
+          "line": 352,
+          "col": 28
+        }
+      ],
+      "review": false,
+      "separateSubgraph": false
+    },
+    {
+      "fingerprint": "covered | aztec-nr@v6.0.0/uint-note/src/uint_note.nr:110:35 | Token::transfer_to_public_and_prepare_private_balance_increase > Token::_prepare_private_balance_increase",
+      "kind": "covered",
+      "primary": "aztec-nr@v6.0.0/uint-note/src/uint_note.nr:110:35",
+      "category": "test_token",
+      "count": 1,
+      "ansFrames": [
+        {
+          "function": "Token::transfer_to_public_and_prepare_private_balance_increase",
+          "file": "contracts/test_token/src/main.nr",
+          "line": 224,
+          "col": 9
+        },
+        {
+          "function": "Token::_prepare_private_balance_increase",
+          "file": "contracts/test_token/src/main.nr",
+          "line": 352,
+          "col": 28
+        }
+      ],
+      "review": false,
+      "separateSubgraph": false
+    },
+    {
+      "fingerprint": "subgraph | aztec-nr@v6.0.0/aztec/src/context/private_context.nr:1189:13 | NameRegistrar::commit",
+      "kind": "subgraph",
+      "primary": "aztec-nr@v6.0.0/aztec/src/context/private_context.nr:1189:13",
+      "category": "ans-business",
+      "count": 1,
+      "ansFrames": [
+        {
+          "function": "NameRegistrar::commit",
+          "file": "contracts/name_registrar/src/main.nr",
+          "line": 44,
+          "col": 9
+        }
+      ],
+      "review": true,
+      "separateSubgraph": true
+    },
+    {
+      "fingerprint": "subgraph | aztec-nr@v6.0.0/aztec/src/context/private_context.nr:1189:13 | NameRegistrarTiered::commit",
+      "kind": "subgraph",
+      "primary": "aztec-nr@v6.0.0/aztec/src/context/private_context.nr:1189:13",
+      "category": "ans-business",
+      "count": 1,
+      "ansFrames": [
+        {
+          "function": "NameRegistrarTiered::commit",
+          "file": "contracts/name_registrar_tiered/src/main.nr",
+          "line": 51,
+          "col": 9
+        }
+      ],
+      "review": true,
+      "separateSubgraph": true
+    }
+  ]
+}

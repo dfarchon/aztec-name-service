@@ -1,0 +1,57 @@
+{
+  "name": "@ans/sdk",
+  "version": "0.7.0",
+  "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/dfarchon/aztec-name-service.git",
+    "directory": "sdk"
+  },
+  "private": true,
+  "description": "Public Aztec name service: registration, ownership discovery and verified address resolution.",
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./read": {
+      "types": "./dist/read.d.ts",
+      "default": "./dist/read.js"
+    },
+    "./contracts/v6": {
+      "types": "./dist/artifacts/NameRegistryV6.d.ts",
+      "default": "./dist/artifacts/NameRegistryV6.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "sync-artifacts": "node scripts/sync-artifacts.mjs",
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "node --import tsx --test test/*.test.ts",
+    "prepack": "npm run build"
+  },
+  "peerDependencies": {
+    "@aztec-labs/aztec.js": "6.0.0",
+    "@aztec-labs/foundation": "6.0.0",
+    "@aztec-labs/noir-contracts.js": "6.0.0",
+    "@aztec-labs/stdlib": "6.0.0"
+  },
+  "devDependencies": {
+    "@aztec-labs/aztec.js": "6.0.0",
+    "@aztec-labs/foundation": "6.0.0",
+    "@aztec-labs/noir-contracts.js": "6.0.0",
+    "@aztec-labs/stdlib": "6.0.0",
+    "@types/node": "24.10.7",
+    "tsx": "4.23.15",
+    "typescript": "5.9.3",
+    "@aztec-labs/protocol-contracts": "6.0.0"
+  },
+  "dependencies": {
+    "@aztec-labs/constants": "6.0.0",
+    "@zkpassport/poseidon2": "0.6.2"
+  }
+}

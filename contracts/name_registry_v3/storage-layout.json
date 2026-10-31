@@ -1,0 +1,21 @@
+{
+  "storage": {
+    "governance": "0x0000000000000000000000000000000000000000000000000000000000000001",
+    "governance_delay": "0x0000000000000000000000000000000000000000000000000000000000000002",
+    "legacy": "0x0000000000000000000000000000000000000000000000000000000000000004",
+    "modules": "0x0000000000000000000000000000000000000000000000000000000000000006",
+    "proposal": "0x0000000000000000000000000000000000000000000000000000000000000009",
+    "upgrade": "0x000000000000000000000000000000000000000000000000000000000000000d",
+    "allowed_resolvers": "0x000000000000000000000000000000000000000000000000000000000000000f",
+    "resolvers": "0x0000000000000000000000000000000000000000000000000000000000000010",
+    "names": "0x0000000000000000000000000000000000000000000000000000000000000011",
+    "owners": "0x0000000000000000000000000000000000000000000000000000000000000012",
+    "commits": "0x0000000000000000000000000000000000000000000000000000000000000013",
+    "records": "0x0000000000000000000000000000000000000000000000000000000000000014",
+    "primary": "0x0000000000000000000000000000000000000000000000000000000000000015",
+    "published_labels": "0x0000000000000000000000000000000000000000000000000000000000000016",
+    "protocol_upgrade": "0x0000000000000000000000000000000000000000000000000000000000000017"
+  },
+  "declarations": "governance:PublicMutable<AztecAddress,Context>,governance_delay:PublicImmutable<u64,Context>,legacy:PublicImmutable<AztecAddress,Context>,modules:PublicMutable<Modules,Context>,proposal:PublicMutable<Proposal,Context>,upgrade:PublicMutable<Upgrade,Context>,allowed_resolvers:Map<AztecAddress,PublicMutable<bool,Context>,Context>,resolvers:Map<Field,PublicMutable<AztecAddress,Context>,Context>,names:Map<Field,PublicMutable<NameMeta,Context>,Context>,owners:Map<Field,PublicMutable<Field,Context>,Context>,commits:Map<Field,PublicMutable<CommitRecord,Context>,Context>,records:Map<Field,PublicMutable<AddressRecord,Context>,Context>,primary:Map<Field,PublicMutable<PrimaryRecord,Context>,Context>,published_labels:Map<Field,PublicMutable<PublishedLabel,Context>,Context>,protocol_upgrade:PublicMutable<Upgrade,Context>,",
+  "packedTypesSha256": "da6588cb143aab4fb128fc5520fcb2255214085aa33f7fc3c8c4861a7816850f"
+}

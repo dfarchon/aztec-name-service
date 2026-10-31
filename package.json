@@ -1,0 +1,65 @@
+{
+  "name": "ans",
+  "private": true,
+  "license": "Apache-2.0",
+  "type": "module",
+  "workspaces": [
+    "sdk",
+    "e2e",
+    "web",
+    "ops"
+  ],
+  "scripts": {
+    "build": "npm run build:sdk && npm run build:web",
+    "build:sdk": "npm run build -w @ans/sdk",
+    "build:web": "npm run build -w @ans/web",
+    "build:contracts": "node scripts/sync-upgrade-fixture.mjs && node scripts/sync-v4.mjs && cd contracts && node ../scripts/aztec.mjs compile",
+    "generate:sdk": "npm run sync-artifacts -w @ans/sdk",
+    "check": "npm run build:sdk && npm run typecheck --workspaces --if-present",
+    "test": "npm run test:sdk && npm test -w @ans/web && npm test -w ans-e2e && npm test -w @ans/ops && npm run test:pricing && npm run test:bundles && npm run test:deployment && npm run check:deployment && npm run test:brillig",
+    "test:bundles": "node --import tsx --test scripts/bundle-budget.test.ts",
+    "test:pricing": "node --test scripts/aztec-pricing.test.mjs",
+    "check:deployment": "node scripts/deployment-config.mjs",
+    "test:deployment": "node --test scripts/deployment-config.test.mjs scripts/testnet-security.test.mjs",
+    "prepare:aztec-pricing": "node scripts/prepare-aztec-pricing.mjs",
+    "test:sdk": "npm test -w @ans/sdk",
+    "test:contracts": "cd contracts && node ../scripts/aztec.mjs test --package name_registry --test-threads 2 && node ../scripts/aztec.mjs test --package name_registrar --test-threads 2 && node ../scripts/aztec.mjs test --package name_registry_v4 --test-threads 2 && node ../scripts/aztec.mjs test --package name_registry_v5 --test-threads 2 && node ../scripts/aztec.mjs test --package name_registry_v6 --test-threads 2 && node ../scripts/aztec.mjs test --package name_registrar_tiered --test-threads 2",
+    "test:e2e": "npm run e2e -w ans-e2e",
+    "test:web": "npm run smoke -w @ans/web && npm run smoke:review -w @ans/web && npm run smoke:storage -w @ans/web && npm run smoke:retry -w @ans/web",
+    "dev": "npm run build:sdk && npm run dev -w @ans/web",
+    "pack:sdk": "npm pack -w @ans/sdk",
+    "test:consumer": "npm run build:sdk && node scripts/check-consumer.mjs",
+    "test:testnet": "npm run testnet -w ans-e2e",
+    "build:testnet": "node scripts/build-testnet.mjs",
+    "deploy:testnet": "node scripts/deploy-testnet.mjs",
+    "monitor:local": "wrangler dev --config ops/wrangler.jsonc --port 5200 --var RELEASE:development",
+    "test:modular": "tsx e2e/src/modular.ts",
+    "test:extensions": "ANS_EXTENSIONS=1 tsx e2e/src/modular.ts",
+    "format:integration": "node scripts/format-integration.mjs --write",
+    "check:format": "node scripts/format-integration.mjs",
+    "check:docs": "node --import tsx scripts/check-docs.mjs",
+    "check:brillig": "node scripts/check-brillig-baseline.mjs",
+    "test:brillig": "node --test scripts/check-brillig-baseline.test.mjs",
+    "deploy:v6": "npm run deploy:v6 -w ans-e2e --",
+    "test:e2e:v6-manifest": "npm run e2e:v6-manifest -w ans-e2e --",
+    "test:testnet:v6": "npm run testnet:v6 -w ans-e2e"
+  },
+  "description": "Aztec name service: contracts, TypeScript SDK and web app",
+  "engines": {
+    "node": ">=24.12.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/dfarchon/aztec-name-service.git"
+  },
+  "overrides": {
+    "ws": "8.22.0",
+    "systeminformation": "5.33.16",
+    "@opentelemetry/propagator-jaeger": "2.9.0",
+    "zod@>=4.0.0 <5.0.0": "4.6.7"
+  },
+  "devDependencies": {
+    "jsonc-parser": "3.3.1",
+    "prettier": "3.9.10"
+  }
+}

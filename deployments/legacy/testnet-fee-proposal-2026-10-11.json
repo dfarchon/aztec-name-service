@@ -1,0 +1,58 @@
+{
+  "checkedAt": "2026-10-11T05:46:17.557Z",
+  "realProofs": true,
+  "nodeUrl": "https://v5.testnet.rpc.aztec-labs.com",
+  "chainId": "11155111",
+  "rollupVersion": "1821665230",
+  "registry": "0x15f7fb75c4f96e6c85c96824279a563ee4b1bb4cd7a2d60d03c9c4eddc5db804",
+  "testAsset": {
+    "official": false,
+    "name": "ANS Mock AZTEC (test only)",
+    "symbol": "mAZTEC",
+    "decimals": 18,
+    "token": "0x212913baa4d8f6dd37e8e050c6cf02c43e4fbf7374994af0a3b5d016fb5c9e14",
+    "annualPrice": "1000000000000000000"
+  },
+  "targetRegistrar": "0x0d85501f69a2296704688cf0261b4390a795fca6a8d27b5aee9680aeb986a921",
+  "treasury": "0x1b3270ef2b3e63701057d54d39d0fc39fb158b5229fce21ffa83d30ae99eb556",
+  "priceVersion": 2,
+  "status": "retired",
+  "currentOnChain": {
+    "registrar": "0x0240921a12b975f01fdcece4480ed64ac8c01d633567df30a3527d52cad65e3e",
+    "feeToken": "0x147ed8e1d215b286ceeb828235207ad36710cc811df20894a35143d754756ee1",
+    "annualPrice": "1000000",
+    "priceVersion": 1
+  },
+  "proposal": {
+    "nonce": 1,
+    "target": "0x0d85501f69a2296704688cf0261b4390a795fca6a8d27b5aee9680aeb986a921",
+    "executeAfter": "1791783972",
+    "executeAfterUTC": "2026-10-12T05:46:12.000Z"
+  },
+  "governanceDelaySeconds": "86400",
+  "transactions": {
+    "deploy-token": "0x033f5a223f2386745632788c01b79db546fd21ea0e3792afdcea09c8bfb000ee",
+    "fund-test-owner": "0x13b142c65d765256d42386526616543f39f25bcf7efa36ce335aa8939fd5db9b",
+    "deploy-registrar": "0x1acd32b8ae225b4c1ac216764b5cafaa260e0f5975ab429099297cfbd6b22069",
+    "schedule-registrar": "0x2a569ae6c7d8077e24ed6698e59a27235c6c30eeedcf9a855bb663cad0c34843"
+  },
+  "completedSteps": [
+    "deploy-token",
+    "fund-test-owner",
+    "deploy-registrar",
+    "schedule-registrar"
+  ],
+  "snapshot": {
+    "blockNumber": 114492,
+    "blockHash": "0x146b00d909f64e30c423c9e86863c3afde1853cb2908d2945e621d99886c4f50",
+    "timestamp": "1791697572",
+    "finality": "checkpointed"
+  },
+  "realPaymentAcceptance": "pending_activation",
+  "retirement": {
+    "confirmedAt": "2026-10-12T03:06:43.700Z",
+    "txHash": "0x0d402544ce807f1f1c2580201c5df7a9de42833bbac6402ec191fdd514673a1a",
+    "activeRegistrarUnchanged": true,
+    "record": "docs/acceptance/v4-proposal-retirement-2026-10-12.json"
+  }
+}

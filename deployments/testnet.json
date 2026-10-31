@@ -1,0 +1,26 @@
+{
+  "network": "Aztec public testnet",
+  "aztecVersion": "5.2.1",
+  "nodeUrl": "https://v5.testnet.rpc.aztec-labs.com",
+  "chainId": "11155111",
+  "rollupVersion": "1821665230",
+  "rollup": "0xd73a91bdcf6891c7642f3e460036e1ef2cc23178",
+  "registry": "0x059d5ae177984d1bef411efdc776da46cb5185c1e68c82efc73f7bdfcc867f6c",
+  "registrar": "0x13b26a6c1a1e4d573ea18a9661054a1cd2afac4ebb7f828be2b6b4691d9c0fd4",
+  "resolver": "0x0888d22ab4dca6a422af0141820334c4c77d973dc74d61be9589d0ac20bd534a",
+  "feeToken": "0x212913baa4d8f6dd37e8e050c6cf02c43e4fbf7374994af0a3b5d016fb5c9e14",
+  "feeSymbol": "mAZTEC",
+  "feeDecimals": 18,
+  "annualPrice": "1000000000000000000",
+  "lengthPrices": {
+    "3": "128000000000000000000",
+    "4": "32000000000000000000"
+  },
+  "sponsoredFpc": "0x2ece607a8dba690c9aa4ee1d53a55286fa815543a27f9364bbaf65eb68e7315b",
+  "exampleName": "ans-v5-mv4n6mra",
+  "protocol": 5,
+  "priceVersion": 3,
+  "configurationMode": "administrator",
+  "administrator": "0x2c46030c63f29f10ceba21efc4da59f53e66cf9ffcfc569e4aca3ffaa563a6f2",
+  "legacy": "0x15f7fb75c4f96e6c85c96824279a563ee4b1bb4cd7a2d60d03c9c4eddc5db804"
+}

@@ -1,0 +1,34 @@
+# Dependencies and build output
+node_modules/
+target/
+dist/
+dist-check/
+*.tsbuildinfo
+codegenCache.json
+*.tgz
+
+# Local configuration and runtime data
+.env
+.env.*
+!.env.example
+*.log
+*.bak
+.DS_Store
+coverage/
+
+# Historical experiments remain on disk, outside the active repository.
+/contracts/archive/
+/e2e/legacy/
+
+# Hosting metadata and local monitor state
+.wrangler/
+.vercel/
+.dev.vars
+
+# Internal plans, reviews and acceptance records stay local; only these docs are published.
+/docs/*
+!/docs/code-structure.md
+!/docs/protocol.md
+!/docs/sdk-onboarding.md
+!/docs/dependency-security.md
+!/docs/deploy-v6.md

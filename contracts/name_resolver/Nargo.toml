@@ -1,0 +1,9 @@
+[package]
+name = "name_resolver"
+type = "contract"
+authors = [""]
+
+[dependencies]
+aztec = { git = "https://github.com/aztec-labs-eng/aztec-nr", tag = "v6.0.0", directory = "aztec" }
+ans_common = { path = "../ans_common" }
+name_registry_v3 = { path = "../name_registry_v3" }

@@ -1,0 +1,10 @@
+[package]
+name = "name_registry_v4"
+type = "contract"
+authors = [""]
+
+[dependencies]
+aztec = { git = "https://github.com/aztec-labs-eng/aztec-nr", tag = "v6.0.0", directory = "aztec" }
+ans_common = { path = "../ans_common" }
+legacy_registry = { path = "../name_registry" }
+v4_test_module = { path = "../v4_test_module" }
