@@ -15,7 +15,11 @@ import { codeFor } from './registration-codes.js';
 import { trackTxOutcome, unwrapTxOutcome, type TxOptions, type TxOutcome } from './tx.js';
 import { normalizeName } from '../core/label.js';
 
-/** The host owns encryption and durable storage. load must return undefined only when the key is absent. */
+/**
+ * The host owns encryption and durable storage. load must return undefined only when the key is absent.
+ * load must return the result of the last successful save for that key (read-your-writes).
+ * A store that serves stale reads can make the flow rebroadcast a transaction.
+ */
 export type RegistrationPlanStore = {
   load: (key: string) => Promise<RegistrationPlan | undefined>;
   save: (key: string, plan: RegistrationPlan) => Promise<void>;
