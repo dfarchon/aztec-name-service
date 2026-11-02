@@ -1,0 +1,35 @@
+// PLACEHOLDER: worker names, domain, RPC, operator and D1 resources are undecided.
+{
+  "$schema": "../node_modules/wrangler/config-schema.json",
+  "name": "UNDECIDED",
+  "main": "src/probe-worker.ts",
+  "compatibility_date": "2026-10-08",
+  "workers_dev": false,
+  "preview_urls": false,
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "UNDECIDED",
+      "database_id": "00000000-0000-0000-0000-000000000000"
+    }
+  ],
+  "vars": {
+    "RPC_URL": "UNDECIDED",
+    "REGISTRY": "UNDECIDED",
+    "SITE_URL": "UNDECIDED",
+    "CHAIN_ID": "1",
+    "ROLLUP_VERSION": "2070860440",
+    "ROLLUP": "0xe37a2663cc9c119ba41572c40fab0bbb23a5402f",
+    "FEE_PAYMENT": "fee-juice",
+    "NETWORK_LABEL": "mainnet",
+    "OPERATOR": "UNDECIDED",
+    "OPERATOR_BALANCE_SLOT": "UNDECIDED",
+    "OPERATOR_LOW_WATERMARK": "UNDECIDED",
+    "BLOCK_STALE_SECONDS": "600"
+  },
+  "triggers": {
+    "crons": [
+      "* * * * *"
+    ]
+  }
+}
