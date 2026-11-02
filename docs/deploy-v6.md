@@ -79,6 +79,6 @@ If a receipt is dropped, the runner checks the deterministic deployment address 
 
 receipt dropped 时检查确定性地址或 bootstrap 绑定；匹配效果存在则记录 published-without-receipt，否则停止。仅显式 `--rebroadcast <step>` 且确认 dropped 和效果不存在，才允许清除该哈希。RPC 错误不能证明效果不存在。回滚和未知超时需停下检查，不能删私有检查点来恢复待确认公网交易。
 
-`check:deployment` always validates the V5 Workers first. Missing deployments/testnet-v6.json prints a skip notice. It validates a canonical V6 testnet manifest when present; sample=true is forbidden there. `--v6-manifest` validates an explicit local rehearsal or sample without comparing V6 against V5 Workers. Proof-disabled local success does not establish real-proof or public-network readiness.
+`check:deployment` always validates the V5 Workers first. Missing deployments/testnet-v6.json prints a skip notice. It validates a canonical V6 testnet manifest when present; sample=true is forbidden there. `--v6-manifest` validates an explicit local rehearsal or sample without comparing V6 against V5 Workers. Proof-disabled local success does not establish real-proof or public-network readiness. CI only verifies the official Token pin; the repo Token pin is checked locally after `npm run build:contracts`.
 
-`check:deployment` 总是先检查 V5 Worker。未部署 V6 清单时提示跳过；存在时严格校验且禁止 sample=true。显式 `--v6-manifest` 可检查本地演练或样例，不把 V6 与 V5 Worker 比对。本地关闭证明的成功不代表真实证明或公网就绪。
+`check:deployment` 总是先检查 V5 Worker。未部署 V6 清单时提示跳过；存在时严格校验且禁止 sample=true。显式 `--v6-manifest` 可检查本地演练或样例，不把 V6 与 V5 Worker 比对。本地关闭证明的成功不代表真实证明或公网就绪。CI 仅验证官方 Token 的固定类 ID；仓库 Token 的固定类 ID 在本地运行 `npm run build:contracts` 后验证。

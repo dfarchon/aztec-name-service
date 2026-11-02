@@ -92,6 +92,7 @@ test('frozen official Token class and both registrar classes verify', async () =
   assert.notEqual(official.classIds.registrar,tiered.classIds.registrar);
 });
 // The repository Token artifact is local compiler output (contracts/target is not committed), so CI skips this check.
+// CI only verifies the official Token pin; the repo Token pin is checked locally after `npm run build:contracts`.
 const repoToken=join(REPO,'contracts/target/test_token-Token.json');
 test('frozen repository Token class verifies', { skip: existsSync(repoToken) ? false : 'run npm run build:contracts first' }, async () => {
   const repo=await v6Artifacts('repo','tiered');
