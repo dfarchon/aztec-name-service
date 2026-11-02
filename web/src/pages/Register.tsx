@@ -123,10 +123,11 @@ function RegistrationFunding() {
           'Registration uses the payment token shown here. Fee Juice does not pay this registration fee.',
         )}
       </p>
-      {config.sponsoredFpc && (
+      {config.feePayment === 'sponsored' && (
         <p className="muted">{translate('Network fees are sponsored for this app.')}</p>
       )}
-      {config.expectedChainId === '11155111' && (
+      {config.feePayment === 'fee-juice' && <p className="muted">{translate("Network fees are paid from this account's Fee Juice.")}</p>}
+      {config.network === 'testnet-v6' && (
         <p className="warn">
           {translate(
             'Use a test account funded in the exact payment token shown in the quote. Fee Juice and other tokens with the same symbol cannot pay registration fees.',

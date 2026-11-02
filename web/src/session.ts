@@ -15,6 +15,7 @@ import type { EmbeddedWallet } from '@aztec-labs/wallets/embedded';
 import { useSyncExternalStore } from 'react';
 
 import { config } from './config';
+import { canDeriveSponsor } from './network-config';
 import metadata from './public-metadata.json';
 import { retryDelay } from './usability';
 import { createWebNode } from './rpc';
@@ -193,17 +194,17 @@ export async function unlock(passphrase: string) {
         'Public networks require real proofs, which this site build does not enable yet. Please try again later or contact the site maintainer.',
       );
     }
-    const { getContractInstanceFromInstantiationParams } =
-      await import('@aztec-labs/aztec.js/contracts');
-    const { SponsoredFPCContractArtifact } = await import('@aztec-labs/noir-contracts.js/SponsoredFPC');
-    const { SponsoredFeePaymentMethod } = await import('@aztec-labs/aztec.js/fee');
-    const fpc = config.sponsoredFpc
-      ? await state.node.getContract(config.sponsoredFpc)
-      : await getContractInstanceFromInstantiationParams(SponsoredFPCContractArtifact, {
-          salt: new Fr(SPONSORED_FPC_SALT),
-        });
-    if (!fpc) throw new Error('The shared network-fee sponsor is unavailable, so transactions cannot be sent right now. Please try again later.');
-    await verifySponsoredFpc(fpc);
+    let sponsor: { instance: ContractInstanceWithAddress; artifact: import('@aztec-labs/aztec.js/abi').ContractArtifact } | undefined;
+    if (config.feePayment === 'sponsored') {
+      const { getContractInstanceFromInstantiationParams } = await import('@aztec-labs/aztec.js/contracts');
+      const { SponsoredFPCContractArtifact } = await import('@aztec-labs/noir-contracts.js/SponsoredFPC');
+      const fpc = config.sponsoredFpc
+        ? await state.node.getContract(config.sponsoredFpc)
+        : canDeriveSponsor(info) ? await getContractInstanceFromInstantiationParams(SponsoredFPCContractArtifact, { salt: new Fr(SPONSORED_FPC_SALT) }) : undefined;
+      if (!fpc) throw new Error('The shared network-fee sponsor is unavailable, so transactions cannot be sent right now. Please try again later.');
+      await verifySponsoredFpc(fpc);
+      sponsor = { instance: fpc, artifact: SponsoredFPCContractArtifact };
+    }
     const { EmbeddedWallet } = await import('@aztec-labs/wallets/embedded');
     const { openEncryptedEmbeddedStores } =
       await import('@aztec-labs/wallets/embedded/store-encryption');
@@ -236,8 +237,11 @@ export async function unlock(passphrase: string) {
     });
     embeddedWallet = wallet;
     closeUnownedStores = undefined; // The wallet now owns both stores; lock() closes them on any later failure.
-    await wallet.registerContract(fpc, SponsoredFPCContractArtifact);
-    paymentMethod = new SponsoredFeePaymentMethod(fpc.address);
+    if (sponsor) {
+      const { SponsoredFeePaymentMethod } = await import('@aztec-labs/aztec.js/fee');
+      await wallet.registerContract(sponsor.instance, sponsor.artifact);
+      paymentMethod = new SponsoredFeePaymentMethod(sponsor.instance.address);
+    }
     recordsKey = keys.recordsKey;
     const accounts = (await wallet.getAccounts()).map((a) => ({
       alias: a.alias,
@@ -289,8 +293,10 @@ export async function selectAccount(address: AztecAddress) {
     const { wallet, reader } = state;
     if (!wallet || !reader || !recordsKey) return;
     const { AnsContext } = await import('@ans/sdk');
+    const feeJuice = config.feePayment === 'fee-juice' ? await import('./fee-juice') : undefined;
     const ctx = new AnsContext(reader, {
-      wallet,
+      wallet: feeJuice ? feeJuice.feeJuiceWallet(wallet, state.node) : wallet,
+      beforeSend: feeJuice ? (account) => feeJuice.assertFeeJuice(reader.node, account) : undefined,
       account: address,
       fee: paymentMethod ? { paymentMethod } : undefined,
     });
@@ -448,7 +454,7 @@ export async function connectExternal(wallet: Wallet, provider: WalletProvider) 
     }));
     if (!accounts.length)
       throw new Error('No account authorized. Authorize an account in your wallet and retry.');
-    if (config.sponsoredFpc) {
+    if (config.feePayment === 'sponsored' && config.sponsoredFpc) {
       const { SponsoredFPCContractArtifact } =
         await import('@aztec-labs/noir-contracts.js/SponsoredFPC');
       const { SponsoredFeePaymentMethod } = await import('@aztec-labs/aztec.js/fee');

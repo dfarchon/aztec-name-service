@@ -1,5 +1,8 @@
 // English is the source language; untranslated technical details retain their original text.
 export const zhCN: Record<string, string> = {
+  "Network fees are paid from this account's Fee Juice.": "网络费用由此账户的 Fee Juice 支付。",
+  "Insufficient Fee Juice for {account}. Balance: {balance} wei. Bridge Fee Juice from L1; it is not the registration token.": "账户 {account} 的 Fee Juice 不足。余额：{balance} wei。请从 L1 桥接 Fee Juice；它不是注册费代币。",
+
   "Earliest activation: {time}": "最早可启用时间：{time}",
   "Retry": "重试",
   "Retry fee quote": "重新获取报价",

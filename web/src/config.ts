@@ -1,8 +1,11 @@
 import { AztecAddress } from "@aztec-labs/aztec.js/addresses";
 
+import { parseNetworkConfig } from "./network-config";
+
 const env = import.meta.env;
 
 export const config = {
+  ...parseNetworkConfig(env),
   nodeUrl: (env.VITE_NODE_URL as string | undefined) || "http://localhost:8080",
   registry: env.VITE_REGISTRY
     ? AztecAddress.fromStringUnsafe(env.VITE_REGISTRY as string)

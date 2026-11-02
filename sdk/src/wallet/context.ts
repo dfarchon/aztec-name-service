@@ -26,6 +26,8 @@ export type AnsSigner = {
   account: AztecAddress;
   /** Network fee payment, e.g. a sponsored FPC. Omit to let the wallet pay from the account's fee juice. */
   fee?: InteractionFeeOptions;
+  /** Host validation inside the shared queue, after identity checks and before submission. Cannot broadcast. */
+  beforeSend?: (account: AztecAddress) => Promise<void>;
 };
 
 const queues = new WeakMap<Wallet, ExecutionQueue>();

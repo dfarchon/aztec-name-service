@@ -1,3 +1,4 @@
+import { feeJuiceError } from "./fee-juice-error.js";
 import { dateLocale, translate } from "./i18n.js";
 import {
   type AnsError,
@@ -71,6 +72,8 @@ const errorText: Partial<Record<AnsError["code"], string>> = {
 };
 
 export function errorMessage(e: unknown): string {
+  const feeError = feeJuiceError(e);
+  if (feeError) return translate("Insufficient Fee Juice for {account}. Balance: {balance} wei. Bridge Fee Juice from L1; it is not the registration token.", { account: feeError.account, balance: String(feeError.balance) });
   if (e instanceof Error && /^(Cannot (read|save)|Wallet account changed|Another tab)/.test(e.message))
     return e.message;
   const err = toAnsError(e);
