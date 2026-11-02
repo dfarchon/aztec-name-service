@@ -11,18 +11,20 @@ import {
 } from '@ans/sdk';
 import { useEffect, useState } from 'react';
 
-import { go, NeedsAccount } from '../App';
+import { ChooseAccount, go, NeedsAccount } from '../App';
 import { Card, CopyValue, Field, TxLine, useTx } from '../components';
 import { FeeAmount, FeeBalance, readFeeBalance, useFeeBalance } from '../fees';
 import { config } from '../config';
 import { duration, errorMessage } from '../format';
-import { recordWriter, useSession } from '../session';
+import { choosingAccount, recordWriter, useSession } from '../session';
 import { registrationFlow } from '../registration';
 
 const YEAR = 365n * 86400n;
 
 export function RegisterPage({ initial }: { initial?: string }) {
-  const { ctx, records, wallet } = useSession();
+  const s = useSession();
+  const { ctx, records, wallet } = s;
+  if (choosingAccount(s)) return <ChooseAccount />;
   if (wallet && !ctx)
     return (
       <Card>

@@ -70,10 +70,19 @@ async function connectFixture() {
               },
       },
     );
-    await session.connectExternal(wallet, {
+    const result = await session.connectExternal(wallet, {
       disconnect: async () => {},
       onDisconnect: () => () => {},
     });
+    if (result.needsAccountSelection !== true)
+      throw new Error('Fixture wallet must require explicit account selection');
+    if (session.getSession().ctx !== undefined)
+      throw new Error('Connecting multiple accounts must not select one implicitly');
+    if (session.choosingAccount(session.getSession()) !== true)
+      throw new Error('Connected fixture must prompt for account selection');
+    await session.selectAccount(account);
+    if (!session.getSession().ctx?.account.equals(account))
+      throw new Error('Fixture account selection did not activate the requested account');
     const fixture = (window.registrationFixture = {
       session,
       sdk,

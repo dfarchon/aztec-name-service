@@ -269,6 +269,7 @@ export const zhCN: Record<string, string> = {
   "Generating proof": "生成证明中",
   "Waiting for wallet confirmation and proof": "等待钱包确认及生成证明",
   "Choose account": "选择账户",
+  "Choose a wallet account": "选择钱包账户",
   "Choose a wallet account to continue.": "请选择钱包账户以继续。",
   "Page could not be loaded": "页面暂时无法加载",
   "Reload the page and reconnect your wallet to continue from saved progress.": "重新加载页面并连接钱包，即可继续已保存的进度。",

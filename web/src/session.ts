@@ -20,6 +20,8 @@ import { retryDelay } from './usability';
 import { createWebNode } from './rpc';
 import { deriveKeys, RecordStore } from './vault';
 
+export { choosingAccount } from './account-state';
+
 export type TxRecord = {
   id: string;
   label: string;
@@ -50,6 +52,7 @@ export type SessionState = {
   wallet?: Wallet;
   walletMode?: 'external' | 'embedded';
   accounts: { alias: string; address: AztecAddress }[];
+  selectingAccount?: AztecAddress;
   ctx?: AnsContext;
   records?: AccountRecords;
   connection?: { checkedAt: number; latencyMs: number; failures: number };
@@ -273,6 +276,7 @@ export async function lock() {
     wallet: undefined,
     walletMode: undefined,
     accounts: [],
+    selectingAccount: undefined,
     ctx: undefined,
     records: undefined,
   });
@@ -280,26 +284,30 @@ export async function lock() {
 
 export async function selectAccount(address: AztecAddress) {
   const epoch = ++sessionEpoch;
-  set({ ctx: undefined, records: undefined });
-  const { wallet, reader } = state;
-  if (!wallet || !reader || !recordsKey) return;
-  const { AnsContext } = await import('@ans/sdk');
-  const ctx = new AnsContext(reader, {
-    wallet,
-    account: address,
-    fee: paymentMethod ? { paymentMethod } : undefined,
-  });
-  // Fee reads belong to registration/renewal. A temporary quote failure must not block account management.
-  await ctx.queue.run(() => ctx.ensureRegistered());
-  const store = new RecordStore(
-    recordsKey,
-    `ans:v2:${reader.deployment.chainId}:${reader.registry}:${address}`,
-    emptyRecords,
-  );
-  const records = await store.load();
-  if (epoch !== sessionEpoch) return;
-  recordStore = store;
-  set({ ctx, records });
+  set({ ctx: undefined, records: undefined, selectingAccount: address });
+  try {
+    const { wallet, reader } = state;
+    if (!wallet || !reader || !recordsKey) return;
+    const { AnsContext } = await import('@ans/sdk');
+    const ctx = new AnsContext(reader, {
+      wallet,
+      account: address,
+      fee: paymentMethod ? { paymentMethod } : undefined,
+    });
+    // Fee reads belong to registration/renewal. A temporary quote failure must not block account management.
+    await ctx.queue.run(() => ctx.ensureRegistered());
+    const store = new RecordStore(
+      recordsKey,
+      `ans:v2:${reader.deployment.chainId}:${reader.registry}:${address}`,
+      emptyRecords,
+    );
+    const records = await store.load();
+    if (epoch !== sessionEpoch) return;
+    recordStore = store;
+    set({ ctx, records });
+  } finally {
+    if (epoch === sessionEpoch) set({ selectingAccount: undefined });
+  }
 }
 
 export async function createAccount(alias: string, imported?: AccountKeys) {
