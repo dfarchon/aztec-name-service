@@ -267,3 +267,32 @@ test('UX: direct app paths redirect to hash routes, other paths fall through', a
   const r = await worker.fetch(new Request('https://ans.test/status'), f.env);
   assert.equal(r.status, 302); assert.equal(r.headers.get('location'), 'https://ans.test/#/status');
 });
+
+test('fee-juice monitor skips FPC reads and marks unconfigured operator N/A without false alarms', async () => {
+  const f = fixture(); f.env.FEE_PAYMENT = 'fee-juice'; delete f.env.SPONSORED_FPC; f.env.NETWORK_LABEL = 'mainnet';
+  const calls: string[] = [];
+  const fetcher = (async (input: any, init?: RequestInit) => {
+    if (init?.body) { const req = JSON.parse(String(init.body)); calls.push(req.method); if (req.method === 'aztec_getContract') assert.equal(req.params[0], f.env.REGISTRY); assert.notEqual(req.method, 'aztec_getPublicStorageAt'); }
+    return f.fetcher(input, init);
+  }) as typeof fetch;
+  try {
+    const state = await probe(f.env, Date.now(), fetcher);
+    assert(state.checks.every(c => c.ok));
+    assert.deepEqual(state.checks.find(c => c.name === 'sponsor'), { name: 'sponsor', ok: true, detail: 'N/A · users pay own Fee Juice' });
+    assert.deepEqual(state.checks.find(c => c.name === 'balance'), { name: 'balance', ok: true, detail: 'N/A · operator undecided' });
+    assert.match(state.checks.find(c => c.name === 'chain')!.detail, /^mainnet/);
+  } finally { f.sqlite.close(); }
+});
+test('fee-juice monitor enforces operator watermark at its precomputed slot', async () => {
+  const f = fixture(); Object.assign(f.env, { FEE_PAYMENT: 'fee-juice', OPERATOR: 'public-operator', OPERATOR_BALANCE_SLOT: '0x' + '1'.repeat(64), OPERATOR_LOW_WATERMARK: '100' });
+  let balance = '99';
+  const fetcher = (async (input: any, init?: RequestInit) => {
+    if (init?.body) { const req = JSON.parse(String(init.body)); if (req.method === 'aztec_getPublicStorageAt') { assert.deepEqual(req.params, [100, metadata.feeJuice, f.env.OPERATOR_BALANCE_SLOT]); return Response.json({ result: balance }); } }
+    return f.fetcher(input, init);
+  }) as typeof fetch;
+  try {
+    assert.equal((await probe(f.env, Date.now(), fetcher)).checks.find(c => c.name === 'balance')!.ok, false);
+    balance = '100'; assert.equal((await probe(f.env, Date.now(), fetcher)).checks.find(c => c.name === 'balance')!.ok, true);
+    f.env.OPERATOR_LOW_WATERMARK = 'UNDECIDED'; assert.equal((await probe(f.env, Date.now(), fetcher)).checks.find(c => c.name === 'balance')!.ok, false);
+  } finally { f.sqlite.close(); }
+});
