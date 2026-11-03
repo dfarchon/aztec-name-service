@@ -6,7 +6,7 @@ import type {
   WalletProvider,
   PendingConnection,
 } from "@aztec-labs/wallet-sdk/manager";
-import { connectExternal, lock, selectAccount, useSession, WalletStepError } from "./session";
+import { choosingAccount, connectExternal, lock, selectAccount, useSession, WalletStepError } from "./session";
 import { errorMessage, shortAddr } from "./format";
 import { config } from "./config";
 
@@ -145,7 +145,7 @@ export function WalletConnection() {
     }
   };
   // The wallet granted several accounts and none is selected yet (see connectExternal).
-  const choosingAccount = !s.ctx && !!s.wallet && s.accounts.length > 1;
+  const needsAccountSelection = choosingAccount(s);
   return (
     <details id="wallet-menu" className="wallet-connection" ref={menu} onKeyDown={event => {
       if (event.key === "Escape" && menu.current?.open) {
@@ -156,11 +156,11 @@ export function WalletConnection() {
       <summary className="wallet-trigger" aria-label={s.wallet ? translate("Wallet account") : translate("Connect wallet")} aria-disabled={!s.wallet && !canConnect} onClick={event => {
         if (!s.wallet && !canConnect) { event.preventDefault(); return; }
         if (!menu.current?.open && !s.wallet && canConnect && !searching && !busy && !pending) void search();
-      }}>{s.ctx ? shortAddr(s.ctx.account) : translate(!s.wallet ? "Connect wallet" : choosingAccount ? "Choose account" : "Switching wallet account…")}</summary>
+      }}>{s.ctx ? shortAddr(s.ctx.account) : translate(!s.wallet ? "Connect wallet" : needsAccountSelection ? "Choose account" : "Switching wallet account…")}</summary>
       <div className="wallet-popover">
       <h2>{s.wallet ? translate("Connected wallet") : translate("Connect wallet")}</h2>
-      {choosingAccount && <p role="status">{translate("Choose a wallet account to continue.")}</p>}
-      {s.ctx || choosingAccount ? (
+      {needsAccountSelection && <p role="status">{translate("Choose a wallet account to continue.")}</p>}
+      {s.ctx || needsAccountSelection ? (
         <div className="row">
           <select
             aria-label={translate("Wallet account")}

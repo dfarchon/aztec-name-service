@@ -11,18 +11,20 @@ import {
 } from '@ans/sdk';
 import { useEffect, useState } from 'react';
 
-import { go, NeedsAccount } from '../App';
+import { ChooseAccount, go, NeedsAccount } from '../App';
 import { Card, CopyValue, Field, TxLine, useTx } from '../components';
 import { FeeAmount, FeeBalance, readFeeBalance, useFeeBalance } from '../fees';
 import { config } from '../config';
 import { duration, errorMessage } from '../format';
-import { recordWriter, useSession } from '../session';
+import { choosingAccount, recordWriter, useSession } from '../session';
 import { registrationFlow } from '../registration';
 
 const YEAR = 365n * 86400n;
 
 export function RegisterPage({ initial }: { initial?: string }) {
-  const { ctx, records, wallet } = useSession();
+  const s = useSession();
+  const { ctx, records, wallet } = s;
+  if (choosingAccount(s)) return <ChooseAccount />;
   if (wallet && !ctx)
     return (
       <Card>
@@ -121,10 +123,11 @@ function RegistrationFunding() {
           'Registration uses the payment token shown here. Fee Juice does not pay this registration fee.',
         )}
       </p>
-      {config.sponsoredFpc && (
+      {config.feePayment === 'sponsored' && (
         <p className="muted">{translate('Network fees are sponsored for this app.')}</p>
       )}
-      {config.expectedChainId === '11155111' && (
+      {config.feePayment === 'fee-juice' && <p className="muted">{translate("Network fees are paid from this account's Fee Juice.")}</p>}
+      {config.network === 'testnet-v6' && (
         <p className="warn">
           {translate(
             'Use a test account funded in the exact payment token shown in the quote. Fee Juice and other tokens with the same symbol cannot pay registration fees.',

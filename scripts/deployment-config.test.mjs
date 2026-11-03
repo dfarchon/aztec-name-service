@@ -11,6 +11,10 @@ function fixture(t) {
   const root = pathToFileURL(`${directory}/`);
   t.after(() => rmSync(directory, { recursive: true, force: true }));
   const files = [
+    'deployments/mainnet.template.json',
+    'ops/wrangler-mainnet.jsonc',
+    'ops/wrangler-monitor-mainnet.jsonc',
+    'deployments/aztec-pricing.json',
     'deployments/testnet.json',
     'deployments/testnet-v6.json',
     'ops/wrangler.jsonc',
@@ -311,4 +315,138 @@ test('v6 public fee token class metadata cannot drift from the manifest', (t) =>
     m.tokenClassId = v6Canonical.classIds.registry;
   });
   assert.throws(() => assertDeploymentConfig(root), /tokenClassId/);
+});
+
+import { mainnetTemplateProblems } from './deployment-config.mjs';
+import { mainnetBlockers } from './mainnet-readiness.mjs';
+import { buildSite } from './build-site.mjs';
+import { deploySite } from './deploy-site.mjs';
+import { operatorSlotProblems } from './operator-slot.mjs';
+test('mainnet template validates and each undecided item has a named blocker', () => {
+  assert.deepEqual(mainnetTemplateProblems(), []);
+  const blockers = mainnetBlockers();
+  for (const item of [
+    'settlement.l2Token',
+    'annualPriceStatus provisional',
+    'admin/multisig',
+    'treasury',
+    'domain',
+    'nodeUrl',
+    'site.SITE_URL',
+    'site.RPC_URL',
+    'site.worker name',
+    'site.D1 id',
+    'monitor.SITE_URL',
+    'monitor.RPC_URL',
+    'monitor.worker name',
+    'monitor.D1 id',
+    'deployments/mainnet.json absent',
+  ])
+    assert.ok(blockers.includes(item), item);
+});
+test('mainnet build and site deploy refuse before any exec spy', () => {
+  let calls = 0;
+  const exec = () => {
+    calls++;
+    throw new Error('exec forbidden');
+  };
+  assert.throws(
+    () => buildSite(['--network', 'mainnet'], { exec }),
+    /Mainnet blocked:.*settlement.l2Token/,
+  );
+  assert.throws(
+    () => deploySite(['--network', 'mainnet'], { exec }),
+    /Mainnet blocked:.*admin\/multisig/,
+  );
+  assert.equal(calls, 0);
+});
+test('fee-juice manifests require null sponsor while absent feePayment retains sponsored validation', () => {
+  assert.deepEqual(v6ManifestProblems(v6Canonical), []);
+  assert.deepEqual(
+    v6ManifestProblems({ ...v6Canonical, feePayment: 'fee-juice', sponsoredFpc: null }),
+    [],
+  );
+  assert.ok(
+    v6ManifestProblems({ ...v6Canonical, feePayment: 'fee-juice' }).includes(
+      'v6 sponsoredFpc/feePayment',
+    ),
+  );
+  assert.ok(
+    v6ManifestProblems({ ...v6Canonical, sponsoredFpc: null }).includes(
+      'v6 sponsoredFpc/feePayment',
+    ),
+  );
+});
+test('canonical templates cannot masquerade as a deployment', (t) => {
+  const { root } = fixture(t);
+  const path = new URL('deployments/testnet-v6.json', root);
+  writeFileSync(path, JSON.stringify({ ...v6Canonical, template: true }));
+  assert.throws(() => assertV6ManifestFile(path, { canonical: true }), /sample cannot/);
+});
+test('mainnet template detects invented values, FPC, identities and missing placeholder comments', (t) => {
+  const { root, update } = fixture(t);
+  update('deployments/mainnet.template.json', (m) => {
+    m.treasury = 'invented';
+    m.chainId = '2';
+  });
+  assert.ok(mainnetTemplateProblems(root).some((p) => p.includes('treasury')));
+  const path = new URL('ops/wrangler-mainnet.jsonc', root);
+  writeFileSync(
+    path,
+    readFileSync(path, 'utf8')
+      .replace('// PLACEHOLDER:', '// resources:')
+      .replace('"FEE_PAYMENT": "fee-juice"', '"FEE_PAYMENT": "sponsored"'),
+  );
+  const p = mainnetTemplateProblems(root);
+  assert.ok(p.some((p) => p.includes('FEE_PAYMENT')));
+  assert.ok(p.some((p) => p.includes('resource placeholders')));
+});
+test('operator slot validation rejects wrong slots and ignores undecided operators', async () => {
+  assert.deepEqual(
+    await operatorSlotProblems([['mainnet', { vars: { OPERATOR: 'UNDECIDED' } }]]),
+    [],
+  );
+  const vars = {
+    OPERATOR: '0x' + '0'.repeat(63) + '1',
+    OPERATOR_BALANCE_SLOT: '0x' + '0'.repeat(64),
+  };
+  assert.deepEqual(await operatorSlotProblems([['monitor', { vars }]]), [
+    'monitor OPERATOR_BALANCE_SLOT mismatch',
+  ]);
+});
+
+test('external preview refuses canonical output and output containing its manifest before exec', (t) => {
+  const { root } = fixture(t);
+  const manifest = new URL('preview.json', root).pathname;
+  writeFileSync(
+    manifest,
+    JSON.stringify({ ...v6Canonical, sample: true, feePayment: 'fee-juice', sponsoredFpc: null }),
+  );
+  let calls = 0;
+  const exec = () => {
+    calls++;
+    throw new Error('exec forbidden');
+  };
+  for (const argv of [
+    ['--network', 'testnet-v6', '--manifest', manifest],
+    [
+      '--network',
+      'testnet-v6',
+      '--manifest',
+      manifest,
+      '--out',
+      new URL('web/dist', root).pathname,
+    ],
+    ['--network', 'testnet-v6', '--manifest', manifest, '--out', new URL('.', root).pathname],
+    [
+      '--network',
+      'testnet-v6',
+      '--manifest',
+      new URL('deployments/testnet-v6.json', root).pathname,
+      '--out',
+      new URL('preview', root).pathname,
+    ],
+  ])
+    assert.throws(() => buildSite(argv, { exec, root }), /Preview requires/);
+  assert.equal(calls, 0);
 });

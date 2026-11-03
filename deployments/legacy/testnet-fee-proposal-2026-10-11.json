@@ -52,7 +52,6 @@
   "retirement": {
     "confirmedAt": "2026-10-12T03:06:43.700Z",
     "txHash": "0x0d402544ce807f1f1c2580201c5df7a9de42833bbac6402ec191fdd514673a1a",
-    "activeRegistrarUnchanged": true,
-    "record": "docs/acceptance/v4-proposal-retirement-2026-10-12.json"
+    "activeRegistrarUnchanged": true
   }
 }

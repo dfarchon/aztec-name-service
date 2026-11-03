@@ -2,11 +2,16 @@ import { Component, type ReactNode } from 'react';
 import { translate } from './i18n';
 
 /** Keep the wallet and navigation mounted if a deferred page cannot load after a release. */
-export class RouteBoundary extends Component<{ children: ReactNode }, { failed: boolean }> {
+export class RouteBoundary extends Component<{ children: ReactNode; resetKey?: string }, { failed: boolean }> {
   state = { failed: false };
 
   static getDerivedStateFromError() {
     return { failed: true };
+  }
+
+  componentDidUpdate(prev: Readonly<{ children: ReactNode; resetKey?: string }>) {
+    if (prev.resetKey !== this.props.resetKey && this.state.failed)
+      this.setState({ failed: false });
   }
 
   render() {

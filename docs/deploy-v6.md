@@ -79,6 +79,41 @@ If a receipt is dropped, the runner checks the deterministic deployment address 
 
 receipt dropped 时检查确定性地址或 bootstrap 绑定；匹配效果存在则记录 published-without-receipt，否则停止。仅显式 `--rebroadcast <step>` 且确认 dropped 和效果不存在，才允许清除该哈希。RPC 错误不能证明效果不存在。回滚和未知超时需停下检查，不能删私有检查点来恢复待确认公网交易。
 
-`check:deployment` always validates the V5 Workers first. Missing deployments/testnet-v6.json prints a skip notice. It validates a canonical V6 testnet manifest when present; sample=true is forbidden there. `--v6-manifest` validates an explicit local rehearsal or sample without comparing V6 against V5 Workers. Proof-disabled local success does not establish real-proof or public-network readiness.
+`check:deployment` always validates the V5 Workers first. Missing deployments/testnet-v6.json prints a skip notice. It validates a canonical V6 testnet manifest when present; sample=true is forbidden there. `--v6-manifest` validates an explicit local rehearsal or sample without comparing V6 against V5 Workers. Proof-disabled local success does not establish real-proof or public-network readiness. CI only verifies the official Token pin; the repo Token pin is checked locally after `npm run build:contracts`.
 
-`check:deployment` 总是先检查 V5 Worker。未部署 V6 清单时提示跳过；存在时严格校验且禁止 sample=true。显式 `--v6-manifest` 可检查本地演练或样例，不把 V6 与 V5 Worker 比对。本地关闭证明的成功不代表真实证明或公网就绪。
+`check:deployment` 总是先检查 V5 Worker。未部署 V6 清单时提示跳过；存在时严格校验且禁止 sample=true。显式 `--v6-manifest` 可检查本地演练或样例，不把 V6 与 V5 Worker 比对。本地关闭证明的成功不代表真实证明或公网就绪。CI 仅验证官方 Token 的固定类 ID；仓库 Token 的固定类 ID 在本地运行 `npm run build:contracts` 后验证。
+
+## Fee Juice and mainnet preparation / Fee Juice 与主网准备
+
+Select `--fee-payment sponsored|fee-juice`. Local and testnet default to sponsored; mainnet permits only fee-juice. Sponsored testnet confirmation and manifest fields remain unchanged. Fee-juice manifests explicitly contain `feePayment: "fee-juice"` and `sponsoredFpc: null`. Network fees use public Fee Juice, separate from the registrar's registration token.
+
+用 `--fee-payment sponsored|fee-juice` 选择网络费支付方式。本地和测试网默认 sponsored；主网只允许 fee-juice。测试网 sponsored 的确认串和清单字段保持不变。fee-juice 清单显式包含 `feePayment: "fee-juice"`、`sponsoredFpc: null`。网络费使用公开 Fee Juice，与 Registrar 收取的注册费代币不同。
+
+Public fee-juice deployment requires an explicit positive `--min-fee-juice` in wei (10^18 wei = 1 Fee Juice), a dated directory whose basename matches `testnet-aztec6-6.0.0-nofpc-rehearsal-YYYYMMDD`, and an explicit `--manifest-out` outside `deployments/`. Never reuse the live sponsored deployment directory. Confirmation appends `:fee=fee-juice`. A funded sender pays directly; otherwise the first unfinished step may use an unconsumed bridged claim. Its L1-to-L2 message must already be inserted at the proven tip. Insufficient funds without a claim refuse before broadcasting. A claim is reserved together with the transaction hash and cannot be reused after that step completes; an explicit retry requires a DROPPED receipt and no chain effect.
+
+公网 fee-juice 部署必须显式提供正数 `--min-fee-juice`（wei，10^18 wei = 1 Fee Juice），使用 basename 为 `testnet-aztec6-6.0.0-nofpc-rehearsal-YYYYMMDD` 的独立目录，并提供 `deployments/` 之外的 `--manifest-out`。不能复用线上 sponsored 部署目录。确认串追加 `:fee=fee-juice`。余额足够时由发送账户支付；否则首个未完成步骤可使用尚未消费的桥接 claim，且 L1→L2 消息必须已插入 proven tip 的消息树。无余额且无 claim 时广播前拒绝。claim 与交易哈希同时保存，步骤完成后不能复用；显式重发必须已有 DROPPED 回执且链上无效果。
+
+The bridge helper accepts only local and testnet-v6. `--init-l1-key` creates a new offline L1 key with exclusive creation, mode 0600, and prints only its public address. Keep it inside the private state directory. Fund that address with L1 gas before bridging. `--l1-rpc-url` must have no credentials, query or fragment; it is not printed or persisted, only its host. The helper checks L1 chain identity and the node's pinned portal/handler, reads the handler's mint amount, mints, approves, and deposits an explicit amount. It persists the claim secret before any L1 send and checkpoints each signed transaction's hash before forwarding it. Pending hashes stop without resend. Confirmed receipts resume the remaining steps; a completed claim is a no-op. Output contains public addresses, hashes, message hash, leaf index and amount only. `bridge.json`, L1 keys and wallet state are private recovery data; never copy them into a manifest or logs.
+
+桥接助手只接受 local、testnet-v6。`--init-l1-key` 离线独占创建 0600 权限的 L1 密钥，只打印公开地址，密钥必须位于私有 state 目录内。先为该地址准备 L1 gas。`--l1-rpc-url` 不允许凭证、查询参数或 fragment，不打印或保存完整 URL，只保存 host。助手核对 L1 链与节点的 portal/handler，链上读取 mint amount，然后 mint、approve、deposit 显式数量。首笔 L1 交易前保存 claim secret，每笔签名交易在转发前保存哈希。pending 哈希会停止且不重发；确认回执后继续剩余步骤，已完成 claim 再运行无操作。输出只有公开地址、交易哈希、消息哈希、leaf index 和金额。`bridge.json`、L1 密钥及钱包状态均为私有恢复数据，不能写入公开清单或日志。
+
+```sh
+# Public rehearsal is operator-only; choose the date, amount, price version and minimum.
+S="$HOME/.local/share/ans/testnet-aztec6-6.0.0-nofpc-rehearsal-<YYYYMMDD>"
+npm run deploy:v6 -- --init-keys --network testnet-v6 --state-dir "$S"
+npm run bridge:fee-juice -- --init-l1-key --network testnet-v6 --state-dir "$S"
+# Fund the printed public L1 address with Sepolia ETH, then preview the exact confirmation.
+npm run bridge:fee-juice -- --network testnet-v6 --state-dir "$S" --l1-rpc-url '<SEPOLIA_RPC>' --amount '<CHOSEN_WEI>' --dry-run
+# Replace --dry-run with --confirm '<PRINTED_CONFIRMATION>' after reviewing.
+npm run deploy:v6 -- --network testnet-v6 --fee-payment fee-juice --registrar tiered --price-version '<CHOSEN_VERSION>' --state-dir "$S" --manifest-out "$S/deployment-v6.json" --min-fee-juice '<CHOSEN_MIN_WEI>' --dry-run
+node scripts/build-site.mjs --network testnet-v6 --manifest "$S/deployment-v6.json" --out "$S/site"
+# Preview on 127.0.0.1 only. This does not publish the site.
+```
+
+Mainnet identity is pinned to Aztec 6.0.0, L1 chain 1, rollup version 2070860440 and rollup `0xe37a2663cc9c119ba41572c40fab0bbb23a5402f`. `deployments/mainnet.template.json` is a template, never a live deployment. The registration token, final pricing, admin/multisig, treasury, RPC provider, domain and Cloudflare resources remain undecided. Mainnet deployment, build and publication refuse with named blockers before network access or subprocess execution. A mainnet deployment dry run needs an explicit `--node-url` and only checks `getNodeInfo`, then reports blockers; it creates no wallet. Token-deploying mainnet flows are refused even if configuration blockers are resolved. There is no existing-token flow. No mainnet deployment or publication is authorized by these commands.
+
+主网身份固定为 Aztec 6.0.0、L1 chain 1、rollup version 2070860440 和上述 rollup 地址。`deployments/mainnet.template.json` 仅为模板，不代表上线。注册费代币、最终定价、admin/多签、财库、RPC 服务商、域名及 Cloudflare 资源尚未确定。主网部署、构建、发布均先列出具名阻塞项，在网络访问或启动子进程前拒绝。主网部署 dry run 必须显式提供 `--node-url`，只调用 `getNodeInfo` 核对身份并报告阻塞项，不创建钱包。即使配置阻塞已解决，也禁止主网 token-deploying 流程；没有 existing-token 流程。这些命令不授权真实主网部署或发布。
+
+Web builds require `VITE_NETWORK` and `VITE_FEE_PAYMENT` on public networks. Embedded public sponsored mode requires an explicitly configured FPC; only proof-disabled chain 31337 may derive one. Fee-juice mode never registers an FPC. Before register, renew, records or primary writes, the shared wallet queue verifies identity and checks public Fee Juice against current minimum fees × default node gas limits. The bilingual error includes account and balance. The monitor keeps its existing check names; in fee-juice mode sponsorship is N/A, and an undecided operator balance is N/A. Once an operator is chosen, configure its precomputed map slot and watermark; `check:deployment` verifies the slot with the 6.0.0 stdlib.
+
+公网网页构建必须设置 `VITE_NETWORK`、`VITE_FEE_PAYMENT`。嵌入钱包的公网 sponsored 模式必须显式配置 FPC；只有关闭证明的 chain 31337 可以推导。fee-juice 模式不注册 FPC。注册、续费、记录及 primary 写入前，共享钱包队列先核对网络，再检查公开 Fee Juice 是否达到当前最低单价 × 节点默认 gas 限额。中英文错误包含账户地址与余额。监控保持历史检查名称；fee-juice 模式 sponsor 为 N/A，未确定 operator 时 balance 也为 N/A。确定 operator 后配置预计算 map slot 和低水位，`check:deployment` 用 6.0.0 stdlib 验证 slot。

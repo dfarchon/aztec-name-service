@@ -33,6 +33,8 @@ npm run dev
 
 ## 持久化与恢复
 
+`RegistrationPlanStore.load` 必须返回同一 key 最近一次成功 `save` 的结果（写后读一致性）。存储返回旧数据可能导致注册流程重复广播交易。
+
 `prepare` 返回前保存注册秘密；首次提交前再次核对并保存。交易哈希回调立即排入持久化队列，调用结束前等待写入完成。存储失败后的已知哈希保留在流程内存中；恢复时先修复持久化，再跟踪回执。旧计划副本和同一流程内的并发点击不会重复付款。
 
 钱包网络错误且没有返回哈希时，保存 `broadcastUnknown`，重新加载后也不会自动再发。接入方必须核对钱包活动和实际结果后才能明确解除该状态。已知 dropped/reverted 哈希也不自动清除。
@@ -54,6 +56,8 @@ Install the SDK, verify the deployment and connect an authorized wallet account.
 Amounts use bigint base units. Token metadata determines display precision; 1 mAZTEC is `10^18` units. Registration fees and network fees are separate. Sponsorship does not fund the registration payment.
 
 Prices are tiered by name length. Pass the name when quoting (`flow.quote(duration, name)`, or `labelLength` for `getFeeQuote`) and quote again when the name changes; a tiered Registrar rejects a quote without a length with `invalid_argument`. A quote binds its `labelLength` together with the amount. New registrations cannot contain `--` or start with `0x`; the SDK returns `invalid_name` before any wallet request, while existing names keep resolving and renewing. SDK 0.5.0 and earlier do not recognize the tiered Registrar and return `wrong_deployment`; upgrade to the current release.
+
+`RegistrationPlanStore.load` must return the result of the last successful `save` for that key (read-your-writes). A store that serves stale reads can make the flow rebroadcast a transaction.
 
 Persist the plan before sending. Track an existing transaction hash before retrying, and preserve an unknown-broadcast state until wallet activity is reconciled. Encrypted storage failures must block replacement of recovery data. Multiple tabs require a shared lease from the integrating application.
 

@@ -92,6 +92,7 @@ test('frozen official Token class and both registrar classes verify', async () =
   assert.notEqual(official.classIds.registrar,tiered.classIds.registrar);
 });
 // The repository Token artifact is local compiler output (contracts/target is not committed), so CI skips this check.
+// CI only verifies the official Token pin; the repo Token pin is checked locally after `npm run build:contracts`.
 const repoToken=join(REPO,'contracts/target/test_token-Token.json');
 test('frozen repository Token class verifies', { skip: existsSync(repoToken) ? false : 'run npm run build:contracts first' }, async () => {
   const repo=await v6Artifacts('repo','tiered');
@@ -278,3 +279,65 @@ for (const network of ['local', 'testnet-v6'] as const) {
     assert.deepEqual(createNode.mock.calls[0].arguments, [c.nodeUrl, { maxBatchSize: 3 }]);
   });
 }
+
+import { assertV6FeeJuice } from './v6-network.js';
+import { selectFeeJuice, readFeeJuiceBalance, type BridgeClaim } from './fee-juice-payment.js';
+const { V6_MAINNET } = createRequire(import.meta.url)('../../scripts/deployment-config.mjs');
+test('mainnet profile matches independent mjs and Fee Juice mismatches refuse', () => {
+  const { nodeUrl, maxBatchSize, ...p } = V6_PROFILES.mainnet;
+  assert.equal(nodeUrl, null); assert.equal(maxBatchSize, 3); assert.deepEqual(p, V6_MAINNET);
+  const feeInfo = { ...info(), l1ContractAddresses: { ...info().l1ContractAddresses, feeJuicePortalAddress: V6_PROFILES['testnet-v6'].feeJuicePortal, feeAssetHandlerAddress: V6_PROFILES['testnet-v6'].feeAssetHandler } };
+  assert.doesNotThrow(() => assertV6FeeJuice('testnet-v6', feeInfo));
+  assert.throws(() => assertV6FeeJuice('testnet-v6', { ...feeInfo, l1ContractAddresses: { ...feeInfo.l1ContractAddresses, feeJuicePortalAddress: treasury } }), /feeJuicePortal/);
+  assert.throws(() => assertV6FeeJuice('testnet-v6', { ...feeInfo, l1ContractAddresses: { ...feeInfo.l1ContractAddresses, feeAssetHandlerAddress: treasury } }), /feeAssetHandler/);
+});
+test('sponsored testnet confirmation is byte-identical to original fixture', () => {
+  const c = parseArgs([...testnet, '--dry-run']);
+  assert.equal(confirmation(c), `testnet-v6:6.0.0:11155111:679261766:0x1f435a7f2da358caf887a470faeee7d5d5f4efba:registrar=tiered:priceVersion=1:token=official:treasury=${treasury}`);
+});
+test('sponsored manifest deep-equals existing deployed output', async () => {
+  const current = JSON.parse(await readFile(join(REPO, 'deployments/testnet-v6.json'), 'utf8'));
+  const c = parseArgs(['--network', 'testnet-v6', '--registrar', current.registrarKind, '--price-version', String(current.priceVersion), '--treasury', current.treasury, '--dry-run']);
+  const p = makePolicy(c, { decimals: current.feeDecimals, annualPrice: current.annualPrice, lengthPrices: current.lengthPrices }, current.treasury);
+  const identity = { chainId: current.chainId, rollupVersion: current.rollupVersion, rollup: current.rollup };
+  const actual = buildManifest(c, p, identity, { ...current, token: current.feeToken }, current.classIds, current.transactions, current.deployedAt);
+  assert.deepEqual(actual, current);
+  assert.equal(JSON.stringify(actual, null, 2) + '\n', await readFile(join(REPO, 'deployments/testnet-v6.json'), 'utf8'));
+  const feeJuice = buildManifest({ ...c, feePayment: 'fee-juice' }, p, identity, { ...current, token: current.feeToken }, current.classIds, current.transactions, current.deployedAt);
+  assert.deepEqual(feeJuice, { ...current, feePayment: 'fee-juice', sponsoredFpc: null });
+});
+test('fee-juice rehearsal requires dated isolated state and explicit manifest outside deployments', () => {
+  const extra = ['--fee-payment', 'fee-juice', '--min-fee-juice', '1', '--dry-run'];
+  const dir = '/tmp/testnet-aztec6-6.0.0-nofpc-rehearsal-20261102';
+  for (const wrong of ['/tmp/testnet-aztec6-6.0.0', '/tmp/undated', dir + 'x']) assert.throws(() => parseArgs([...testnet, ...extra, '--state-dir', wrong, '--manifest-out', '/tmp/result.json']), /rehearsal/);
+  assert.throws(() => parseArgs([...testnet, ...extra, '--state-dir', dir]), /explicit/);
+  assert.throws(() => parseArgs([...testnet, ...extra, '--state-dir', dir, '--manifest-out', join(REPO, 'deployments/rehearsal.json')]), /deployments/);
+  const c = parseArgs([...testnet, ...extra, '--state-dir', dir, '--manifest-out', '/tmp/result.json']); assert.match(confirmation(c), /:fee=fee-juice$/);
+  assert.throws(() => parseArgs([...testnet, '--fee-payment', 'fee-juice', '--dry-run']), /min-fee-juice/);
+});
+test('mainnet refuses before node creation; dry run only calls getNodeInfo', async () => {
+  const args = ['--network', 'mainnet', '--node-url', 'https://rpc.invalid', '--registrar', 'flat', '--price-version', '1', '--state-dir', '/tmp/ans-mainnet-refusal', '--manifest-out', '/tmp/mainnet-refusal.json', '--min-fee-juice', '1'];
+  let calls = 0;
+  await assert.rejects(main(args, { createNode: (() => { calls++; throw new Error('Must not create node'); }) as any, randomKeys }), /Mainnet blocked:.*settlement.l2Token/);
+  assert.equal(calls, 0);
+  const methods: string[] = [];
+  await main([...args, '--dry-run'], { createNode: (() => ({ getNodeInfo: async () => { methods.push('getNodeInfo'); return { nodeVersion: '6.0.0', l1ChainId: 1, rollupVersion: 2070860440, realProofs: true, l1ContractAddresses: { rollupAddress: V6_PROFILES.mainnet.rollup } }; } })) as any, randomKeys });
+  assert.deepEqual(methods, ['getNodeInfo']);
+});
+test('Fee Juice selection covers funded, claim, insufficient, reserved and consumed resume', () => {
+  const claim = { complete: true } as BridgeClaim;
+  assert.equal(selectFeeJuice(10n, 10n, claim, { done: [] }, 'deploy-token'), 'funded');
+  assert.equal(selectFeeJuice(0n, 10n, claim, { done: [] }, 'deploy-token'), 'claim');
+  assert.throws(() => selectFeeJuice(0n, 10n, undefined, { done: [] }, 'deploy-token'), /insufficient/);
+  const state = { done: ['deploy-token'], feeClaim: { usedBy: 'deploy-token' } };
+  assert.throws(() => selectFeeJuice(0n, 10n, claim, state, 'deploy-registry'), /unconsumed/);
+  assert.throws(() => selectFeeJuice(0n, 10n, claim, state, 'deploy-token'), /unconsumed/);
+  assert.equal(selectFeeJuice(0n, 10n, claim, { done: [], feeClaim: { usedBy: 'deploy-token' } }, 'deploy-token'), 'claim');
+});
+test('Fee Juice public read uses stdlib-derived owner map slot at protocol address 3', async () => {
+  const { deriveStorageSlotInMap } = await import('@aztec-labs/stdlib/hash');
+  const { Fr } = await import('@aztec-labs/aztec.js/fields');
+  const { AztecAddress } = await import('@aztec-labs/aztec.js/addresses');
+  const owner = AztecAddress.fromStringUnsafe(treasury), expected = await deriveStorageSlotInMap(new Fr(1), owner);
+  assert.equal(await readFeeJuiceBalance({ getPublicStorageAt: async (block, address, slot) => { assert.equal(block, 'latest'); assert.equal(address.toBigInt(), 3n); assert.equal(slot.toString(), expected.toString()); return new Fr(123); } }, owner), 123n);
+});

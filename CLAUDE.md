@@ -77,4 +77,4 @@ contracts → artifacts (committed) → sdk → web, e2e, ops (monitor), example
 - `npm run deploy:testnet` builds the site from `deployments/testnet-v6.json` and deploys both Workers with wrangler. It refuses a dirty tree, untracked files included, and the release id is the short HEAD hash (`/health.txt`).
 - `npm run check:deployment` keeps `ops/wrangler*.jsonc` vars in sync with the deployment manifest.
 - When an on-chain module change needs new SDK support, publish the site and monitor first, then switch on chain. The live site's SDK must already recognize the new class.
-- Only the docs whitelisted in `.gitignore` are published; dated plans, reviews and acceptance records stay local in `docs/`. Record each public change with its transaction hashes and an honest verification boundary.
+- `.gitignore` keeps `docs/acceptance/`, `docs/history/`, `docs/archive/`, `docs/reviews/`, `docs/plans/` and dated docs files local; undated public guides remain trackable. Record each public change with its transaction hashes and an honest verification boundary.

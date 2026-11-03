@@ -103,6 +103,7 @@ export async function runTxOutcome(
     try {
       if (ctx.reader.modular) await ctx.ensureRegistered();
       else await ctx.assertWalletNetwork();
+      await ctx.signer.beforeSend?.(ctx.account);
       interaction = typeof call === 'function' ? await call() : call;
       if (opts.preflight) {
         emit({ state: 'simulating' });

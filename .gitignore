@@ -25,10 +25,10 @@ coverage/
 .vercel/
 .dev.vars
 
-# Internal plans, reviews and acceptance records stay local; only these docs are published.
-/docs/*
-!/docs/code-structure.md
-!/docs/protocol.md
-!/docs/sdk-onboarding.md
-!/docs/dependency-security.md
-!/docs/deploy-v6.md
+# Internal records and dated docs stay local; undated public guides remain trackable.
+/docs/acceptance/
+/docs/history/
+/docs/archive/
+/docs/reviews/
+/docs/plans/
+/docs/*-20[0-9][0-9]-[0-9][0-9]-[0-9][0-9]*

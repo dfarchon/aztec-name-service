@@ -5,9 +5,11 @@ import { metricSample, transition, type Check, type State } from "./monitor";
 
 export interface MonitorEnv {
   DB: D1Database;
-  RPC_URL: string; REGISTRY: string; SPONSORED_FPC: string; SITE_URL: string;
+  RPC_URL: string; REGISTRY: string; SPONSORED_FPC?: string; SITE_URL: string;
   CHAIN_ID: string; ROLLUP_VERSION: string; ROLLUP: string; RELEASE: string;
   FPC_LOW_WATERMARK: string; BLOCK_STALE_SECONDS: string;
+  FEE_PAYMENT?: 'sponsored' | 'fee-juice'; NETWORK_LABEL?: string;
+  OPERATOR?: string; OPERATOR_BALANCE_SLOT?: string; OPERATOR_LOW_WATERMARK?: string;
   ALERT_WEBHOOK?: string;
 }
 export interface Env extends MonitorEnv {
@@ -59,17 +61,19 @@ async function runProbe(env: MonitorEnv, at: number, fetcher: typeof fetch) {
     if (!Number.isSafeInteger(block) || block < 1) throw new Error();
     checks.push({ name: "rpc", ok: true, detail: `${Date.now() - started} ms` });
     const identity = String(info.l1ChainId) === env.CHAIN_ID && String(info.rollupVersion) === env.ROLLUP_VERSION && info.l1ContractAddresses.rollupAddress.toLowerCase() === env.ROLLUP.toLowerCase() && info.realProofs === true;
-    checks.push({ name: "chain", ok: identity, detail: identity ? `Sepolia · runtime ${info.nodeVersion}` : "Network identity or proving mode mismatch" });
+    checks.push({ name: "chain", ok: identity, detail: identity ? `${env.NETWORK_LABEL ?? "Sepolia"} · runtime ${info.nodeVersion}` : "Network identity or proving mode mismatch" });
     const advances = previous?.block === undefined || block > previous.block;
     const stale = !advances && at - (previous.blockAdvancedAt ?? at) > Number(env.BLOCK_STALE_SECONDS) * 1000;
     checks.push({ name: "blocks", ok: !stale, detail: `#${block}${stale ? " · No recent blocks" : ""}` });
     if (identity) {
       // Configuration drift is reported on its own check instead of masquerading as an RPC outage.
+      const userPays = env.FEE_PAYMENT === "fee-juice";
+      const operator = env.OPERATOR && env.OPERATOR !== "UNDECIDED" ? env.OPERATOR : undefined;
       const fpcMetadataOk = env.SPONSORED_FPC === metadata.fpcAddress;
       const settled = await Promise.allSettled([
         rpc<{ currentContractClassId: string } | null>(env, "getContract", [env.REGISTRY], fetcher),
-        rpc<{ currentContractClassId: string } | null>(env, "getContract", [env.SPONSORED_FPC], fetcher),
-        rpc<string>(env, "getPublicStorageAt", [block, metadata.feeJuice, metadata.fpcBalanceSlot], fetcher),
+        userPays ? Promise.resolve(null) : rpc<{ currentContractClassId: string } | null>(env, "getContract", [env.SPONSORED_FPC], fetcher),
+        userPays && !operator ? Promise.resolve("0") : rpc<string>(env, "getPublicStorageAt", [block, metadata.feeJuice, userPays ? env.OPERATOR_BALANCE_SLOT : metadata.fpcBalanceSlot], fetcher),
       ]);
       const reg = settled[0], fpc = settled[1], balance = settled[2];
       checks.push({ name: "registry", ok: reg.status === "fulfilled" && !!reg.value && (reg.value.currentContractClassId === registryMetadata.classId || modularClass(reg.value.currentContractClassId)), detail: "6.0.0 contract class" });
@@ -82,12 +86,23 @@ async function runProbe(env: MonitorEnv, at: number, fetcher: typeof fetch) {
           for (const name of ["registrar", "resolver"]) checks.push({ name, ok: false, detail: "Module state could not be verified" });
         }
       }
+      if (userPays) {
+        checks.push({ name: "sponsor", ok: true, detail: "N/A · users pay own Fee Juice" });
+        if (!operator) checks.push({ name: "balance", ok: true, detail: "N/A · operator undecided" });
+        else {
+          let value: bigint | undefined;
+          if (balance.status === "fulfilled") { try { value = BigInt(balance.value); } catch { /* Invalid response fails the check. */ } }
+          const configured = /^0x[0-9a-f]{64}$/i.test(env.OPERATOR_BALANCE_SLOT ?? "") && /^[0-9]+$/.test(env.OPERATOR_LOW_WATERMARK ?? "");
+          checks.push({ name: "balance", ok: configured && value !== undefined && value >= BigInt(env.OPERATOR_LOW_WATERMARK!), detail: !configured ? "Operator balance configuration invalid" : value === undefined ? "Unable to read" : `${value / 10n ** 18n} Fee Juice` });
+        }
+      } else {
       checks.push(fpcMetadataOk
         ? { name: "sponsor", ok: fpc.status === "fulfilled" && fpc.value?.currentContractClassId === metadata.fpcClassId, detail: "6.0.0 FPC class" }
         : { name: "sponsor", ok: false, detail: "FPC read metadata needs regeneration" });
       let value: bigint | undefined;
       if (fpcMetadataOk && balance.status === "fulfilled") { try { value = BigInt(balance.value); } catch { value = undefined; } }
       checks.push({ name: "balance", ok: value !== undefined && value >= BigInt(env.FPC_LOW_WATERMARK), detail: value === undefined ? "Unable to read" : `${value / 10n ** 18n} Fee Juice` });
+      }
     } else for (const name of ["registry", "sponsor", "balance"]) checks.push({ name, ok: false, detail: "Network mismatch; reads stopped" });
   } catch {
     for (const name of ["rpc", "chain", "blocks", "registry", "sponsor", "balance"]) if (!checks.some(c => c.name === name)) checks.push({ name, ok: false, detail: "RPC unavailable" });

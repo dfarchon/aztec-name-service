@@ -1,6 +1,7 @@
 import { readFileSync, realpathSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { resolve } from 'node:path';
+import { operatorSlotProblems } from './operator-slot.mjs';
 import { parse, printParseErrorCode } from 'jsonc-parser';
 
 const repository = new URL('../', import.meta.url);
@@ -68,7 +69,7 @@ export function deploymentConfigMismatches(root = repository) {
 }
 
 export function assertDeploymentConfig(root = repository) {
-  const problems = deploymentConfigMismatches(root);
+  const problems = [...deploymentConfigMismatches(root), ...mainnetTemplateProblems(root)];
   if (problems.length) throw new Error(`Deployment configuration drift:\n${problems.join('\n')}`);
 }
 
@@ -79,6 +80,10 @@ export const V6_TESTNET = Object.freeze({
   rollupVersion: '679261766',
   rollup: '0x1f435a7f2da358caf887a470faeee7d5d5f4efba',
   realProofs: true,
+  feePayment: 'sponsored',
+  feeJuicePortal: '0xe59acba462a0324b1d619a7a1b219419f156f505',
+  feeAssetHandler: '0x5602c39a6e9c5ace589f64f754927bcda4f4bfc9',
+  l1FeeJuice: null,
   sponsoredFpc: '0x2d8fff82a3b0c15d0a89169e7d8d043e079ab94d52031f1de1e4972ebad169d3',
 });
 export function v6ManifestProblems(m, { expectNetwork } = {}) {
@@ -89,23 +94,23 @@ export function v6ManifestProblems(m, { expectNetwork } = {}) {
   };
   check(m.schema === 'ans-deployment-v6/1', 'v6 schema');
   check(m.aztecVersion === '6.0.0' && m.protocol === 6, 'v6 version/protocol');
-  check(['local', 'testnet-v6'].includes(m.network), 'v6 network');
+  check(['local', 'testnet-v6', 'mainnet'].includes(m.network), 'v6 network');
   if (expectNetwork) check(m.network === expectNetwork, 'v6 expected network');
   const address = (x) =>
     typeof x === 'string' &&
     /^0x[0-9a-f]{64}$/i.test(x) &&
     BigInt(x) < 21888242871839275222246405745257275088548364400416034343698204186575808495617n;
   const zero = '0x' + '0'.repeat(64);
-  for (const key of [
-    'sponsoredFpc',
-    'registry',
-    'resolver',
-    'registrar',
-    'feeToken',
-    'treasury',
-    'owner',
-  ])
+  for (const key of ['registry', 'resolver', 'registrar', 'feeToken', 'treasury', 'owner'])
     check(address(m[key]) && m[key] !== zero, `v6 address ${key}`);
+  const fee = m.feePayment ?? 'sponsored';
+  check(['sponsored', 'fee-juice'].includes(fee), 'v6 feePayment');
+  check(
+    fee === 'fee-juice'
+      ? m.sponsoredFpc === null
+      : address(m.sponsoredFpc) && m.sponsoredFpc !== zero,
+    'v6 sponsoredFpc/feePayment',
+  );
   check(/^0x[0-9a-f]{40}$/i.test(m.rollup ?? ''), 'v6 rollup address');
   check(m.legacy === zero, 'v6 legacy must be zero');
   check(
@@ -194,21 +199,120 @@ export function v6ManifestProblems(m, { expectNetwork } = {}) {
   if (expectNetwork === 'testnet-v6' || m.network === 'testnet-v6') {
     check(m.nodeUrl === 'https://aztec-testnet.drpc.org', 'v6 testnet nodeUrl');
     for (const key of ['chainId', 'rollupVersion', 'rollup', 'sponsoredFpc', 'realProofs'])
-      check(m[key] === V6_TESTNET[key], `v6 testnet ${key}`);
+      check(
+        key === 'sponsoredFpc' && fee === 'fee-juice'
+          ? m[key] === null
+          : m[key] === V6_TESTNET[key],
+        `v6 testnet ${key}`,
+      );
+  }
+  if (m.network === 'mainnet') {
+    check(fee === 'fee-juice', 'v6 mainnet feePayment');
+    for (const key of ['chainId', 'rollupVersion', 'rollup', 'realProofs'])
+      check(m[key] === V6_MAINNET[key], `v6 mainnet ${key}`);
   }
   return problems;
 }
 export function assertV6ManifestFile(path, { expectNetwork, canonical = false } = {}) {
   const manifest = JSON.parse(readFileSync(path, 'utf8'));
   const problems = v6ManifestProblems(manifest, { expectNetwork });
-  if (canonical && manifest.sample === true)
+  if (canonical && (manifest.sample === true || manifest.template === true))
     problems.push('sample cannot be a canonical testnet deployment');
   if (problems.length) throw new Error(`Invalid v6 manifest: ${problems.join(', ')}`);
   return manifest;
 }
 
-if (process.argv[1] && realpathSync(process.argv[1]) === fileURLToPath(import.meta.url)) {
+export const V6_MAINNET = Object.freeze({
+  nodeVersion: '6.0.0',
+  chainId: '1',
+  rollupVersion: '2070860440',
+  rollup: '0xe37a2663cc9c119ba41572c40fab0bbb23a5402f',
+  realProofs: true,
+  sponsoredFpc: null,
+  feePayment: 'fee-juice',
+  feeJuicePortal: '0x534361be805ca30bdb6404ec5e6cdaffb3e9f3b3',
+  feeAssetHandler: null,
+  l1FeeJuice: '0xa27ec0006e59f245217ff08cd52a7e8b169e62d2',
+});
+export function mainnetTemplateProblems(root = repository) {
+  const m = read('deployments/mainnet.template.json', root),
+    problems = [];
+  if (
+    m.template !== true ||
+    m.network !== 'mainnet' ||
+    m.protocol !== 6 ||
+    m.aztecVersion !== '6.0.0'
+  )
+    problems.push('mainnet template marker/identity');
+  for (const [key, value] of Object.entries(V6_MAINNET))
+    if (m[key] !== value) problems.push(`mainnet template ${key}`);
+  for (const key of [
+    'nodeUrl',
+    'admin',
+    'treasury',
+    'domain',
+    'registry',
+    'resolver',
+    'registrar',
+    'feeToken',
+    'annualPrice',
+    'lengthPrices',
+    'priceVersion',
+    'owner',
+    'operator',
+    'operatorBalanceSlot',
+    'operatorLowWatermark',
+  ])
+    if (m[key] !== null) problems.push(`mainnet undecided ${key} must be null`);
+  const paths = ['ops/wrangler-mainnet.jsonc', 'ops/wrangler-monitor-mainnet.jsonc'];
+  const configs = paths.map((path) => read(path, root));
+  const expected = {
+    CHAIN_ID: V6_MAINNET.chainId,
+    ROLLUP_VERSION: V6_MAINNET.rollupVersion,
+    ROLLUP: V6_MAINNET.rollup,
+    FEE_PAYMENT: 'fee-juice',
+    NETWORK_LABEL: 'mainnet',
+  };
+  configs.forEach((c, i) => {
+    for (const [key, value] of Object.entries(expected))
+      if (c.vars?.[key] !== value) problems.push(`${paths[i]} ${key}`);
+    for (const key of [
+      'RPC_URL',
+      'REGISTRY',
+      'SITE_URL',
+      'OPERATOR',
+      'OPERATOR_BALANCE_SLOT',
+      'OPERATOR_LOW_WATERMARK',
+    ])
+      if (c.vars?.[key] !== 'UNDECIDED') problems.push(`${paths[i]} placeholder ${key}`);
+    if (
+      c.name !== 'UNDECIDED' ||
+      c.d1_databases?.[0]?.database_id !== '00000000-0000-0000-0000-000000000000' ||
+      !readFileSync(new URL(paths[i], root), 'utf8').includes('// PLACEHOLDER')
+    )
+      problems.push(`${paths[i]} resource placeholders`);
+    if ('account_id' in c || 'RELEASE' in (c.vars ?? {}) || 'SPONSORED_FPC' in (c.vars ?? {}))
+      problems.push(`${paths[i]} forbidden configuration`);
+  });
+  if (
+    JSON.stringify(configs[0].vars) !== JSON.stringify(configs[1].vars) ||
+    JSON.stringify(configs[0].d1_databases) !== JSON.stringify(configs[1].d1_databases)
+  )
+    problems.push('mainnet Worker configs disagree');
+  return problems;
+}
+
+async function cli() {
   assertDeploymentConfig();
+  const slots = await operatorSlotProblems(
+    [
+      'ops/wrangler.jsonc',
+      'ops/wrangler-monitor.jsonc',
+      'ops/wrangler-mainnet.jsonc',
+      'ops/wrangler-monitor-mainnet.jsonc',
+    ].map((path) => [path, read(path, repository)]),
+  );
+  if (slots.length) throw new Error(slots.join(', '));
   console.log('Deployment configuration is consistent.');
   const args = process.argv.slice(2);
   if (args.length) {
@@ -218,3 +322,9 @@ if (process.argv[1] && realpathSync(process.argv[1]) === fileURLToPath(import.me
     console.log('V6 explicit manifest is consistent.');
   }
 }
+
+if (process.argv[1] && realpathSync(process.argv[1]) === fileURLToPath(import.meta.url))
+  cli().catch((error) => {
+    console.error(error.message);
+    process.exitCode = 1;
+  });

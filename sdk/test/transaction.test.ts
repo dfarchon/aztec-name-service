@@ -193,3 +193,19 @@ test('runTx: all nested markers must be nonempty reads, including cyclic aggrega
   Object.assign(error, { errors: [error, taggedReadError()] });
   assert.ok(!(await failedSend(error)).some((u) => u.state === 'unknown'));
 });
+
+test('host beforeSend validation runs inside shared queue after identity and cannot mark unknown broadcast', async () => {
+  const order: string[] = [], updates: TxUpdate[] = [];
+  const failure = new Error('Fee Juice validation failed');
+  const ctx = {
+    account: AztecAddress.fromBigIntUnsafe(1n),
+    signer: { beforeSend: async (account: AztecAddress) => { assert.equal(account.toBigInt(), 1n); order.push('fee-check'); throw failure; } },
+    reader: { modular: false },
+    assertWalletNetwork: async () => { order.push('identity'); },
+    queue: { run: async (f: () => Promise<unknown>) => { order.push('queue'); return f(); } },
+  } as unknown as AnsContext;
+  const call = { send: async () => { order.push('send'); throw new Error('must not send'); } } as unknown as ContractFunctionInteraction;
+  await assert.rejects(runTx(ctx, call, { onUpdate: u => updates.push(u) }), (e: AnsError) => e.cause === failure);
+  assert.deepEqual(order, ['queue', 'identity', 'fee-check']);
+  assert.equal(updates.length, 0);
+});

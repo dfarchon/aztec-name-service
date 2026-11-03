@@ -11,7 +11,7 @@ const ManagePage = lazy(() => import("./pages/Manage").then((m) => ({ default: m
 const MyNamesPage = lazy(() => import("./pages/MyNames").then((m) => ({ default: m.MyNamesPage })));
 const RegisterPage = lazy(() => import("./pages/Register").then((m) => ({ default: m.RegisterPage })));
 import { SearchPage } from "./pages/Search";
-import { boot, useSession } from "./session";
+import { boot, choosingAccount, useSession } from "./session";
 import { TransactionWatch } from "./transactions";
 import { RouteBoundary } from "./RouteBoundary";
 const DocsPage = lazy(() => import("./pages/Docs").then(m => ({ default: m.DocsPage })));
@@ -98,7 +98,7 @@ export function App() {
       )}
       <main id="content" tabIndex={-1} className={page === 'docs' || page === 'help' ? 'docs-page' : undefined}>
         {page !== 'docs' && page !== 'help' && <div className="page-heading"><h1>{translate(PAGE_TITLES[page] ?? "Name service")}</h1></div>}
-        <RouteBoundary key={`${page}:${arg ?? ''}`}>
+        <RouteBoundary key={page} resetKey={`${page}:${arg ?? ''}`}>
         <Suspense fallback={<CardLoading />}>
         {page === "" && <SearchPage initial={arg} />}
         {page === "name" && <SearchPage initial={arg} />}
@@ -134,12 +134,24 @@ function CardLoading() {
 
 /** Shown by pages that need an unlocked wallet with an account. */
 export function NeedsAccount() {
-  const { reader } = useSession();
+  const s = useSession();
+  if (choosingAccount(s)) return <ChooseAccount />;
+  const { reader } = s;
   return (
     <Card>
       <EmptyState title={translate("Wallet not connected")} description={translate("Connect your wallet to view and manage your names.")}>
         <button disabled={!reader} onClick={openWalletPanel}>{translate("Connect wallet")}</button>
         {config.developmentWallet && <a href="#/account">{translate("Open developer wallet")}</a>}
+      </EmptyState>
+    </Card>
+  );
+}
+
+export function ChooseAccount() {
+  return (
+    <Card>
+      <EmptyState title={translate("Choose a wallet account")} description={translate("Choose a wallet account to continue.")}>
+        <button onClick={openWalletPanel}>{translate("Choose account")}</button>
       </EmptyState>
     </Card>
   );

@@ -19,18 +19,22 @@ import { getContractClassFromArtifact } from '@aztec-labs/stdlib/contract';
 import { BlockNumber } from '@aztec-labs/foundation/branded-types';
 import type { Tx } from '@aztec-labs/stdlib/tx';
 import { EmbeddedWallet } from '@aztec-labs/wallets/embedded';
+import { FeeJuicePaymentMethodWithClaim, type FeePaymentMethod } from '@aztec-labs/aztec.js/fee';
+import { isL1ToL2MessageReady } from '@aztec-labs/aztec.js/messaging';
+import { readBridgeClaim, readFeeJuiceBalance, selectFeeJuice } from './fee-juice-payment.js';
 import { randomKeys, sponsoredFpc } from './common.js';
 import { acquireTestnetLock } from './testnet-lock.js';
 import { acceptanceChecks, runCheckpointedStep } from './testnet-checkpoint.js';
-import { V6_PROFILES, assertV6Fpc, assertV6Network, dryRunNode } from './v6-network.js';
+import { V6_PROFILES, assertV6Fpc, assertV6FeeJuice, assertV6Network, dryRunNode } from './v6-network.js';
 import { REPO, ZERO, DEPLOY_STEPS, assertPrivateDir, buildManifest, configHash, deploymentPlan, makePolicy, parseOptions, finalizeConfig, parseInitKeysArgs, within, type Config, type Policy } from './deploy-v6-plan.js';
 import { initKeys, readKeys, readPublicKeys, type KeysFile, type PublicKeys } from './init-keys.js';
+const { assertMainnetReady, mainnetBlockers } = createRequire(import.meta.url)('../../scripts/mainnet-readiness.mjs');
 const { v6ManifestProblems } = createRequire(import.meta.url)('../../scripts/deployment-config.mjs');
 export type V6State = {
   schema: string; toolchainVersion: string; network: Config['network']; identity: { chainId: string; rollupVersion: string; rollup: string };
   config: Policy; configHash: string; keys: { owner: { secret: string; salt: string; signingKey: string } };
   salts: Record<string, string>; addresses: Record<string, string>; transactions: Record<string, string>; done: string[]; checks: string[];
-  manifestPath: string; deployedAt?: string; lastError?: string;
+  feePayment?: Config['feePayment']; feeClaim?: { usedBy: string }; manifestPath: string; deployedAt?: string; lastError?: string;
 };
 /** Resolve existing ancestors as well as a not-yet-created leaf to prevent symlink escapes. */
 export async function physicalPath(path: string): Promise<string> {
@@ -39,10 +43,10 @@ export async function physicalPath(path: string): Promise<string> {
 }
 export async function privatePaths(c: Config) {
   const state = await physicalPath(c.stateDir), out = await physicalPath(c.manifestOut);
-  assertPrivateDir(state, c.network);
+  assertPrivateDir(state, c.network, undefined, undefined, c.feePayment);
   assert(!within(state, REPO), 'State must not contain repository');
-  if (c.network === 'local') assert(!within(join(REPO, 'deployments'), out), 'Local manifest cannot enter deployments');
-  assert(![join(state, 'state.json'), join(state, 'runner.lock'), join(state, 'keys.json'), join(state, 'keys.json.tmp')].includes(out), 'Manifest cannot overwrite state');
+  if (c.network !== 'testnet-v6' || c.feePayment === 'fee-juice') assert(!within(join(REPO, 'deployments'), out), 'Local manifest cannot enter deployments');
+  assert(![join(state, 'state.json'), join(state, 'runner.lock'), join(state, 'keys.json'), join(state, 'keys.json.tmp'), join(state, 'bridge.json'), join(state, 'l1-key.json')].includes(out), 'Manifest cannot overwrite state');
   return { state, out };
 }
 export async function atomicJson(path: string, value: unknown, mode = 0o600) {
@@ -95,6 +99,14 @@ export async function main(argv = process.argv.slice(2), dependencies = { create
   }
   // Public key projection and confirmation are resolved before any network I/O.
   const options = parseOptions(argv);
+  if (options.network === 'mainnet') {
+    if (!options.dryRun) { assertMainnetReady(); throw new Error('Mainnet blocked: registration fee-token mode undecided; token-deploying flow refused'); }
+    const info = await dependencies.createNode(options.nodeUrl, { maxBatchSize: 3 }).getNodeInfo();
+    const identity = assertV6Network('mainnet', info, options.nodeUrl);
+    console.log(`IDENTITY ${JSON.stringify(identity)}`);
+    console.log(`Mainnet blocked: ${mainnetBlockers().join(', ')}`);
+    return;
+  }
   const keysPath = join(options.stateDir, 'keys.json');
   const publicKeys = await exists(keysPath) ? await readPublicKeys(keysPath, options.network) : undefined;
   const c = finalizeConfig(options, publicKeys?.treasury), used = new Set<string>();
@@ -105,9 +117,13 @@ export async function main(argv = process.argv.slice(2), dependencies = { create
   try {
     const info = await preflight.getNodeInfo(), identity = assertV6Network(c.network, info, c.nodeUrl);
     console.log(`IDENTITY ${JSON.stringify({ nodeVersion: info.nodeVersion, ...identity, realProofs: info.realProofs })}`);
-    const fpc = await sponsoredFpc(), publishedFpc = await preflight.getContract(fpc.instance.address);
-    const fpcStatus = assertV6Fpc(c.network, fpc.instance, (await getContractClassFromArtifact(fpc.artifact)).id.toString(), publishedFpc);
-    console.log(`PASS SponsoredFPC ${fpc.instance.address} class ${fpc.instance.currentContractClassId} ${fpcStatus}`);
+    let fpc: Awaited<ReturnType<typeof sponsoredFpc>> | undefined;
+    let publishedFpc: Awaited<ReturnType<typeof preflight.getContract>>;
+    if (c.feePayment === 'sponsored') {
+      fpc = await sponsoredFpc(); publishedFpc = await preflight.getContract(fpc.instance.address);
+      const fpcStatus = assertV6Fpc(c.network, fpc.instance, (await getContractClassFromArtifact(fpc.artifact)).id.toString(), publishedFpc);
+      console.log(`PASS SponsoredFPC ${fpc.instance.address} class ${fpc.instance.currentContractClassId} ${fpcStatus}`);
+    } else assertV6FeeJuice(c.network, info);
     const { artifacts, classIds } = await v6Artifacts(c.token, c.registrar);
     console.log(`PASS frozen artifact classes ${JSON.stringify(classIds)}`);
     const pricing = JSON.parse(await readFile(c.pricing, 'utf8'));
@@ -116,7 +132,7 @@ export async function main(argv = process.argv.slice(2), dependencies = { create
     if (c.dryRun) {
       const pending = 'pending: derived after formal local key generation';
       const p = makePolicy(c, pricing, c.treasury ?? pending);
-      const a: Record<string, string> = { owner: pending, treasury: p.treasury, sponsoredFpc: fpc.instance.address.toString(), token: pending, registry: pending, resolver: pending, registrar: pending };
+      const a: Record<string, string> = { owner: pending, treasury: p.treasury, sponsoredFpc: (fpc?.instance.address.toString() ?? ''), token: pending, registry: pending, resolver: pending, registrar: pending };
       if (publicKeys) Object.assign(a, await keyedAddresses(artifacts, p, publicKeys));
       console.log(`DRY-RUN ${JSON.stringify(deploymentPlan(c, p, identity, a, classIds, publicKeys ? 'Addresses derived from keys file (public values only)' : undefined), null, 2)}`);
       return;
@@ -127,20 +143,24 @@ export async function main(argv = process.argv.slice(2), dependencies = { create
     let wallet: EmbeddedWallet | undefined;
     let state: V6State | undefined;
     let activeStep = '';
+    let claimStep = '';
+    let feeMethod: FeePaymentMethod | undefined;
     const path = join(paths.state, 'state.json');
     const save = async () => atomicJson(path, state);
     try {
       try { state = JSON.parse(await readFile(path, 'utf8')); }
       catch (e) { if ((e as NodeJS.ErrnoException).code !== 'ENOENT') throw new Error('Unable to read private deployment checkpoint'); }
       if (!state) {
-        state = await buildInitialState(c, pricing, identity, paths.out, fpc.instance.address.toString(), publicKeys ? await readKeys(keysPath, c.network) : undefined, dependencies.randomKeys);
+        state = await buildInitialState(c, pricing, identity, paths.out, (fpc?.instance.address.toString() ?? ''), publicKeys ? await readKeys(keysPath, c.network as 'local' | 'testnet-v6') : undefined, dependencies.randomKeys);
+        if (c.feePayment === 'fee-juice') state.feePayment = 'fee-juice';
         await save();
       }
       assert.equal(state.schema, 'ans-deploy-v6-state/1', 'Unknown deployment checkpoint schema');
       assert.equal(state.toolchainVersion, '6.0.0', 'Checkpoint toolchain mismatch');
       assert.equal(state.network, c.network, 'Checkpoint network mismatch');
+      assert.equal(state.feePayment ?? 'sponsored', c.feePayment, 'Checkpoint fee mode mismatch');
       assert.deepEqual(state.identity, identity, 'Checkpoint identity mismatch');
-      if (publicKeys) assertCheckpointKeys(state, await readKeys(keysPath, c.network));
+      if (publicKeys) assertCheckpointKeys(state, await readKeys(keysPath, c.network as 'local' | 'testnet-v6'));
       const p = makePolicy(c, pricing, c.treasury ?? state.addresses.owner);
       assert.equal(state.configHash, configHash(p), 'Checkpoint configHash mismatch');
       assert.equal(state.configHash, configHash(state.config), 'Checkpoint policy integrity mismatch');
@@ -150,14 +170,16 @@ export async function main(argv = process.argv.slice(2), dependencies = { create
           assert(activeStep && !state!.transactions[activeStep], 'Refusing duplicate or uncheckpointed broadcast');
           // Revalidate immediately before the only broadcasting boundary.
           assertV6Network(c.network, await rawNode.getNodeInfo(), c.nodeUrl);
-          state!.transactions[activeStep] = tx.getTxHash().toString(); await save();
+          state!.transactions[activeStep] = tx.getTxHash().toString();
+          if (claimStep === activeStep) state!.feeClaim = { usedBy: activeStep };
+          await save();
           await target.sendTx(tx);
           console.log(`BROADCAST ${activeStep} ${state!.transactions[activeStep]}`);
         };
         const v = Reflect.get(target, prop); return typeof v === 'function' ? v.bind(target) : v;
       } }) as AztecNode;
       wallet = await EmbeddedWallet.create(node, { pxe: { proverEnabled: info.realProofs, dataDirectory: join(paths.state, 'wallet') } });
-      await wallet.registerContract(publishedFpc ?? fpc.instance, fpc.artifact);
+      if (fpc) await wallet.registerContract(publishedFpc ?? fpc.instance, fpc.artifact);
       const k = state.keys.owner;
       const owner = (await wallet.createSchnorrInitializerlessAccount(Fr.fromString(k.secret), Fr.fromString(k.salt), Fq.fromString(k.signingKey))).address;
       assert.equal(owner.toString(), state.addresses.owner, 'Owner checkpoint mismatch');
@@ -194,10 +216,27 @@ export async function main(argv = process.argv.slice(2), dependencies = { create
         assert(!(await effect(c.rebroadcast)), 'Rebroadcast forbidden: chain effect exists');
         delete state.transactions[c.rebroadcast]; await save();
       }
+      const firstUnfinished = DEPLOY_STEPS.find(step => !state!.done.includes(step));
+      const claim = c.feePayment === 'fee-juice' ? await readBridgeClaim(paths.state, c.network, owner.toString()) : undefined;
+      const fee = () => fpc ? fpc.fee.fee : feeMethod ? { paymentMethod: feeMethod } : undefined;
       const step = async (name: string, send: () => Promise<unknown>) => {
         activeStep = name;
         console.log(`${state!.done.includes(name) ? 'SKIP' : state!.transactions[name] ? 'RESUME' : 'STEP'} ${name}${state!.transactions[name] ? ` ${state!.transactions[name]}` : ''}`);
-        await runCheckpointedStep(state!, name, send, async hash => {
+        await runCheckpointedStep(state!, name, async () => {
+          feeMethod = undefined; claimStep = '';
+          if (c.feePayment === 'fee-juice') {
+            const balance = await readFeeJuiceBalance(node, owner);
+            let selection;
+            try { selection = selectFeeJuice(balance, c.minFeeJuice!, name === firstUnfinished ? claim : undefined, state!, name); }
+            catch { throw new Error(`Deployer Fee Juice insufficient and no unconsumed claim; owner=${owner} balance=${balance}`); }
+            if (selection === 'claim') {
+              if (!await isL1ToL2MessageReady(node, Fr.fromString(claim!.messageHash!), 'proven')) throw new Error('Fee claim L1-to-L2 message is not ready at proven tip');
+              claimStep = name;
+              feeMethod = new FeeJuicePaymentMethodWithClaim(owner, { claimAmount: BigInt(claim!.amount), claimSecret: Fr.fromString(claim!.claimSecret), messageLeafIndex: BigInt(claim!.leafIndex!) });
+            }
+          }
+          return send();
+        }, async hash => {
           try { return await trackTx(node, hash, { waitFor: 'confirmed', timeoutMs: 30 * 60_000, pollMs: 1000 }); }
           catch (e) {
             if ((e as { code?: string }).code !== 'dropped') throw e;
@@ -210,11 +249,11 @@ export async function main(argv = process.argv.slice(2), dependencies = { create
       };
       for (const key of ['token', 'registry', 'resolver', 'registrar'] as const) {
         const deploy = Contract.deploy(wallet, artifacts[key], prepared.args[key], undefined, { salt: Fr.fromString(state.salts[key]), deployer: owner });
-        await step(`deploy-${key}`, () => deploy.send({ from: owner, fee: fpc.fee.fee, wait: NO_WAIT }));
+        await step(`deploy-${key}`, () => deploy.send({ from: owner, fee: fee(), wait: NO_WAIT }));
         await wallet.registerContract(prepared.values[key], artifacts[key]);
       }
       const core = NameRegistryV6Contract.at(prepared.values.registry.address, wallet);
-      await step('bootstrap', () => core.methods.bootstrap(prepared.values.registrar.address, prepared.values.resolver.address).send({ from: owner, fee: fpc.fee.fee, wait: NO_WAIT }));
+      await step('bootstrap', () => core.methods.bootstrap(prepared.values.registrar.address, prepared.values.resolver.address).send({ from: owner, fee: fee(), wait: NO_WAIT }));
       const reader = await RegistryReader.connect(node, core.address), policy = await reader.getConfig(), modules = await reader.getModules();
       check('registrar binding', modules.registrar.equals(prepared.values.registrar.address));
       check('resolver binding', modules.resolver.equals(prepared.values.resolver.address));
@@ -241,7 +280,7 @@ export async function main(argv = process.argv.slice(2), dependencies = { create
       const publicJson = JSON.stringify(manifest);
       for (const value of [...Object.values(state.keys.owner), ...Object.values(state.salts)]) assert(!publicJson.includes(value), 'Private value in manifest');
       if (publicKeys) {
-        const keys = await readKeys(keysPath, c.network);
+        const keys = await readKeys(keysPath, c.network as 'local' | 'testnet-v6');
         for (const value of [keys.treasury.secret, keys.treasury.salt, keys.treasury.signingKey]) assert(!publicJson.includes(value), 'Private value in manifest');
       }
       await mkdir(dirname(paths.out), { recursive: true }); await atomicJson(paths.out, manifest);
@@ -254,7 +293,7 @@ export async function main(argv = process.argv.slice(2), dependencies = { create
   } finally { if (c.dryRun) console.log(`DRY-RUN node methods used: ${JSON.stringify([...used])}`); }
 }
 export function deploymentError(error: unknown): string {
-  return error instanceof assert.AssertionError ? error.message.split('\n')[0] : error instanceof Error && /^(Exact --confirm|Keys |Treasury |--init-keys|--|Unknown|A valid|Local |Invalid |V6 network|State |Legacy |Token |Manifest |Checkpoint |Pending |Rebroadcast |Unable to read|DRY-RUN)/.test(error.message) ? error.message.split('\n')[0] : 'V6 deployment stopped; inspect checkpoint status and network availability';
+  return error instanceof assert.AssertionError ? error.message.split('\n')[0] : error instanceof Error && /^(Exact --confirm|Keys |Treasury |--init-keys|--|Unknown|A valid|Local |Invalid |V6 network|State |Legacy |Token |Manifest |Checkpoint |Pending |Rebroadcast |Unable to read|DRY-RUN|Mainnet blocked|Deployer Fee Juice|Fee )/.test(error.message) ? error.message.split('\n')[0] : 'V6 deployment stopped; inspect checkpoint status and network availability';
 }
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   main().catch(error => {
