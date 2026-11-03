@@ -99,7 +99,7 @@ The bridge helper accepts only local and testnet-v6. `--init-l1-key` creates a n
 
 ```sh
 # Public rehearsal is operator-only; choose the date, amount, price version and minimum.
-S="$HOME/.local/share/ans/testnet-aztec6-6.0.0-nofpc-rehearsal-20261102"
+S="$HOME/.local/share/ans/testnet-aztec6-6.0.0-nofpc-rehearsal-<YYYYMMDD>"
 npm run deploy:v6 -- --init-keys --network testnet-v6 --state-dir "$S"
 npm run bridge:fee-juice -- --init-l1-key --network testnet-v6 --state-dir "$S"
 # Fund the printed public L1 address with Sepolia ETH, then preview the exact confirmation.
