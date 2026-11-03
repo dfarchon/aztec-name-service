@@ -93,10 +93,11 @@ export function SearchPage({ initial }: { initial?: string }) {
 
   return (
     <>
-      <Card>
+      <Card className="search-card">
         <label className="search-label" htmlFor="name-query">{translate("Name")}</label>
         <form
           className="row search-form"
+          aria-busy={loading}
           onSubmit={(e) => {
             e.preventDefault();
             void query();
@@ -119,6 +120,7 @@ export function SearchPage({ initial }: { initial?: string }) {
             }}
           />
           <button
+            className="primary"
             disabled={!reader || loading || !preview || "error" in preview}
           >
             {loading ? translate("Searching…") : translate("Search")}
@@ -163,11 +165,11 @@ export function SearchPage({ initial }: { initial?: string }) {
             </dd>
             </>}
           </dl>}
-          <div className="row">
+          <div className="row name-actions">
             {reader && <FavoriteButton reader={reader} name={result.label.label} />}
             {result.migration && <button onClick={() => go("manage", result.label.label)}>{translate("Migrate name")}</button>}
             {result.available && (
-              <button onClick={() => go("register", result.label.label)}>{translate("Register name")}</button>
+              <button className="primary" onClick={() => go("register", result.label.label)}>{translate("Register name")}</button>
             )}
             {result.status === "active" || result.status === "grace" ? (
               <button
