@@ -27,19 +27,16 @@ try {
  pass('Search filters the index and navigation without a wallet');
  await page.screenshot({path:`${output}/docs-desktop.png`,fullPage:true});
  const ids=['getting-started','pricing','tokens','glossary','manage','profile','permissions','subnames','sdk','sdk-write','deployments','recovery','troubleshooting'];
- for(const locale of ['en','zh-CN']){
-  await page.select('.language-select',locale);
-  for(const id of ids){
+ for(const id of ids){
    await route(id);
    assert.equal(await page.$$eval('main h1',items=>items.length),1);
-   assert.doesNotMatch(await page.$eval('.doc-article',e=>e.innerText),/governance|治理|timelock/i);
+   assert.doesNotMatch(await page.$eval('.doc-article',e=>e.innerText),/governance|timelock/i);
    assert.ok(await page.$$eval('.doc-section h2',items=>items.every(h=>h.textContent.trim())));
    assert.ok(await page.$$eval('.doc-section',items=>items.length>=2));
-   assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false,`${locale}/${id} desktop overflow`);
-  }
+   assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false,`${id} desktop overflow`);
  }
- pass(`All ${ids.length} articles have a single title and structured chapters in both languages`);
- await page.select('.language-select','en');await route('sdk');await wait('RegistryReader.connect');
+ pass(`All ${ids.length} articles have a single title and structured chapters in English`);
+ await route('sdk');await wait('RegistryReader.connect');
  await page.evaluate(()=>{window.__copied='';Object.defineProperty(navigator,'clipboard',{configurable:true,value:{writeText:async text=>{window.__copied=text;}}});});
  await page.click('.doc-code .doc-copy');await wait('Copied');assert.match(await page.evaluate(()=>window.__copied),/RegistryReader.connect/);
  await page.click('.doc-article-tools .doc-copy');assert.match(await page.evaluate(()=>window.__copied),/```typescript/);
@@ -49,14 +46,14 @@ try {
  await page.screenshot({path:`${output}/sdk-desktop.png`,fullPage:true});
  await route('pricing');await wait(feeLabel);pass('Pricing displays the verified live token and quote');
  await page.screenshot({path:`${output}/pricing-desktop.png`,fullPage:true});
- await page.setViewport({width:390,height:844});await page.select('.language-select','zh-CN');
+ await page.setViewport({width:390,height:844});
  for(const id of ids){await route(id);assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false,`${id} mobile overflow`);}
- await route('getting-started');await page.click('.doc-mobile-navigation > summary');await page.click('.doc-mobile-navigation a[href="#/docs/profile"]');await wait('公开资料记录');
+ await route('getting-started');await page.click('.doc-mobile-navigation > summary');await page.click('.doc-mobile-navigation a[href="#/docs/profile"]');await wait('Public profile records');
  pass('All articles fit a 390px screen and the mobile directory navigates');
- await route('getting-started');await page.screenshot({path:`${output}/guide-zh-mobile.png`,fullPage:true});
+ await route('getting-started');await page.screenshot({path:`${output}/guide-mobile.png`,fullPage:true});
  await page.emulateMediaType('print');assert.equal(await page.$eval('.app-header',e=>getComputedStyle(e).display),'none');assert.equal(await page.$eval('.doc-mobile-navigation',e=>getComputedStyle(e).display),'none');await page.emulateMediaType(null);
  pass('Print view removes application chrome and retains the article');
- await page.evaluate(()=>{location.hash='/docs/unknown';});await wait('未找到这篇文章');pass('Unknown article links have a recovery path');
+ await page.evaluate(()=>{location.hash='/docs/unknown';});await wait('Article not found');pass('Unknown article links have a recovery path');
  assert.equal(broadcasts,0);assert.deepEqual(errors,[]);pass('Documentation is wallet-free and never broadcasts transactions');
  await writeFile(`${output}/browser.json`,JSON.stringify({base,checkedAt:new Date().toISOString(),checks,broadcasts,errors},null,2)+'\n');
 } finally {await browser.close();}

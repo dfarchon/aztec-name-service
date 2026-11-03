@@ -152,10 +152,10 @@ try {
   await page.evaluate(() => { const interval = window.setInterval.bind(window); window.setInterval = (fn, ms, ...args) => { if (ms === 30000) window.review.statusPoll = () => fn(...args); return interval(fn, ms, ...args); }; location.hash = '/status'; });
   await wait('Current release has not been checked');
   assert.ok(!/1969|1970/.test(await page.evaluate(() => document.body.innerText)));
-  await page.select('.language-select', 'zh-CN');
-  await wait('当前版本尚未完成监测');
-  pass('an unchecked release shows a localized pending state without an epoch date');
-  await page.select('.language-select', 'en');
+
+  await wait('Current release has not been checked');
+  pass('an unchecked release shows a pending state without an epoch date');
+
   statusMode = 'fresh';
   await click('Refresh status'); await wait('Checked every minute');
   statusMode = 'failed';

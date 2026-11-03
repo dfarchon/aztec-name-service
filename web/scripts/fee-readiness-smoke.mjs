@@ -80,15 +80,15 @@ try {
   await click('Check balance again');
   await wait(() => [...document.querySelectorAll('button')].some(b => b.textContent.trim() === 'Confirm renewal' && !b.disabled));
   pass('balance read recovers through the visible retry control');
-  await page.select('.language-select', 'zh-CN');
-  await wait(() => document.body.innerText.includes('续期'));
-  await page.select('.language-select', 'en');
-  pass('English and Chinese payment controls use the same live asset');
+
+  await wait(() => document.body.innerText.includes('Renew'));
+
+  pass('English payment controls use the live asset');
   await page.setViewport({ width: 390, height: 844 });
   assert(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth));
   assert.equal(broadcasts, 0); assert.deepEqual(errors, []);
   pass('mobile payment controls render with zero broadcasts or runtime errors');
-  await page.select('.language-select', 'en');
+
   await page.evaluate(async () => {
     const fixture = window.feeFixture;
     fixture.reader.node.getNodeInfo = async () => { throw new Error('Fixture network outage'); };

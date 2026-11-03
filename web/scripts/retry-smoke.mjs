@@ -34,7 +34,7 @@ const noAvailability = async () => {
   assert.equal(await page.$('.status-badge'), null);
   assert.equal(
     await page.$$eval('main button', (buttons) =>
-      buttons.some((button) => ['Register name', '注册名字'].includes(button.textContent.trim())),
+      buttons.some((button) => button.textContent.trim() === 'Register name'),
     ),
     false,
   );
@@ -102,22 +102,18 @@ try {
   assert.match(await page.$eval('footer', (el) => el.innerText), /Node connected · periodic check/);
   await wait('Node connection status is checked separately; this lookup failed.');
   pass('lookup failure is distinct from periodic node connection status');
-  await page.evaluate(async () => {
-    (await import('/src/i18n.ts')).setLocale('zh-CN');
-  });
-  await wait('节点暂时超时，已自动重试 3 次，请稍后重试。');
-  assert.equal(await page.$eval('[data-query-error] button', (el) => el.innerText), '重试');
-  assert.match(await page.$eval('footer', (el) => el.innerText), /节点已连接 · 定期检查/);
-  pass('timeout feedback, count, retry action and connection status are translated');
+  await wait('The node temporarily timed out. Automatically retried 3 times. Please try again shortly.');
+  assert.equal(await page.$eval('[data-query-error] button', (el) => el.innerText), 'Retry');
+  assert.match(await page.$eval('footer', (el) => el.innerText), /Node connected · periodic check/);
+  pass('timeout feedback includes the retry count, retry action and connection status');
   await page.evaluate(() => {
     window.retryFixture.reader.snapshot = window.retryFixture.original;
   });
   await page.click('[data-query-error] button');
-  await wait('已注册 · 有效', '.status-badge');
+  await wait('Registered · Active', '.status-badge');
   assert.equal(await page.$('[data-query-error]'), null);
   pass('manual retry succeeds and removes the previous error');
   await page.evaluate(async () => {
-    (await import('/src/i18n.ts')).setLocale('en');
     window.retryFixture.reader.snapshot = async () => {
       throw new Error('fetch failed');
     };
@@ -150,17 +146,10 @@ try {
   });
   await wait('Getting test tokens', '.doc-article');
   const tokens = await page.$eval('.doc-article', (el) => el.innerText);
-  assert.doesNotMatch(tokens, /TODO|待补充/);
+  assert.doesNotMatch(tokens, /TODO/);
   assert.match(tokens, /no public self-serve faucet/);
   pass('English token article explains the operator flow without TODO');
   await page.evaluate(async () => {
-    (await import('/src/i18n.ts')).setLocale('zh-CN');
-  });
-  await wait('没有公开自助水龙头', '.doc-article');
-  assert.doesNotMatch(await page.$eval('.doc-article', (el) => el.innerText), /TODO|待补充/);
-  pass('Chinese token article explains the same funding boundary');
-  await page.evaluate(async () => {
-    (await import('/src/i18n.ts')).setLocale('en');
     location.hash = '/docs/deployments';
   });
   await page.waitForSelector('.doc-deployment');

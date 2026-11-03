@@ -1,4 +1,4 @@
-// Read-only language and state-preservation checks. This fixture never signs or sends transactions.
+// Read-only English presentation and state-preservation checks. This fixture never signs or sends transactions.
 import assert from 'node:assert/strict';
 import puppeteer from 'puppeteer-core';
 const base = process.env.BASE ?? 'http://127.0.0.1:5195';
@@ -7,47 +7,41 @@ const browser = await puppeteer.launch({ executablePath: process.env.CHROME_PATH
 const page = await browser.newPage();
 const errors = []; page.on('pageerror', error => errors.push(error.message));
 const wait = text => page.waitForFunction(text => document.body.innerText.includes(text), { timeout: 90000 }, text);
-const language = value => page.select('.language-select', value);
 let checks = 0;
 const pass = message => console.log(`PASS ${++checks}: ${message}`);
 try {
-  await page.evaluateOnNewDocument(() => Object.defineProperty(navigator, 'language', { get: () => 'zh-CN' }));
+  await page.evaluateOnNewDocument(() => Object.defineProperty(navigator, 'language', { get: () => 'fr-FR' }));
   await page.goto(base);
   await wait('Name search');
   assert.equal(await page.evaluate(() => document.documentElement.lang), 'en');
   await page.type('#name-query', 'Invalid_name!');
   await wait('Invalid name format');
   await page.click('.theme-toggle');
-  await language('zh-CN');
-  await wait('名字格式不正确');
+  await wait('Invalid name format');
   assert.equal(await page.$eval('#name-query', input => input.value), 'Invalid_name!');
   assert.equal(await page.evaluate(() => document.documentElement.dataset.theme), 'light');
-  pass('English default on a Chinese browser; switching preserves input, validation and theme');
+  pass('English on a non-English browser; changing theme preserves input and validation');
   await page.reload();
-  await wait('名字查询');
-  assert.equal(await page.evaluate(() => document.documentElement.lang), 'zh-CN');
-  pass('explicit locale persists on refresh');
-  for (const locale of ['zh-CN', 'en']) {
-    await language(locale);
-    for (const width of [1280, 768, 390, 320]) {
+  await wait('Name search');
+  assert.equal(await page.evaluate(() => document.documentElement.lang), 'en');
+  assert.equal(await page.evaluate(() => document.documentElement.dataset.theme), 'light');
+  assert.equal(await page.$('select[aria-label=Language]'), null);
+  pass('English and the selected theme persist on refresh');
+  for (const width of [1280, 768, 390, 320]) {
       await page.setViewport({ width, height: 900 });
-      assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), `${locale} ${width} overflows`);
-      assert.ok(await page.$eval('.language-select', el => el.getBoundingClientRect().height >= 44));
-      if (width === 320) await page.screenshot({ path: `/tmp/ans-locale-${locale}-320.png`, fullPage: true });
-    }
+      assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), `${width} overflows`);
+      assert.ok(await page.$eval('.theme-toggle', el => el.getBoundingClientRect().height >= 44));
+      if (width === 320) await page.screenshot({ path: `/tmp/ans-english-320.png`, fullPage: true });
   }
-  pass('both languages fit desktop and mobile with accessible language control');
+  pass('English fits desktop and mobile with accessible appearance controls');
   await page.goto(`${base}/#/name/${name}`);
   await wait('Registered · Active');
   const before = await page.$$eval('main .copy-value code', els => els.map(el => el.textContent));
   const dateBefore = await page.$eval('main dd', el => el.textContent);
-  await language('zh-CN');
-  await wait('已注册 · 有效');
+  await page.click('.theme-toggle');
   assert.deepEqual(await page.$$eval('main .copy-value code', els => els.map(el => el.textContent)), before);
-  assert.notEqual(await page.$eval('main dd', el => el.textContent), dateBefore);
-  await language('en');
   assert.equal(await page.$eval('main dd', el => el.textContent), dateBefore);
-  pass('lookup translates status and dates while keeping names and full addresses unchanged');
+  pass('lookup keeps English dates, names and full addresses unchanged across theme changes');
   await page.evaluate(async () => {
     const source = await (await fetch('/src/App.tsx')).text();
     const path = source.match(/from\s*["']([^"']*\/session\.ts[^"']*)["']/)?.[1];
@@ -65,23 +59,20 @@ try {
   await wait('Start registration');
   await page.select('main select', '3');
   await page.click('.fee-details summary');
-  await language('zh-CN');
-  await wait('开始注册');
-  await wait('扣费上限');
+  await page.click('.theme-toggle');
+  await wait('Maximum fee');
   assert.equal(await page.$eval('main select', el => el.value), '3');
   assert.equal(await page.$eval('main input', el => el.value), 'locale-fixture');
   assert.equal(await page.$eval('.fee-details', el => el.open), true);
   assert.ok(await page.evaluate(() => window.localeSession.getSession().ctx === window.originalLocaleContext));
   await page.click('#wallet-menu > summary');
   assert.equal(await page.$eval('.wallet-popover select option', el => el.textContent), 'Search');
-  pass('registration period, fee disclosure, wallet context and user alias survive switching');
+  pass('registration period, fee disclosure, wallet context and user alias survive appearance changes');
   await page.evaluate(() => { location.hash = '/status'; });
-  await wait('服务状态');
-  await language('en');
   await wait('Service status');
-  pass('lazy-loaded status page switches without a page reload');
+  pass('lazy-loaded status page renders in English');
   assert.deepEqual(errors, []);
   pass('no browser runtime errors');
-  console.log(`ALL ${checks} LOCALE CHECKS PASSED`);
+  console.log(`ALL ${checks} ENGLISH PRESENTATION CHECKS PASSED`);
 } catch (error) { console.error(error); console.error(await page.evaluate(() => document.body.innerText).catch(() => "Page unavailable")); throw error; }
 finally { await page.close(); await browser.close(); }
