@@ -8,8 +8,6 @@ import {
 } from '../src/fee-juice-error.js';
 import { assertFeeJuice, feeJuiceWallet, readFeeJuiceBalance } from '../src/fee-juice.js';
 import { errorMessage } from '../src/format.js';
-import { setLocale } from '../src/i18n.js';
-import { zhCN } from '../src/locales/zh-CN.js';
 import { AztecAddress } from '@aztec-labs/aztec.js/addresses';
 import { Fr } from '@aztec-labs/aztec.js/fields';
 import { GasFees } from '@aztec-labs/stdlib/gas';
@@ -81,20 +79,10 @@ test('simulation insufficient fee payer balance maps to same typed error; ordina
   await assert.rejects((guarded.sendTx as any)({}, { from: account }), (e) => e === failure);
   assert(insufficientFeeJuice({ cause: new Error('Insufficient fee payer balance') }));
 });
-test('zh/en insufficient message preserves public account/balance and explains L1 and registration token', () => {
+test('insufficient message preserves the public account and balance and explains funding', () => {
   const err = new FeeJuiceInsufficientError(account.toString(), 12n);
   assert.equal(feeJuiceError({ cause: err }), err);
-  try {
-    setLocale('en');
-    const en = errorMessage({ cause: err });
-    assert(en.includes(account.toString()));
-    assert.match(en, /12 wei.*L1.*registration token/);
-    setLocale('zh-CN');
-    const zh = errorMessage({ cause: err });
-    assert(zh.includes(account.toString()));
-    assert.match(zh, /12 wei.*L1.*注册费代币/);
-    assert(zhCN["Network fees are paid from this account's Fee Juice."]);
-  } finally {
-    setLocale('en');
-  }
+  const message = errorMessage({ cause: err });
+  assert(message.includes(account.toString()));
+  assert.match(message, /12 wei.*L1.*registration token/);
 });

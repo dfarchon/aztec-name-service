@@ -56,8 +56,8 @@ try {
   check('node failure does not display an available name', (await page.$('.status-badge')) === null);
   assert.equal(await page.$eval('form button', button => button.disabled), true);
   assert.equal(await page.$$eval('button', buttons => buttons.some(button => button.textContent.trim() === 'Register name')), false);
-  await page.select('.language-select', 'zh-CN');
-  await page.waitForFunction(() => document.querySelector('footer .network-status')?.textContent === '节点不可用');
+
+  await page.waitForFunction(() => document.querySelector('footer .network-status')?.textContent === 'Node unavailable');
   assert.equal(await page.$('.status-badge'), null);
   console.log(`ALL ${count} UI CHECKS PASSED`);
 } finally { await browser.close(); }

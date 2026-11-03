@@ -31,19 +31,12 @@ test('connected manifest class displays V6, preserving V2/V3/V4/V5 labels', () =
     );
   }
 });
-test('token website and Markdown exports use factual bilingual content without TODO', () => {
+test('token website and Markdown exports explain the funding boundary in English', () => {
   const tokens = articles.find((a) => a.id === 'tokens')!;
-  for (const lang of [0, 1] as const) {
-    const markdown = articleToMarkdown(tokens, lang);
-    assert.doesNotMatch(markdown, /TODO|待补充/);
-    assert.match(markdown, /mint_to_private/);
-    assert.ok(markdown.includes(manifest.feeToken));
-    assert.match(markdown, lang ? /没有公开自助水龙头/ : /no public self-serve faucet/);
-    assert.match(
-      markdown,
-      lang
-        ? /没有已公布的公开申请渠道/
-        : /no public self-serve faucet or published public request channel/,
-    );
-  }
+  const markdown = articleToMarkdown(tokens);
+  assert.doesNotMatch(markdown, /TODO|\p{Script=Han}/u);
+  assert.match(markdown, /mint_to_private/);
+  assert.ok(markdown.includes(manifest.feeToken));
+  assert.match(markdown, /no public self-serve faucet/);
+  assert.match(markdown, /no public self-serve faucet or published public request channel/);
 });

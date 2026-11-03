@@ -11,11 +11,10 @@ Source: https://github.com/dfarchon/aztec-name-service.
 - Help: /#/help
 - Current connection and service checks: /#/status
 - Full documentation as Markdown text: /llms-full.txt
-- All bilingual Markdown downloads: /downloads/docs/manifest.json
+- All Markdown downloads: /downloads/docs/manifest.json
 - English getting-started guide: /downloads/docs/en/getting-started.md
-- Chinese getting-started guide: /downloads/docs/zh-CN/getting-started.md
 
-The documentation center has chapter navigation, bilingual guides, code copying, Markdown export and print/PDF views.
+The documentation center has chapter navigation, English guides, code copying, Markdown export and print/PDF views.
 Registration and renewal prices are tiered by name length (3 characters, 4 characters, 5 or more); quotes need the name. New root names cannot contain "--" or start with "0x". SDK 0.6.0 or later is required for the tiered Registrar.
 AZTEC is the selected target denomination (18 decimals). mAZTEC is a test stand-in without official backing. ANSF is the original test fee token. Fee Juice is network gas credit. Read the connected Registrar's actual payment token and quote on Pricing or Register; never infer active fees from a ticker or a website release.
 

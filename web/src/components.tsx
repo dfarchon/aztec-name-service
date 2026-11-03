@@ -10,14 +10,16 @@ export function Card({
   children,
   tone,
   meta,
+  className = "",
 }: {
+  className?: string;
   title?: ReactNode;
   meta?: ReactNode;
   children: ReactNode;
   tone?: "warn" | "ok" | "err";
 }) {
   return (
-    <section className={`card ${tone ?? ""}`}>
+    <section className={`card ${tone ?? ""} ${className}`}>
       {title && <div className="card-heading"><h2>{title}</h2>{meta}</div>}
       {children}
     </section>

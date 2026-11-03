@@ -1,8 +1,8 @@
-import { translate, getLocale, setLocale, subscribeLocale } from "./i18n";
+import { translate } from "./i18n";
 import { WalletConnection, openWalletPanel } from "./WalletConnection";
 import { Card, EmptyState } from "./components";
 import { config } from "./config";
-import { lazy, Suspense, useEffect, useState, useSyncExternalStore } from "react";
+import { lazy, Suspense, useEffect, useState } from "react";
 
 const AccountPage = lazy(() =>
   import("./pages/Account").then((m) => ({ default: m.AccountPage })),
@@ -56,8 +56,6 @@ const PAGE_TITLES: Record<string, string> = {
 };
 
 export function App() {
-  const locale = useSyncExternalStore(subscribeLocale, getLocale);
-  useEffect(() => { document.documentElement.lang = locale; }, [locale]);
   const s = useSession();
   const [page, arg] = useRoute();
   const [theme, setTheme] = useState(() => document.documentElement.dataset.theme === "light" ? "light" : "dark");
@@ -79,10 +77,6 @@ export function App() {
           ))}
         </nav>
         <div className="header-actions" role="group" aria-label={translate("Wallet and appearance")}>
-          <select className="language-select" aria-label={translate("Language")} value={locale} onChange={event => setLocale(event.target.value === "zh-CN" ? "zh-CN" : "en")}>
-            <option value="en" lang="en">EN</option>
-            <option value="zh-CN" lang="zh-CN">中文</option>
-          </select>
           <WalletConnection />
           <button type="button" className="ghost theme-toggle" onClick={() => setTheme(theme === "dark" ? "light" : "dark")} aria-label={theme === "dark" ? translate("Switch to light mode") : translate("Switch to dark mode")}>{theme === "dark" ? translate("Light") : translate("Dark")}</button>
         </div>
@@ -92,7 +86,7 @@ export function App() {
         </span>
       </header>
       {s.error && s.status !== "locked" && (
-        <div className="banner err">{s.status === "offline" ? translate("Connection lost. Retrying…") : translate(s.error)}
+        <div className="banner err" role="alert">{s.status === "offline" ? translate("Connection lost. Retrying…") : translate(s.error)}
           {["offline", "misconfigured"].includes(s.status) && <button className="ghost" onClick={() => void boot()}>{translate("Reconnect")}</button>}
         </div>
       )}
@@ -121,7 +115,7 @@ export function App() {
         </Suspense>
         </RouteBoundary>
       </main>
-      <footer><nav aria-label={translate("Resources")}><a href="#/help">{translate("Help")}</a><a href="#/status">{translate("Status")}</a><a href="#/docs/sdk">{translate("SDK")}</a><a href="#/changelog">{translate("Changelog")}</a></nav>{translate("Names and address records are public")}<a href="#/status" className="network-status">{s.status === "offline" ? translate("Node unavailable") : s.status === "misconfigured" ? translate("Network configuration error") : s.reader ? translate("Node connected · periodic check") : translate("Connecting to network")}</a>
+      <footer><nav aria-label={translate("Resources")}><a href="#/help">{translate("Help")}</a><a href="#/status">{translate("Status")}</a><a href="#/docs/sdk">{translate("SDK")}</a><a href="#/changelog">{translate("Changelog")}</a></nav><span className="footer-note">{translate("Names and address records are public")}</span><a href="#/status" className="network-status">{s.status === "offline" ? translate("Node unavailable") : s.status === "misconfigured" ? translate("Network configuration error") : s.reader ? translate("Node connected · periodic check") : translate("Connecting to network")}</a>
       </footer>
       <TransactionWatch />
     </div>

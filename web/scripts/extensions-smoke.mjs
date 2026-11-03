@@ -11,7 +11,7 @@ const pass=t=>console.log(`PASS ${++count}: ${t}`);
 try{
  await page.goto(`${base}/#/docs`);await wait('Register your first name');assert.equal(await page.evaluate(()=>document.documentElement.lang),'en');
  await page.type('input[type=search]','SDK');await wait('SDK setup and name resolution');assert.ok(!(await page.evaluate(()=>document.body.innerText)).includes('Create and manage subnames'));pass('English-first searchable docs work without a wallet');
- await page.goto(`${base}/#/docs/sdk`);await wait('RegistryReader.connect');await page.select('.language-select','zh-CN');await wait('SDK 接入与名字解析');await page.select('.language-select','en');pass('SDK examples and Chinese article translations available');
+ await page.goto(`${base}/#/docs/sdk`);await wait('RegistryReader.connect');await wait('SDK setup and name resolution');pass('SDK examples and English article available');
  await page.goto(`${base}/#/help`);await wait('Interrupted registration or pending transaction');await page.goto(`${base}/#/changelog`);await wait('Product updates');pass('help and changelog routes are reachable');
  assert.equal((await fetch(`${base}/llms.txt`)).status,200);
  await page.goto(`${base}/#/name/${name}`);await wait('Registered · Active');await click('Save favorite');await wait('Remove favorite');await click('Share name','summary');await page.waitForSelector('.share-card img[src^="data:image/png"]');assert.ok(await page.$eval('.share-card',(e,name)=>e.innerText.includes(`#/name/${name}`),name));pass('real V5 lookup, persisted favorite and locally generated share QR');
@@ -39,8 +39,8 @@ try{
  await page.evaluate(name=>{const f=window.extensionFixture;f.reader.getName=async(n,s)=>({...await f.getName(n,s),owner:f.reader.registry});f.reader.getManager=async()=>f.account;location.hash=`/manage/${name}`;},name);
  await wait('Save address');await wait('Profile and address records');assert.ok(!(await page.evaluate(()=>document.body.innerText)).includes('Transfer ownership'));assert.ok(!(await page.evaluate(()=>document.body.innerText)).includes('Renew name'));pass('editor gets record controls without ownership or renewal controls');
  await page.evaluate(secondName=>{const f=window.extensionFixture;f.reader.getManager=async()=>f.account.constructor.ZERO;f.reader.getTransfer=async()=>({recipient:f.account,expiresAt:f.holding.snapshot.timestamp+999999999n});location.hash=`/manage/${secondName}`;},secondName);await wait('Incoming transfer');await wait('Accept transfer');pass('recipient can accept from a non-owner wallet');
- for(const locale of ['en','zh-CN']){await page.select('.language-select',locale);for(const width of [1280,390,320]){await page.setViewport({width,height:900});assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),`${locale} ${width} overflow`);}}
- await page.select('.language-select','en');await page.setViewport({width:1280,height:900});await page.goto(`${base}/#/docs`);await wait('Register your first name');await page.screenshot({path:'/tmp/ans-v5-docs.png',fullPage:true});pass('both locales fit desktop and narrow mobile layouts');
+ for(const width of [1280,390,320]){await page.setViewport({width,height:900});assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),`${width} overflow`);}
+ await page.setViewport({width:1280,height:900});await page.goto(`${base}/#/docs`);await wait('Register your first name');await page.screenshot({path:'/tmp/ans-v5-docs.png',fullPage:true});pass('English pages fit desktop and narrow mobile layouts');
  assert.equal(broadcasts,0);assert.deepEqual(errors,[]);pass('zero wallet broadcasts and uncaught runtime errors');
  console.log(`ALL ${count} EXTENSION UI CHECKS PASSED`);
 }catch(error){console.error(await page.evaluate(()=>document.body.innerText).catch(()=>''));throw error;}finally{await browser.close();}

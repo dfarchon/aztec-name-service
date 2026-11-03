@@ -56,7 +56,7 @@ export function SdkDownloads() {
           </p>
           <p className="muted">
             {t(
-              'The starter includes the SDK package, testnet configuration and integration instructions in English and Chinese.',
+              'The starter includes the SDK package, testnet configuration and integration instructions.',
             )}
           </p>
           <details>
