@@ -172,7 +172,9 @@ export function SearchPage({ initial }: { initial?: string }) {
             <dd>
               {result.display.status === "resolved"
                 ? <CopyValue value={result.display.address.toString()} label={translate("Copy resolved address")} />
-                : translate("Not set")}
+                : result.display.status === "untrusted_resolver"
+                  ? <span role="alert">{translate("Unverified resolver: address records may be controlled by a third party")}</span>
+                  : translate("Not set")}
             </dd>
             </>}
           </dl>}

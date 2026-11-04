@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { AnsError, acceptTransfer, listSubnames, getName, issueSubname, offerTransfer, revokeSubname, setManager, setTextRecord, type AnsContext, type Holding, type TxOptions } from '@ans/sdk';
+import { AnsError, acceptTransfer, listSubnames, getName, issueSubname, offerTransfer, revokeSubname, setManager, setTextRecord, setResolver, type AnsContext, type Holding, type TxOptions } from '@ans/sdk';
 import { AztecAddress } from '@aztec-labs/aztec.js/addresses';
 import { Card, CopyValue, Field, TxLine, useTx } from '../components';
 import { translate as t } from '../i18n';
@@ -10,7 +10,16 @@ export function Extensions({ ctx, holding: h, onDone }: { ctx: AnsContext; holdi
   const tx = useTx(), [error,setError] = useState(''), [records,setRecords] = useState<Record<string,string>>({}), [manager,setCurrentManager] = useState(''), [offer,setOffer] = useState<{recipient: AztecAddress;expiresAt:bigint}>();
   const [editor,setEditor] = useState(''), [recipient,setRecipient] = useState(''), [key,setKey] = useState('description'), [value,setValue] = useState('');
   const [child,setChild] = useState(''), [childOwner,setChildOwner] = useState(''), [days,setDays] = useState(30), [replace,setReplace] = useState(false), [transferConfirmed,setTransferConfirmed] = useState(false), [revokeConfirmed,setRevokeConfirmed] = useState(false);
+  const [resolver,setResolverInfo] = useState<Awaited<ReturnType<typeof ctx.reader.inspectResolver>>>();
+  const [resolverError,setResolverError] = useState(''), [acceptUnverified,setAcceptUnverified] = useState(false), [needsReset,setNeedsReset] = useState(false);
+  const resetsResolver = ctx.reader.deployment.protocolVersion === 7;
   const name=h.label.label;
+  useEffect(() => {
+    let live = true; setResolverInfo(undefined); setResolverError(''); setAcceptUnverified(false);
+    if (!resetsResolver) void ctx.reader.inspectResolver(h.node,h.record.generation,h.snapshot)
+      .then(info => { if (live) setResolverInfo(info); }).catch(error => { if (live) setResolverError(errorMessage(error)); });
+    return () => { live = false; };
+  }, [ctx,h,resetsResolver]);
   const [children,setChildren] = useState<Awaited<ReturnType<typeof listSubnames>>>();
   const [childError,setChildError] = useState("");
   const [childBusy,setChildBusy] = useState(false);
@@ -50,7 +59,24 @@ export function Extensions({ ctx, holding: h, onDone }: { ctx: AnsContext; holdi
   const active=h.status==='active', incoming=offer?.recipient.equals(ctx.account)&&offer.expiresAt>h.snapshot.timestamp;
   return <>
     {error && <Card tone="err">{t(error)}</Card>}
-    {incoming && active && <Card title={t('Incoming transfer')}><p>{t('Accepting clears previous records, editor access and primary confirmation. Existing subnames become inactive.')}</p><p>{t('Offer expires')}: {date(offer!.expiresAt)}</p><button disabled={tx.busy} onClick={()=>act('Accept transfer',opts=>acceptTransfer(ctx,{name},opts))}>{t('Accept transfer')}</button></Card>}
+    {incoming && active && <Card title={t('Incoming transfer')}>
+      <p>{t('Accepting clears previous records, editor access and primary confirmation. Existing subnames become inactive.')}</p>
+      {resetsResolver ? <p>{t('Accepting resets the resolver to the default')}</p> : <>
+        <p>{t('This registry inherits the current resolver on acceptance.')}</p>
+        {resolver && <><CopyValue value={resolver.address.toString()}/><p>{t(resolver.verified ? 'Resolver verified' : 'Unverified resolver: address records may be controlled by a third party')}</p></>}
+        {resolverError && <p className="err">{t(resolverError)}</p>}
+        {resolver && !resolver.verified && <label className="check-field"><input type="checkbox" checked={acceptUnverified} onChange={e=>setAcceptUnverified(e.target.checked)}/>{t('I accept the inherited unverified resolver and will reset it after acceptance.')}</label>}
+      </>}
+      <p>{t('Offer expires')}: {date(offer!.expiresAt)}</p>
+      <button disabled={tx.busy || (!resetsResolver && (!resolver || (!resolver.verified && !acceptUnverified)))} onClick={()=>act('Accept transfer',async opts=>{
+        const result=await acceptTransfer(ctx,{name,acceptUnverifiedResolver:acceptUnverified},opts);
+        setNeedsReset(!result.resolverReset && (!result.resolver?.verified || !result.resolver?.isDefault));
+      })}>{t('Accept transfer')}</button>
+    </Card>}
+    {needsReset && h.isHolder && active && <Card><p>{t('Use the default resolver before setting address records.')}</p><button disabled={tx.busy} onClick={()=>act('Switch resolver',async opts=>{
+      const modules=await ctx.reader.getModules(); await setResolver(ctx,{name,resolver:modules.resolver},opts); setNeedsReset(false);
+    })}>{t('Use default resolver')}</button></Card>}
+
     {h.canEdit && active && <Card title={t('Profile and address records')}>
       <p className="muted">{t('Public records. Up to 64 distinct keys per registration; 248 UTF-8 bytes per value.')}</p>
       <div className="record-list">{Object.entries(records).map(([k,v])=><div key={k}><button className="ghost" onClick={()=>{setKey(k);setValue(v);}}>{k}</button><span>{v}</span></div>)}</div>

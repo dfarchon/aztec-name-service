@@ -12,3 +12,13 @@ export function activityLabel(label: string) {
   }
   return translate(label);
 }
+
+/** Chain-second renewal horizon, with aligned English/Chinese copy; zero has no horizon restriction. */
+export function renewalWindowHint(seconds: bigint, language: 'en' | 'zh' = 'en'): string {
+  if (seconds <= 0n) return '';
+  const [unit, size, chinese] = seconds % 31536000n === 0n ? ['year', 31536000n, '年'] as const
+    : seconds % 86400n === 0n ? ['day', 86400n, '天'] as const : ['second', 1n, '秒'] as const;
+  const count = seconds / size;
+  return language === 'zh' ? `到期前 ${count} ${chinese}内可续期`
+    : `Renewal opens ${count} ${unit}${count === 1n ? '' : 's'} before expiry`;
+}

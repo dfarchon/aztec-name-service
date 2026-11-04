@@ -35,7 +35,7 @@ export function RegistryModules() {
 export function NameModules({ holding, onDone }: { holding: Holding; onDone: () => void }) {
   const { ctx } = useSession();
   const [legacy, setLegacy] = useState<NameRecord>();
-  const [resolvers, setResolvers] = useState<{ current: string; next: string }>();
+  const [resolvers, setResolvers] = useState<{ current?: string; next?: string; verified?: boolean }>();
   const [error, setError] = useState<string>();
   const tx = useTx();
   useEffect(() => {
@@ -47,8 +47,14 @@ export function NameModules({ holding, onDone }: { holding: Holding; onDone: () 
         const old = await ctx.reader.getLegacyName(holding.node, holding.snapshot);
         if (live && old?.generation && holding.snapshot.timestamp < old.expiresAt + 30n * 86400n) setLegacy(old);
       } else if (holding.isHolder && holding.status === 'active') {
-        const [current, modules] = await Promise.all([ctx.reader.getResolver(holding.node, holding.record.generation, holding.snapshot), ctx.reader.getModules(holding.snapshot)]);
-        if (live) setResolvers({ current: current.toString(), next: modules.resolver.toString() });
+        const [current, modules] = await Promise.allSettled([ctx.reader.inspectResolver(holding.node, holding.record.generation, holding.snapshot), ctx.reader.getModules(holding.snapshot)]);
+        if (live) {
+          setResolvers({ current: current.status === 'fulfilled' ? current.value.address.toString() : undefined,
+            verified: current.status === 'fulfilled' ? current.value.verified : undefined,
+            next: modules.status === 'fulfilled' ? modules.value.resolver.toString() : undefined });
+          const failed = [current, modules].find(result => result.status === 'rejected');
+          if (failed?.status === 'rejected') setError(errorMessage(failed.reason));
+        }
       }
     };
     void read().catch(e => { if (live) setError(errorMessage(e)); });
@@ -64,14 +70,18 @@ export function NameModules({ holding, onDone }: { holding: Holding; onDone: () 
         await migrateName(ctx, holding.label, { onUpdate }); onDone();
       })}>{translate("Migrate to current registry")}</button> : <p className="muted">{translate("Switch to the previous owner account.")}</p>}
     </section>}
-    {resolvers && <details className="card"><summary>{translate("Resolver")}</summary>
-      <CopyValue value={resolvers.current} />
-      {resolvers.current !== resolvers.next && <>
+    {holding.isHolder && holding.status === 'active' && holding.record.generation > 0 && <details className="card" open={resolvers?.verified !== true || resolvers.current !== resolvers.next}><summary>{translate("Resolver")}</summary>
+      {resolvers?.current && <CopyValue value={resolvers.current} />}
+      {(!resolvers?.verified || resolvers.current !== resolvers.next) && <>
+        <p role="alert">{translate(resolvers?.verified
+          ? "Non-default resolver: review its address records."
+          : "Unverified resolver: address records may be controlled by a third party")}</p>
         <p>{translate("Set your address and primary name again after switching.")}</p>
         <button disabled={tx.busy} onClick={() => void tx.exec('Switch resolver', async onUpdate => {
-          const [{ setResolver }, { AztecAddress }] = await Promise.all([import('@ans/sdk'), import('@aztec-labs/aztec.js/addresses')]);
-          await setResolver(ctx, { name: holding.label, resolver: AztecAddress.fromStringUnsafe(resolvers.next) }, { onUpdate }); onDone();
-        })}>{translate("Use new resolver")}</button>
+          const { setResolver } = await import('@ans/sdk');
+          const modules = await ctx.reader.getModules();
+          await setResolver(ctx, { name: holding.label, resolver: modules.resolver }, { onUpdate }); onDone();
+        })}>{translate("Use default resolver")}</button>
       </>}
     </details>}
     {error && <p className="err">{translate(error)}</p>}

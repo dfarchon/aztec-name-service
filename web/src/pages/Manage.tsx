@@ -1,7 +1,7 @@
 import { lazy, Suspense } from "react";
 import { SetupChecklist, ShareName } from "../NameExtras";
 const Extensions = lazy(() => import("./Extensions").then(m => ({ default: m.Extensions })));
-import { translate } from "../i18n";
+import { translate, renewalWindowHint } from "../i18n";
 import {
   clearAddress,
   clearPrimary,
@@ -32,6 +32,7 @@ export function ManagePage({ name }: { name: string }) {
   const [h, setH] = useState<Holding>();
   const [forward, setForward] = useState<AddressResolution>();
   const [primary, setCurrentPrimary] = useState(false);
+  const [primaryUntrusted, setPrimaryUntrusted] = useState(false);
   const [error, setError] = useState<string>();
   const [target, setTarget] = useState("");
   const [years, setYears] = useState(1);
@@ -49,19 +50,23 @@ export function ManagePage({ name }: { name: string }) {
     setError(undefined);
     setForward(undefined);
     setCurrentPrimary(false);
+    setPrimaryUntrusted(false);
     if (ctx)
-      ctx.reader.snapshot().then((snapshot) => Promise.all([
+      ctx.reader.snapshot().then((snapshot) => Promise.allSettled([
         inspectHolding(ctx, name, { snapshot }),
         resolveAddress(ctx.reader, name, { snapshot }),
         resolvePrimary(ctx.reader, ctx.account, snapshot),
       ]))
         .then(([holding, f, p]) => {
           if (live) {
-            setH(holding);
-            setForward(f);
-            setCurrentPrimary(
-              p.status === "verified" && p.name === holding.label.label,
-            );
+            if (holding.status === 'fulfilled') setH(holding.value);
+            if (f.status === 'fulfilled') setForward(f.value);
+            if (p.status === 'fulfilled') {
+              setPrimaryUntrusted(p.value.status === 'stale' && p.value.reason === 'untrusted_resolver');
+              setCurrentPrimary(p.value.status === 'verified' && holding.status === 'fulfilled' && p.value.name === holding.value.label.label);
+            }
+            const failed = [holding, f, p].find(result => result.status === 'rejected');
+            if (failed?.status === 'rejected') setError(errorMessage(failed.reason));
           }
         })
         .catch((e) => {
@@ -93,7 +98,7 @@ export function ManagePage({ name }: { name: string }) {
     };
   }, [ctx, years, revision, quoteRevision, canRenew, h?.label.len, h?.record.expiresAt]);
   if (!ctx) return <NeedsAccount />;
-  if (error)
+  if (error && !h)
     return (
       <Card tone="err">
         {translate(error)}
@@ -116,6 +121,9 @@ export function ManagePage({ name }: { name: string }) {
   const done = () => refresh((n) => n + 1);
   return (
     <>
+      {error && <Card tone="err"><p role="alert">{translate(error)}</p><button onClick={() => refresh(n => n + 1)}>{translate("Refresh")}</button></Card>}
+      {primaryUntrusted && <Card tone="err"><p role="alert">{translate("Your primary name uses an unverified resolver.")}</p></Card>}
+
       <Card title={<CopyValue value={h.label.label} label={translate("Copy name")} />}>
         <SetupChecklist registered={active} address={forward?.status === "resolved"} primary={primary} />
         <dl>
@@ -129,8 +137,10 @@ export function ManagePage({ name }: { name: string }) {
           <dd>{h.record.expiresAt ? date(h.record.expiresAt) : "—"}</dd>
           <dt>{translate("Resolved address")}</dt>
           <dd>
-            {forward?.status === "resolved" ? (
+            {!forward ? translate("Address status unavailable") : forward.status === "resolved" ? (
               <CopyValue value={forward.address.toString()} label={translate("Copy resolved address")} />
+            ) : forward?.status === "untrusted_resolver" ? (
+              <span role="alert">{translate("Unverified resolver: address records may be controlled by a third party")}</span>
             ) : active ? (
               translate("Not set")
             ) : (
@@ -224,6 +234,7 @@ export function ManagePage({ name }: { name: string }) {
               }
             >{translate("Confirm renewal")}</button>
           </div>
+          {quote?.launch && <p className="muted">{renewalWindowHint(quote.launch.maxRenewAhead)}</p>}
           {renewalTooEarly && <p role="status">Renewable from {date(quote!.renewableAt!)}. Refresh the quote once this date is reached. <button className="ghost" onClick={() => refreshQuote(n => n + 1)}>{translate("Refresh")}</button></p>}
           {quote && <FeeBalance amount={quote.fee} token={quote.feeToken.toString()} read={balance} />}
               {quoteError && <p role="alert" className="err">{translate(quoteError)} <button className="ghost" onClick={() => refreshQuote(n => n + 1)}>{translate("Refresh")}</button></p>}
