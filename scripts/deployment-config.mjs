@@ -101,7 +101,15 @@ export function v6ManifestProblems(m, { expectNetwork } = {}) {
     /^0x[0-9a-f]{64}$/i.test(x) &&
     BigInt(x) < 21888242871839275222246405745257275088548364400416034343698204186575808495617n;
   const zero = '0x' + '0'.repeat(64);
-  for (const key of ['registry', 'resolver', 'registrar', 'feeToken', 'treasury', 'owner'])
+  const launch = m.registrarKind === 'launch';
+  const free = launch && m.feeTokenSource === 'none' && m.annualPrice === '0';
+  for (const key of [
+    'registry',
+    'resolver',
+    'registrar',
+    'owner',
+    ...(!free ? ['feeToken', 'treasury'] : []),
+  ])
     check(address(m[key]) && m[key] !== zero, `v6 address ${key}`);
   const fee = m.feePayment ?? 'sponsored';
   check(['sponsored', 'fee-juice'].includes(fee), 'v6 feePayment');
@@ -118,16 +126,39 @@ export function v6ManifestProblems(m, { expectNetwork } = {}) {
     'v6 positive priceVersion',
   );
   const price = (x) => typeof x === 'string' && /^[1-9][0-9]*$/.test(x) && BigInt(x) < 1n << 128n;
-  check(price(m.annualPrice), 'v6 annualPrice');
+  check(free || price(m.annualPrice), 'v6 annualPrice');
+  if (free) {
+    check(m.feeToken === null || m.feeToken === zero, 'v6 free feeToken');
+    check(m.treasury === null || address(m.treasury), 'v6 free treasury');
+    check(m.lengthPrices?.['3'] === '0' && m.lengthPrices?.['4'] === '0', 'v6 free tiers');
+  }
+  if (launch) {
+    check(
+      Number.isInteger(m.minPublicLength) && m.minPublicLength >= 3 && m.minPublicLength <= 31,
+      'v6 minPublicLength',
+    );
+    check(typeof m.initialPaused === 'boolean', 'v6 initialPaused');
+    check(
+      typeof m.maxRenewAhead === 'string' &&
+        /^(0|[1-9][0-9]*)$/.test(m.maxRenewAhead) &&
+        BigInt(m.maxRenewAhead) < 1n << 64n,
+      'v6 maxRenewAhead',
+    );
+    check(/^[a-f0-9]{64}$/.test(m.reservedListHash ?? ''), 'v6 reservedListHash');
+    check(m.reservedVerified === true, 'v6 reservedVerified');
+  }
   check(
     m.registrarKind === 'flat'
       ? m.lengthPrices === null
-      : m.registrarKind === 'tiered' &&
-          price(m.lengthPrices?.['3']) &&
-          price(m.lengthPrices?.['4']),
+      : ['tiered', 'launch'].includes(m.registrarKind) &&
+          (free ||
+            (price(m.lengthPrices?.['3']) &&
+              price(m.lengthPrices?.['4']) &&
+              BigInt(m.lengthPrices['3']) >= BigInt(m.lengthPrices['4']) &&
+              BigInt(m.lengthPrices['4']) >= BigInt(m.annualPrice))),
     'v6 registrarKind/lengthPrices',
   );
-  check(['official', 'repo'].includes(m.feeTokenSource), 'v6 feeTokenSource');
+  check(free || ['official', 'repo'].includes(m.feeTokenSource), 'v6 feeTokenSource');
   check(
     typeof m.feeSymbol === 'string' &&
       /^[\x20-\x7e]{1,31}$/.test(m.feeSymbol) &&
@@ -141,16 +172,21 @@ export function v6ManifestProblems(m, { expectNetwork } = {}) {
     m.classIds?.registry === baseline.v6 &&
       m.classIds?.resolver === baseline.resolver &&
       m.classIds?.registrar ===
-        (m.registrarKind === 'tiered' ? baseline.registrarTiered : baseline.registrar),
+        (launch
+          ? baseline.registrarLaunch
+          : m.registrarKind === 'tiered'
+            ? baseline.registrarTiered
+            : baseline.registrar),
     'v6 frozen ANS classes',
   );
-  const tokenId =
-    m.feeTokenSource === 'official'
+  const tokenId = free
+    ? zero
+    : m.feeTokenSource === 'official'
       ? '0x067df4ddda0b0872ef604f47f3681d5e8c0de98280ac6b79963851c055ba91e0'
       : baseline.testToken;
   check(m.feeTokenClassId === tokenId && m.classIds?.token === tokenId, 'v6 token class');
   for (const key of [
-    'deploy-token',
+    ...(!free ? ['deploy-token'] : []),
     'deploy-registry',
     'deploy-resolver',
     'deploy-registrar',
@@ -262,6 +298,10 @@ export function mainnetTemplateProblems(root = repository) {
     'operator',
     'operatorBalanceSlot',
     'operatorLowWatermark',
+    'registrarKind',
+    'minPublicLength',
+    'reservedListHash',
+    'maxRenewAhead',
   ])
     if (m[key] !== null) problems.push(`mainnet undecided ${key} must be null`);
   const paths = ['ops/wrangler-mainnet.jsonc', 'ops/wrangler-monitor-mainnet.jsonc'];

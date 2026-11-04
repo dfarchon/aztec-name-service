@@ -524,3 +524,41 @@ for (const preview of [false, true]) {
     assert.deepEqual(calls[0][2], deployment);
   });
 }
+
+test('launch manifests validate both free and paid modes without changing the testnet manifest', async () => {
+  const { v6ManifestProblems } = await import('./deployment-config.mjs');
+  const baseline = JSON.parse(
+    readFileSync(new URL('../sdk/test/fixtures/classids-6.0.0.json', import.meta.url)),
+  ).classIds;
+  const m = JSON.parse(readFileSync(new URL('../deployments/testnet-v6.json', import.meta.url)));
+  Object.assign(m, {
+    registrarKind: 'launch',
+    minPublicLength: 7,
+    initialPaused: true,
+    maxRenewAhead: '0',
+    reservedListHash: '4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945',
+    reservedVerified: true,
+  });
+  m.classIds.registrar = baseline.registrarLaunch;
+  assert.deepEqual(v6ManifestProblems(m), []);
+  const zero = '0x' + '0'.repeat(64);
+  Object.assign(m, {
+    feeToken: zero,
+    feeTokenSource: 'none',
+    feeTokenClassId: zero,
+    annualPrice: '0',
+    lengthPrices: { 3: '0', 4: '0' },
+    treasury: null,
+  });
+  m.classIds.token = zero;
+  assert.deepEqual(v6ManifestProblems(m), []);
+  for (const patch of [
+    { minPublicLength: 2 },
+    { maxRenewAhead: null },
+    { reservedListHash: null },
+    { reservedVerified: false },
+    { feeTokenSource: 'official' },
+    { annualPrice: '1' },
+  ])
+    assert(v6ManifestProblems({ ...m, ...patch }).length > 0);
+});

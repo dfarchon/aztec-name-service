@@ -7,7 +7,10 @@
     "4": "32000000000000000000"
   },
   "annualPriceStatus": "provisional",
-  "operations": ["register", "renew"],
+  "operations": [
+    "register",
+    "renew"
+  ],
   "referenceAsset": {
     "chainId": "1",
     "address": "0xA27EC0006e59f245217Ff08CD52A7E8b169E62D2",
@@ -16,5 +19,10 @@
   "settlement": {
     "status": "unconfigured",
     "l2Token": null
+  },
+  "launchDisplay": {
+    "mode": "free",
+    "annualPrice": "0",
+    "leaseSeconds": 31536000
   }
 }

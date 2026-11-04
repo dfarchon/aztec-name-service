@@ -5,7 +5,7 @@ export type ModulesState = { classId: string; registrar: string; resolver: strin
 const implementations = [metadata.registry, metadata.upgradeTest, metadata.extended, metadata.current, metadata.v6];
 export const modularClass = (id: string) => implementations.some(item => item.classId === id);
 /** Supported implementations per module slot; a tiered Registrar replaces the single-price one without migration. */
-const moduleClasses = { registrar: [metadata.registrar, metadata.registrarTiered], resolver: [metadata.resolver] };
+const moduleClasses = { registrar: [metadata.registrar, metadata.registrarTiered, metadata.registrarLaunch], resolver: [metadata.resolver] };
 type Rpc = <T>(method: string, params: unknown[]) => Promise<T>;
 const field = (n: bigint) => `0x${n.toString(16).padStart(64, '0')}`;
 

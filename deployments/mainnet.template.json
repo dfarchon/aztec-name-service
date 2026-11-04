@@ -28,5 +28,9 @@
   "owner": null,
   "operator": null,
   "operatorBalanceSlot": null,
-  "operatorLowWatermark": null
+  "operatorLowWatermark": null,
+  "registrarKind": null,
+  "minPublicLength": null,
+  "reservedListHash": null,
+  "maxRenewAhead": null
 }
