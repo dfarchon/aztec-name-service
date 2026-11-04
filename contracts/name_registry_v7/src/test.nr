@@ -158,13 +158,17 @@ unconstrained fn buyer_can_write_through_frozen_default_resolver() {
     let mut s = setup(); let default = real_resolver(s);
     s.env.call_public(s.owner, NameRegistryV7::at(s.registry).configure_modules(1, s.registrar, default));
     s.resolver = default; let _ = evil_transfer(s);
+    s.env.call_private(s.other, NameRegistryV7::at(s.registry).set_manager(s.node, 2, 0, s.owner));
+    assert_eq(s.env.view_public(NameRegistryV7::at(s.registry).get_name(s.node)).revision, 1);
+    assert_eq(s.env.view_public(NameRegistryV7::at(s.registry).get_record_revision(s.node, 2)), 0);
     s.env.call_private(s.other, PrivateCall::<_, _, ()>::new(default,
         comptime { FunctionSelector::from_signature("set_address(Field,u32,u32,bool,(Field))") }, "set_address", [s.node, 2, 0, 1, s.other.to_field()]));
     let forward = s.env.view_public(NameRegistryV7::at(s.registry).get_address(s.node, 2));
     assert(forward.present); assert_eq(forward.addr, s.other);
     s.env.call_private(s.other, NameRegistryV7::at(s.registry).set_primary(s.node, 2, forward.binding_version));
     assert(s.env.view_public(NameRegistryV7::at(s.registry).get_primary(s.other)).present);
-    assert_eq(s.env.view_public(NameRegistryV7::at(s.registry).get_name(s.node)).revision, 0);
+    assert_eq(s.env.view_public(NameRegistryV7::at(s.registry).get_name(s.node)).revision, 1);
+    assert_eq(s.env.view_public(NameRegistryV7::at(s.registry).get_record_revision(s.node, 2)), 1);
 }
 #[test(should_fail_with = "not record editor")]
 unconstrained fn resolver_cannot_pass_a_non_editor_owner() {
@@ -291,4 +295,31 @@ unconstrained fn frozen_launch_admin_mint_uses_v7_live_administrator() {
 #[test(should_fail_with = "renewal too early")]
 unconstrained fn frozen_launch_one_year_cap_still_applies_on_v7() {
     let s = launch_setup(); let n = launch_register(s, false); launch_renew(s, n, 0); launch_renew(s, n, 1);
+}
+
+#[test(should_fail_with = "unauthorized resolver")]
+unconstrained fn old_resolver_cannot_write_after_expiry_grace_and_reregistration() {
+    let s = setup(); let attacker = evil(s);
+    s.env.call_private(s.owner, NameRegistryV7::at(s.registry).set_resolver(s.node, 1, 0, attacker));
+    s.env.advance_next_block_timestamp_by(YEAR + 30 * 86400 + 1);
+    s.env.call_private(s.other, NameRegistryV7::at(s.registry).commit(456));
+    s.env.advance_next_block_timestamp_by(61);
+    let packed = pack_label(label("alice"), 5);
+    s.env.call_public(s.registrar, NameRegistryV7::at(s.registry).register_from_registrar(s.node, 1, s.other.to_field(), 456, YEAR, FUTURE, packed, 5));
+    assert_eq(s.env.view_public(NameRegistryV7::at(s.registry).get_name(s.node)).generation, 2);
+    assert_eq(s.env.view_public(NameRegistryV7::at(s.registry).get_resolver(s.node, 2)), s.resolver);
+    assert(!s.env.view_public(NameRegistryV7::at(s.registry).get_address(s.node, 2)).present);
+    s.env.call_public(s.owner, EvilResolverTest::at(attacker).write(s.node, 2, 0, s.other.to_field(), true, s.owner));
+}
+#[test(should_fail_with = "unauthorized resolver")]
+unconstrained fn old_resolver_cannot_write_after_subname_revocation_and_reissue() {
+    let s = setup(); let child = issue(s); let attacker = evil(s);
+    s.env.call_private(s.other, NameRegistryV7::at(s.registry).set_resolver(child, 1, 0, attacker));
+    s.env.call_private(s.owner, NameRegistryV7::at(s.registry).revoke_subname(child, 1, 1, 1));
+    let parent = s.env.view_public(NameRegistryV7::at(s.registry).get_name(s.node));
+    s.env.call_private(s.owner, NameRegistryV7::at(s.registry).issue_subname(s.node, 1, parent.revision, label("team"), 4, 2, s.owner, parent.expires_at));
+    assert_eq(s.env.view_public(NameRegistryV7::at(s.registry).get_name(child)).generation, 3);
+    assert_eq(s.env.view_public(NameRegistryV7::at(s.registry).get_resolver(child, 3)), s.resolver);
+    assert(!s.env.view_public(NameRegistryV7::at(s.registry).get_address(child, 3)).present);
+    s.env.call_public(s.other, EvilResolverTest::at(attacker).write(child, 3, 0, s.owner.to_field(), true, s.other));
 }

@@ -591,7 +591,9 @@ pub contract NameRegistryV7 {
         self.storage.parents.at(node).write(ParentLink { parent, parent_generation, depth });
         self.storage.names.at(node).write(NameMeta { generation, revision: 0, expires_at });
         self.storage.owners.at(node).write(owner.to_field());
-        self.storage.resolvers.at(record_key(node, generation, 0)).write(self.storage.modules.read().resolver);
+        let resolver = self.storage.modules.read().resolver;
+        assert(!resolver.is_zero(), "modules not configured");
+        self.storage.resolvers.at(record_key(node, generation, 0)).write(resolver);
         self.storage.published_labels.at(node).write(PublishedLabel { present: true, packed_label, label_len });
         self.emit(NameRegisteredV3 { node, generation, expires_at, owner, packed_label, label_len });
         self.storage.names.at(parent).write(NameMeta { generation: parent_generation, revision: parent_revision + 1, expires_at: meta.expires_at });
