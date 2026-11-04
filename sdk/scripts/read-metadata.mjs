@@ -43,6 +43,7 @@ for (const [key, file] of Object.entries({
   current: 'name_registry_v5-NameRegistryV5.json',
   v6: 'name_registry_v6-NameRegistryV6.json',
   registrar: 'name_registrar-NameRegistrar.json',
+  registrarLaunch: 'name_registrar_launch-NameRegistrarLaunch.json',
   registrarTiered: 'name_registrar_tiered-NameRegistrarTiered.json', resolver: 'name_resolver-NameResolver.json',
   upgradeTest: 'registry_upgrade_test-RegistryUpgradeTest.json',
 })) {
@@ -51,6 +52,7 @@ for (const [key, file] of Object.entries({
     storage: Object.fromEntries(Object.entries(artifact.storageLayout).map(([k,v]) => [k,v.slot.toString()])) };
 }
 for (const key of ['registry', 'config']) if (modular.registrarTiered.storage[key] !== modular.registrar.storage[key]) throw new Error(`Tiered registrar moved slot ${key}`);
+for (const key of ['registry', 'config', 'length_prices']) if (modular.registrarLaunch.storage[key] !== modular.registrarTiered.storage[key]) throw new Error(`Launch registrar moved slot ${key}`);
 if (JSON.stringify(modular.registry.storage) !== JSON.stringify(modular.upgradeTest.storage)) throw new Error('Upgrade rehearsal storage layout differs from V3');
 const { validateV3Layout, validateV4Layout, validateV5Layout, validateV6Layout } = await import('./validate-layout.mjs');
 await validateV3Layout(modular.registry.storage);

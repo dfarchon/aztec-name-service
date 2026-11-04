@@ -15,7 +15,7 @@ export function normalizePath(path) {
   path = path.replaceAll('\\', '/');
   if (path.includes('/aztec-nr/v6.0.0/')) return `aztec-nr@v6.0.0/${path.split('/aztec-nr/v6.0.0/')[1]}`;
   if (path.includes('/contracts/')) return normalizeContractPath(path, root);
-  if (/^(?:ans_common|name_registry(?:_v[3-6])?|name_registrar(?:_tiered)?|name_resolver|test_token|registry_upgrade_test|v4_test_module)\//.test(path)) return `contracts/${path}`;
+  if (/^(?:ans_common|name_registry(?:_v[3-6])?|name_registrar(?:_tiered|_launch)?|name_resolver|test_token|registry_upgrade_test|v4_test_module)\//.test(path)) return `contracts/${path}`;
   // Never retain machine-specific home paths, even for an unrecognized dependency.
   return path.replace(/^.*\/nargo\//, 'nargo/').replace(/^\/(?:home|Users)\/[^/]+\//, '~/');
 }
