@@ -12,6 +12,7 @@ import { AnsContext } from '../src/wallet/context.js';
 import { NameRegistryV7Contract } from '../src/artifacts/NameRegistryV7.js';
 import { setAddress } from '../src/transactions/holder.js';
 import { acceptTransfer, setTextRecord } from '../src/transactions/extensions.js';
+import { setPrimary } from '../src/transactions/primary.js';
 import { setResolver, setAdministrator } from '../src/transactions/modules.js';
 import metadata from '../src/artifacts/modular-metadata.json' with { type: 'json' };
 
@@ -47,7 +48,7 @@ async function fixture(version: 6 | 7 = 7) {
   reader.getTransfer = async () => ({ recipient, expiresAt: 1000n });
   const bind = (value: bigint) => map(layout.storage.resolvers, scope, value);
   const calls: { method: string; args: unknown[] }[] = [];
-  const contract = { methods: Object.fromEntries(['set_address', 'set_text', 'accept_transfer', 'set_resolver'].map(method => [method, (...args: unknown[]) => ({ send: async () => { calls.push({ method, args }); return { txHash: TxHash.random() }; } })])) };
+  const contract = { methods: Object.fromEntries(['set_address', 'set_text', 'accept_transfer', 'set_resolver', 'set_primary'].map(method => [method, (...args: unknown[]) => ({ send: async () => { calls.push({ method, args }); return { txHash: TxHash.random() }; } })])) };
   const ctx = { reader, account: owner, signer: {}, queue: { run: async (fn: () => unknown) => fn() }, ensureRegistered: async () => {}, extendedContract: () => contract, contract: () => contract, addressContract: async () => contract } as unknown as AnsContext;
   return { reader, registry, defaultResolver, owner, recipient, node, scope, classes, rpc, write, bind, calls, ctx };
 }
@@ -126,3 +127,34 @@ test('V7 wallet selection uses its exact artifact and refuses the legacy one-ste
   f.reader.getAdministrator = async () => f.owner;
   await assert.rejects(setAdministrator(ctx, f.recipient), (e: any) => e.code === 'unsupported');
 });
+
+for (const version of [6, 7] as const) {
+  test(`V${version} setPrimary rejects unverified resolvers before constructing a wallet call, with explicit opt-in`, async () => {
+    const f = await fixture(version);
+    f.ctx = { ...f.ctx, account: f.recipient } as AnsContext;
+    await f.bind(6n);
+    const contract = f.ctx.contract;
+    f.ctx.contract = () => { throw new Error('must reject before constructing wallet call'); };
+    await assert.rejects(setPrimary(f.ctx, { name: 'seventh' }), (e: any) => e.code === 'invalid_argument');
+    assert.equal(f.calls.length, 0);
+    f.ctx.contract = contract;
+    await setPrimary(f.ctx, { name: 'seventh', acceptUnverifiedResolver: true });
+    assert.deepEqual(f.calls[0], { method: 'set_primary', args: [f.node, 1, 1] });
+    assert.equal((await resolvePrimary(f.reader, f.recipient, snapshot)).status, 'stale');
+    await f.bind(3n);
+    await setPrimary(f.ctx, { name: 'seventh' });
+    assert.equal(f.calls.length, 2);
+  });
+  test(`V${version} setPrimary opt-in does not bypass network, lifetime or forward checks`, async () => {
+    const f = await fixture(version);
+    const args = { name: 'seventh', acceptUnverifiedResolver: true };
+    const inspect = f.reader.inspectResolver;
+    f.reader.inspectResolver = async () => { throw new Error('resolver read unavailable'); };
+    await assert.rejects(setPrimary(f.ctx, args), /resolver read unavailable/);
+    f.reader.inspectResolver = inspect;
+    await assert.rejects(setPrimary(f.ctx, args), (e: any) => e.code === 'forward_mismatch');
+    f.reader.getName = async () => ({ generation: 1, revision: 7, expiresAt: 1n, owner: f.owner });
+    await assert.rejects(setPrimary(f.ctx, args), (e: any) => e.code === 'not_active');
+    assert.equal(f.calls.length, 0);
+  });
+}

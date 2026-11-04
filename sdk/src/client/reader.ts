@@ -316,6 +316,7 @@ export class RegistryReader {
     return unpackCommit(f);
   }
 
+  /** Raw public record; use resolveAddress/resolvePrimary or inspectResolver to validate resolver trust. */
   async getAddress(node: bigint, generation: number, snap: Snapshot): Promise<AddressRecord> {
     const key = await recordKey(node, generation);
     const [addr, meta] = await this.readMap(

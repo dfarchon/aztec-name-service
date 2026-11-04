@@ -101,7 +101,7 @@ export async function prepareRegistration(
   });
   assertAcceptedQuote(quote, args.acceptedQuote);
   if (info.snapshot.timestamp + COMMIT_QUOTE_MARGIN > quote.quoteExpiry)
-    throw new AnsError('quote_expired', 'registration quote needs at least 180 seconds before commit');
+    throw new AnsError('quote_expired', 'registration quote needs at least 300 seconds before commit');
   await assertPublicRegistration(ctx.reader, info.label.label, args.duration, info.snapshot);
   const expectedGeneration = info.nextExpectedGeneration;
   const secret = Fr.random().toBigInt();
@@ -216,7 +216,7 @@ export async function submitCommitOutcome(ctx: AnsContext, plan: RegistrationPla
   await validatePlan(ctx.reader, plan);
   const snapshot = await ctx.reader.snapshot();
   if (snapshot.timestamp + COMMIT_QUOTE_MARGIN > plan.quoteExpiry)
-    throw new AnsError('quote_expired', 'registration quote needs at least 180 seconds before commit');
+    throw new AnsError('quote_expired', 'registration quote needs at least 300 seconds before commit');
   const tx = await runTxOutcome(
     ctx,
     async () => {

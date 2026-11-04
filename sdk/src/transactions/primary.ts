@@ -12,7 +12,7 @@ import { runTx, type TxOptions } from "./tx.js";
  */
 export async function setPrimary(
   ctx: AnsContext,
-  args: { name: NameRef },
+  args: { name: NameRef; acceptUnverifiedResolver?: boolean },
   opts?: TxOptions,
 ) {
   const snapshot = await ctx.reader.snapshot();
@@ -22,6 +22,11 @@ export async function setPrimary(
   const rec = await ctx.reader.getName(node, snapshot);
   if (nameStatus(rec, snapshot.timestamp) !== "active")
     throw new AnsError("not_active", "name is not active");
+  if (ctx.reader.modular) {
+    const resolver = await ctx.reader.inspectResolver(node, rec.generation, snapshot);
+    if (!resolver.verified && args.acceptUnverifiedResolver !== true)
+      throw new AnsError('invalid_argument', 'resolver is unverified; explicitly accept the risk to confirm this primary name');
+  }
   const forward = await ctx.reader.getAddress(node, rec.generation, snapshot);
   if (!forward.present || !forward.addr.equals(ctx.account)) {
     throw new AnsError(
