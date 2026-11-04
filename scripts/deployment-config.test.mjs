@@ -450,3 +450,77 @@ test('external preview refuses canonical output and output containing its manife
     assert.throws(() => buildSite(argv, { exec, root }), /Preview requires/);
   assert.equal(calls, 0);
 });
+
+import { execFileSync } from 'node:child_process';
+import { symlinkSync, unlinkSync } from 'node:fs';
+import { consumerFiles, packageConsumer } from './package-consumer.mjs';
+
+function consumerFixture(t) {
+  const directory = mkdtempSync(join(tmpdir(), 'ans-consumer-files-'));
+  t.after(() => rmSync(directory, { recursive: true, force: true }));
+  execFileSync('git', ['init', '-q', directory]);
+  const dir = join(directory, 'examples/consumer');
+  mkdirSync(join(dir, 'nested'), { recursive: true });
+  writeFileSync(join(dir, 'read.ts'), 'export {};\n');
+  writeFileSync(join(dir, 'nested/browser.ts'), 'export {};\n');
+  writeFileSync(join(directory, '.gitignore'), '*.log\n');
+  execFileSync('git', ['add', '.'], { cwd: directory });
+  const exec = (command, args, options) =>
+    execFileSync(command, args, { ...options, cwd: directory });
+  return { dir, exec };
+}
+
+test('consumer packaging accepts only tracked regular files, including nested files', (t) => {
+  const { dir, exec } = consumerFixture(t);
+  assert.deepEqual(consumerFiles(dir, { exec }), ['nested/browser.ts', 'read.ts']);
+});
+for (const kind of ['ignored', 'untracked', 'symlink', 'missing']) {
+  test(`consumer packaging rejects ${kind} files before any copy`, (t) => {
+    const { dir, exec } = consumerFixture(t);
+    if (kind === 'ignored') writeFileSync(join(dir, 'canary.log'), 'harmless ignored canary');
+    if (kind === 'untracked') writeFileSync(join(dir, 'extra.txt'), 'harmless untracked canary');
+    if (kind === 'symlink') symlinkSync('read.ts', join(dir, 'link.ts'));
+    if (kind === 'missing') unlinkSync(join(dir, 'read.ts'));
+    assert.throws(() => consumerFiles(dir, { exec }), /untracked|symlink|missing|regular/i);
+  });
+}
+
+test('consumer packaging requires an explicitly validated deployment before work begins', () => {
+  assert.throws(() => packageConsumer('/unused-output', 'test'), /deployment/i);
+});
+
+for (const preview of [false, true]) {
+  test(`${preview ? 'preview' : 'canonical'} site passes its validated deployment to consumer packaging`, (t) => {
+    const { root } = fixture(t);
+    const deployment = preview
+      ? {
+          ...v6Canonical,
+          registry: `0x${'1'.repeat(64)}`,
+          sample: true,
+          feePayment: 'fee-juice',
+          sponsoredFpc: null,
+        }
+      : v6Canonical;
+    const out = new URL(preview ? 'preview-out' : 'web/dist', root).pathname;
+    mkdirSync(out, { recursive: true });
+    const manifest = new URL('preview.json', root).pathname;
+    if (preview) writeFileSync(manifest, JSON.stringify(deployment));
+    const argv = [
+      '--network',
+      'testnet-v6',
+      ...(preview ? ['--manifest', manifest, '--out', out] : []),
+    ];
+    const calls = [];
+    buildSite(argv, {
+      root,
+      exec: (command, args) => (command === 'git' ? (args[0] === 'rev-parse' ? 'abc123' : '') : ''),
+      packageConsumer: (...args) => {
+        calls.push(args);
+      },
+    });
+    assert.equal(calls.length, 1);
+    assert.equal(calls[0][0], `${out}/downloads/sdk`);
+    assert.equal(calls[0][1], 'abc123');
+    assert.deepEqual(calls[0][2], deployment);
+  });
+}
