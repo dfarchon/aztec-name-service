@@ -37,6 +37,7 @@ export function NameModules({ holding, onDone }: { holding: Holding; onDone: () 
   const [legacy, setLegacy] = useState<NameRecord>();
   const [resolvers, setResolvers] = useState<{ current?: string; next?: string; verified?: boolean }>();
   const [error, setError] = useState<string>();
+  const [resolverRead, retryResolverRead] = useState(0);
   const tx = useTx();
   useEffect(() => {
     let live = true;
@@ -59,7 +60,7 @@ export function NameModules({ holding, onDone }: { holding: Holding; onDone: () 
     };
     void read().catch(e => { if (live) setError(errorMessage(e)); });
     return () => { live = false; };
-  }, [ctx, holding]);
+  }, [ctx, holding, resolverRead]);
   if (!ctx?.reader.modular) return null;
   return <>
     {legacy && <section className="card">
@@ -77,14 +78,16 @@ export function NameModules({ holding, onDone }: { holding: Holding; onDone: () 
           ? "Non-default resolver: review its address records."
           : "Unverified resolver: address records may be controlled by a third party")}</p>
         <p>{translate("Set your address and primary name again after switching.")}</p>
-        <button disabled={tx.busy} onClick={() => void tx.exec('Switch resolver', async onUpdate => {
+        <button disabled={tx.busy || !resolvers?.current || !resolvers.next || resolvers.current === resolvers.next} onClick={() => void tx.exec('Switch resolver', async onUpdate => {
           const { setResolver } = await import('@ans/sdk');
-          const modules = await ctx.reader.getModules();
+          const snapshot = await ctx.reader.snapshot();
+          const [current, modules] = await Promise.all([ctx.reader.inspectResolver(holding.node, holding.record.generation, snapshot), ctx.reader.getModules(snapshot)]);
+          if (current.address.equals(modules.resolver)) { onDone(); return; }
           await setResolver(ctx, { name: holding.label, resolver: modules.resolver }, { onUpdate }); onDone();
         })}>{translate("Use default resolver")}</button>
       </>}
     </details>}
-    {error && <p className="err">{translate(error)}</p>}
+    {error && <><p className="err">{translate(error)}</p><button className="ghost" disabled={tx.busy} onClick={() => retryResolverRead(n => n + 1)}>{translate("Refresh contract status")}</button></>}
     <TxLine tx={tx} />
   </>;
 }

@@ -27,7 +27,16 @@ try{
   await page.evaluate(()=>{const f=window.moduleFixture;f.reader.inspectResolver=async()=>({address:f.reader.registry,verified:false,isDefault:false,reason:'unknown_class'});location.hash='/status';});
   await wait('Contract modules');await page.evaluate(name=>{location.hash=`/manage/${name}`;},name);await wait('Unverified resolver: address records may be controlled by a third party');await wait('Use default resolver');pass('unknown resolver remains visible with a default-resolver recovery action');
   await page.evaluate(()=>{window.moduleFixture.reader.inspectResolver=async()=>{throw Error('fixture resolver read unavailable');};location.hash='/status';});
-  await wait('Contract modules');await page.evaluate(name=>{location.hash=`/manage/${name}`;},name);await wait('Resolver');await wait('Use default resolver');pass('resolver read errors preserve holder recovery controls');
+  await wait('Contract modules');await page.evaluate(name=>{location.hash=`/manage/${name}`;},name);await wait('Resolver');await wait('Use default resolver');
+  assert.equal(await page.evaluate(()=>[...document.querySelectorAll('button')].find(e=>e.textContent.trim()==='Use default resolver')?.disabled),true);
+  await wait('Refresh contract status');pass('resolver read errors disable signing and offer retry');
+  await page.evaluate(()=>{const f=window.moduleFixture;f.reader.inspectResolver=async()=>({address:f.reader.registry,verified:true,isDefault:false});});
+  await click('Refresh contract status');await wait('Non-default resolver: review its address records.');
+  assert.equal(await page.evaluate(()=>[...document.querySelectorAll('button')].find(e=>e.textContent.trim()==='Use default resolver')?.disabled),false);pass('successful retry restores the recovery action');
+  await page.evaluate(()=>{const f=window.moduleFixture;f.reader.inspectResolver=async()=>({address:f.reader.registry,verified:false,isDefault:true,reason:'unknown_class'});f.reader.getModules=async()=>({...(await f.getModules()),resolver:f.reader.registry});location.hash='/status';});
+  await wait('Contract modules');await page.evaluate(name=>{location.hash=`/manage/${name}`;},name);await wait('Use default resolver');
+  assert.equal(await page.evaluate(()=>[...document.querySelectorAll('button')].find(e=>e.textContent.trim()==='Use default resolver')?.disabled),true);pass('already-default resolver cannot trigger an unchanged reset');
+  await page.evaluate(()=>{window.moduleFixture.reader.getModules=window.moduleFixture.getModules;});
   await page.evaluate(()=>{window.moduleFixture.reader.inspectResolver=window.moduleFixture.inspectResolver;});
 
   await page.evaluate(()=>{const f=window.moduleFixture;f.reader.getName=async()=>({generation:0,revision:0,expiresAt:0n,owner:f.account.constructor.ZERO});f.reader.getLegacyName=async()=>f.record;location.hash='/name/migration-ui';});
