@@ -321,6 +321,8 @@ export function mainnetTemplateProblems(root = repository) {
   if (m.maxRenewAhead !== '31536000')
     problems.push('mainnet template maxRenewAhead must be 31536000');
   const reserved = read('deployments/reserved-labels.json', root);
+  if (reserved.minLength !== m.minPublicLength)
+    problems.push('reserved minLength must equal minPublicLength');
   const hash = createHash('sha256')
     .update(JSON.stringify(Object.values(reserved.categories).flat().sort()))
     .digest('hex');

@@ -16,3 +16,7 @@ The deployment loader rejects malformed files and duplicates before hashing. The
 Propose changes by editing the categorized file with a rationale for each addition/removal, running loader and pinned-hash tests, and updating the deployment policy hash for review. A file edit does not change chain state; applying a reservation change requires the current administrator's explicit transaction.
 
 变更时在对应分类中编辑，并逐项说明增删理由；运行加载器和哈希测试，更新部署策略哈希后提交审阅。修改文件不会自动修改链上状态；生效需要当前管理员明确发送交易。
+
+Ruling 7 adds 22 labels (195 total): hyphenated Aztec product and official/support/admin/team variants prevent impersonation; ANS service names protect the service identity; airdrop/giveaway/rewards/staking/claim-airdrop and noreply/webmaster protect solicitation and sender identities; ethereumfoundation pairs with its existing hyphenated form. Look-alike spellings remain out of scope. Readiness requires this file's minLength to equal deployment minPublicLength.
+
+裁定7补充22项（合计195）：Aztec 产品连字符与官方、客服、管理、团队变体防止身份冒用；ANS 服务名称保护服务身份；空投、奖励、质押、领取与发件人身份词减少钓鱼冒用；ethereumfoundation 补齐现有连字符形式。近似拼写不在本次范围。就绪检查要求本文件 minLength 等于部署 minPublicLength。

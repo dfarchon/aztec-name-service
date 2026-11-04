@@ -31,7 +31,7 @@
   "operatorLowWatermark": null,
   "registrarKind": "launch",
   "minPublicLength": 7,
-  "reservedListHash": "6079ea5caa8e2a341906b2ac54b56feda73b8f61c417fb5c25bdacc5084be65c",
+  "reservedListHash": "d3b5a6f138526e410311b4577f41bdcab0d24186405f4c51841f2906551028aa",
   "maxRenewAhead": "31536000",
   "registryVersion": 7,
   "adminPlaceholder": true,

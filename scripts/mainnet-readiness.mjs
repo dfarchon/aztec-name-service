@@ -25,6 +25,7 @@ export function mainnetBlockers(root = repository) {
     if (absent(m[key])) blockers.push(key === 'admin' ? 'admin/multisig' : key);
   if(!['flat','tiered','launch'].includes(m.registrarKind))blockers.push('registrarKind');
   if(m.registrarKind==='launch') {
+    if(read('deployments/reserved-labels.json').minLength !== m.minPublicLength)blockers.push('reserved minLength must equal minPublicLength');
     if(!Number.isInteger(m.minPublicLength)||m.minPublicLength<3||m.minPublicLength>31)blockers.push('minPublicLength');
     if(!/^[a-f0-9]{64}$/.test(m.reservedListHash??''))blockers.push('reservedListHash');
     if(m.maxRenewAhead!=='31536000')blockers.push('maxRenewAhead');

@@ -617,3 +617,25 @@ test('readiness rejects V6 mainnet and every launch renewal horizon other than o
   assert(!mainnetBlockers(root).includes('maxRenewAhead'));
   assert.deepEqual(v6ManifestProblems(v6Canonical), []);
 });
+
+test('template and readiness require reserved minLength to equal deployment minPublicLength', (t) => {
+  const { root, update } = fixture(t);
+  const template = JSON.parse(
+    readFileSync(new URL('deployments/mainnet.template.json', root), 'utf8'),
+  );
+  writeFileSync(new URL('deployments/mainnet.json', root), JSON.stringify(template));
+  const issue = 'reserved minLength must equal minPublicLength';
+  assert(!mainnetBlockers(root).includes(issue));
+  for (const minLength of [3, 6, 8, null]) {
+    update('deployments/reserved-labels.json', (list) => {
+      list.minLength = minLength;
+    });
+    assert(mainnetTemplateProblems(root).includes(issue), String(minLength));
+    assert(mainnetBlockers(root).includes(issue), String(minLength));
+  }
+  update('deployments/reserved-labels.json', (list) => {
+    list.minLength = 7;
+  });
+  assert(!mainnetTemplateProblems(root).includes(issue));
+  assert(!mainnetBlockers(root).includes(issue));
+});

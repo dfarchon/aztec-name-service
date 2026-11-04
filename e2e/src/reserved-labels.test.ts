@@ -4,11 +4,11 @@ import { test } from 'node:test';
 import { loadReservedList, canonicalReservedLabels, reservedListHash } from './launch-policy.js';
 const list = JSON.parse(readFileSync(new URL('../../deployments/reserved-labels.json', import.meta.url), 'utf8'));
 const object = (categories: unknown, minLength = 7) => ({ schema: 'ans-reserved-labels/1', minLength, categories });
-test('reserved v1 file pins 173 legal labels and its canonical hash independently of category order', () => {
+test('reserved v1 file pins 195 legal labels and its canonical hash independently of category order', () => {
   const labels = loadReservedList(list);
-  assert.equal(labels.length, 173); assert(labels.length >= 100 && labels.length <= 200);
+  assert.equal(labels.length, 195); assert(labels.length >= 100 && labels.length <= 200);
   assert(labels.every(label => label.length >= 7 && label.length <= 31));
-  assert.equal(reservedListHash(list), '6079ea5caa8e2a341906b2ac54b56feda73b8f61c417fb5c25bdacc5084be65c');
+  assert.equal(reservedListHash(list), 'd3b5a6f138526e410311b4577f41bdcab0d24186405f4c51841f2906551028aa');
   assert.deepEqual(labels, canonicalReservedLabels(labels));
   assert.equal(reservedListHash(object(Object.fromEntries(Object.entries(list.categories).reverse()))), reservedListHash(list));
   assert.equal(reservedListHash([]), '4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945');
