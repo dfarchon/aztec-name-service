@@ -8,7 +8,7 @@ import { createAztecNodeClient } from '@aztec-labs/aztec.js/node';
 import { getPublicEvents, type EventCursor } from '@aztec-labs/aztec.js/events';
 import { deriveStorageSlotInMap } from '@aztec-labs/stdlib/hash';
 import { RegistryReader, NameRegistrarLaunchContract, runTx, configureModules, assertRegistrableLabel, registerCommitment, hashWithSeparator, normalizeName, nodeOf, SECONDS_PER_YEAR, type AnsContext } from '@ans/sdk';
-import { canonicalReservedLabels, reservedNodes, reservedBatches, reservedListHash, reservationParity, verifyReservations } from './launch-policy.js';
+import { loadReservedList, canonicalReservedLabels, reservedNodes, reservedBatches, reservedListHash, reservationParity, verifyReservations } from './launch-policy.js';
 
 export type LaunchAction = {kind:'reserve';labels:string[];reserved:boolean} | {kind:'minimum';length:number} | {kind:'pause';paused:boolean} | {kind:'mint';name:string;recipient:string};
 export async function planLaunchAdmin(reader:RegistryReader, action:LaunchAction) {
@@ -96,7 +96,7 @@ async function cli() {
   const args=process.argv.slice(2);assert(args.length===4,'Usage: launch-admin.ts <node-url> <registry> <action-json> <reserved-labels-json>; read-only preview');
   const reader=await RegistryReader.connect(createAztecNodeClient(args[0]),AztecAddress.fromStringUnsafe(args[1]));
   const action=JSON.parse(args[2]) as LaunchAction;
-  if(action.kind==='reserve')action.labels=canonicalReservedLabels(JSON.parse(await readFile(args[3],'utf8')));
+  if(action.kind==='reserve')action.labels=loadReservedList(JSON.parse(await readFile(args[3],'utf8')));
   console.log(JSON.stringify(await planLaunchAdmin(reader,action),null,2));
 }
 if(process.argv[1]&&import.meta.url===pathToFileURL(process.argv[1]).href)await cli();
