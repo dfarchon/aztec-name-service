@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { TxStatus } from '@aztec-labs/aztec.js/tx';
 import { createHash, randomBytes, randomInt } from 'node:crypto';
 import { constants } from 'node:fs';
-import { chmod, lstat, mkdir, open, rename, unlink } from 'node:fs/promises';
+import { lstat, mkdir, open, rename, unlink } from 'node:fs/promises';
 import { createRequire } from 'node:module';
 import { dirname } from 'node:path';
 import type { Manifest } from './deploy-v6-plan.js';
@@ -192,8 +192,9 @@ export async function savePrivateJson(path: string, value: unknown) {
   }
   try {
     await rename(tmp, path);
-    await chmod(path, 0o600);
-    const directory = await open(dirname(path), constants.O_RDONLY | constants.O_DIRECTORY);
+    // The renamed inode already has mode 0600. Never chmod a path after rename:
+    // another path replacement must not turn that operation into symlink following.
+    const directory = await open(dirname(path), constants.O_RDONLY | constants.O_DIRECTORY | constants.O_NOFOLLOW);
     try {
       await directory.sync();
     } finally {

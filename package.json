@@ -43,6 +43,7 @@
     "deploy:v6": "npm run deploy:v6 -w ans-e2e --",
     "test:e2e:v6-manifest": "npm run e2e:v6-manifest -w ans-e2e --",
     "test:testnet:v6": "npm run testnet:v6 -w ans-e2e",
+    "testnet:v6-nofpc-register": "npm run testnet:v6-nofpc-register -w ans-e2e --",
     "bridge:fee-juice": "npm run bridge:fee-juice -w ans-e2e --",
     "deploy:mainnet": "node scripts/deploy-site.mjs --network mainnet",
     "build:mainnet": "node scripts/build-site.mjs --network mainnet"
