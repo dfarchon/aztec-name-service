@@ -1,5 +1,6 @@
 /** Isolated acceptance for administrator configuration, holder migration and paid name operations. */
 import assert from 'node:assert/strict';
+import { exerciseLaunchFlow } from './launch-flow.js';
 import { exerciseExtensions } from './extensions.js';
 import { writeFile } from 'node:fs/promises';
 import pricing from '../../deployments/aztec-pricing.json' with { type: 'json' };
@@ -151,6 +152,7 @@ try {
     await debug.warpL2TimeAtLeastBy(seconds);
   };
   if (process.env.ANS_EXTENSIONS === '1') await exerciseExtensions(owner,target,warpAfterFinality,check);
+  await exerciseLaunchFlow(node,debug,wallet,admin,alice,bob,treasury,fee,check);
   await setAdministrator(administrator,bob);
   await rejected('previous administrator cannot configure through the SDK',()=>configureModules(administrator,{registrar:pricedRegistrar.address,resolver:pricedResolver.address}));
   const nextAdministrator=administrator.as(bob);
