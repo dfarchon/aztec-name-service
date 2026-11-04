@@ -41,6 +41,13 @@ import {
  * Wallet-free public reads straight from node storage. Every read takes a snapshot so one resolution never mixes
  * blocks. Layouts follow the packed `types.nr` structs; concurrent reads are batched by the node client.
  */
+export type ResolverInspection = {
+  address: AztecAddress;
+  verified: boolean;
+  isDefault: boolean;
+  reason?: 'zero' | 'unknown_class' | 'other_registry';
+};
+
 export class RegistryReader {
   private configCache?: RegistryConfig;
   readonly modular: boolean;
@@ -323,6 +330,14 @@ export class RegistryReader {
     };
   }
 
+  /** V7 separates editor revisions from holder revisions. Older protocols share the name revision. */
+  async getRecordRevision(node: bigint, generation: number, snap: Snapshot): Promise<number> {
+    if (registryProtocol(this.currentClass).version !== 7) return (await this.getName(node, snap)).revision;
+    const [revision] = await this.readMap(this.slots.record_revisions.slot, await recordKey(node, generation), 1, snap);
+    if (revision > 0xffffffffn) throw new AnsError('corrupt_data', 'record revision exceeds u32');
+    return Number(revision);
+  }
+
   async getPrimary(address: AztecAddress, snap: Snapshot): Promise<PrimaryRecord> {
     const key = await primaryKey(address);
     const [node, meta] = await this.readMap(
@@ -440,16 +455,32 @@ export class RegistryReader {
     };
   }
 
+  private async resolverAddress(node: bigint, generation: number, snap: Snapshot) {
+    const [address] = await this.readMap(this.slots.resolvers.slot, await recordKey(node, generation), 1, snap);
+    return AztecAddress.fromBigIntUnsafe(address);
+  }
+
+  /** Inspect an inherited resolver without hiding transport failures. Class and registry binding are both required. */
+  async inspectResolver(node: bigint, generation: number, snap?: Snapshot): Promise<ResolverInspection> {
+    if (!this.modular) return { address: this.registry, verified: true, isDefault: true };
+    const s = snap ?? await this.snapshot();
+    const [address, modules] = await Promise.all([this.resolverAddress(node, generation, s), this.getModules(s)]);
+    const isDefault = address.equals(modules.resolver);
+    if (address.isZero()) return { address, verified: false, isDefault, reason: 'zero' };
+    try {
+      await this.assertModule(address, 'resolver', s);
+      return { address, verified: true, isDefault };
+    } catch (error) {
+      if (!(error instanceof AnsError) || error.code !== 'wrong_deployment') throw error;
+      return { address, verified: false, isDefault,
+        reason: error.message === 'resolver belongs to another registry' ? 'other_registry' : 'unknown_class' };
+    }
+  }
+
   async getResolver(node: bigint, generation: number, snap?: Snapshot) {
     if (!this.modular) return this.registry;
-    const s = snap ?? (await this.snapshot());
-    const [address] = await this.readMap(
-      this.slots.resolvers.slot,
-      await recordKey(node, generation),
-      1,
-      s,
-    );
-    const resolver = AztecAddress.fromBigIntUnsafe(address);
+    const s = snap ?? await this.snapshot();
+    const resolver = await this.resolverAddress(node, generation, s);
     await this.assertModule(resolver, 'resolver', s);
     return resolver;
   }

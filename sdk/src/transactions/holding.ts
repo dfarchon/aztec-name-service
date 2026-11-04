@@ -13,6 +13,8 @@ export type Holding = {
   label: Label;
   node: bigint;
   record: NameRecord;
+  /** Editor revision; independent from record.revision on V7. */
+  recordRevision: number;
   status: NameStatus;
   /** The context's account controls the current generation. */
   isHolder: boolean;
@@ -39,6 +41,9 @@ export async function inspectHolding(
     label,
     node,
     record,
+    recordRevision: ctx.reader.deployment.protocolVersion === 7
+      ? await ctx.reader.getRecordRevision(node, record.generation, snapshot)
+      : record.revision,
     status: nameStatus(record, snapshot.timestamp),
     isHolder,
     canEdit:

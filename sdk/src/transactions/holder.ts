@@ -36,7 +36,7 @@ async function writeAddress(
 ) {
   const h = await inspectHolding(ctx, name);
   assertHoldingAccess(h, 'editor');
-  const { generation, revision } = h.record;
+  const { generation } = h.record;
   return {
     tx: await runTx(
       ctx,
@@ -44,7 +44,7 @@ async function writeAddress(
         (await ctx.addressContract(h.node, generation, h.snapshot)).methods.set_address(
           h.node,
           generation,
-          revision,
+          h.recordRevision,
           !address.isZero(),
           address,
         ),

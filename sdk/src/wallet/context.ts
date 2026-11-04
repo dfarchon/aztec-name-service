@@ -4,6 +4,7 @@ import type { InteractionFeeOptions } from '@aztec-labs/aztec.js/contracts';
 import type { Wallet } from '@aztec-labs/aztec.js/wallet';
 
 import { NameRegistryContract } from '../artifacts/NameRegistry.js';
+import { NameRegistryV7Contract } from '../artifacts/NameRegistryV7.js';
 import { NameRegistryV6Contract } from '../artifacts/NameRegistryV6.js';
 import { NameRegistryV5Contract } from '../artifacts/NameRegistryV5.js';
 import { NameRegistryV4Contract } from '../artifacts/NameRegistryV4.js';
@@ -39,6 +40,7 @@ const registryArtifacts = new Map<string, ContractArtifact>([
   [registryProtocols.extended.classId, NameRegistryV4Contract.artifact],
   [registryProtocols.current.classId, NameRegistryV5Contract.artifact],
   [registryProtocols.v6.classId, NameRegistryV6Contract.artifact],
+  [registryProtocols.v7.classId, NameRegistryV7Contract.artifact],
 ]);
 
 /** Reader + signer. Write operations and wallet-local utilities go through here. */
@@ -75,6 +77,8 @@ export class AnsContext {
   extendedContract() {
     if (!this.reader.extended)
       throw new AnsError('invalid_argument', 'this feature requires registry V4');
+    if (this.reader.classId === registryProtocols.v7.classId)
+      return NameRegistryV7Contract.at(this.reader.registry, this.wallet);
     if (this.reader.classId === registryProtocols.v6.classId)
       return NameRegistryV6Contract.at(this.reader.registry, this.wallet);
     return this.reader.classId === registryProtocols.current.classId
@@ -83,6 +87,8 @@ export class AnsContext {
   }
 
   contract() {
+    if (this.reader.classId === registryProtocols.v7.classId)
+      return NameRegistryV7Contract.at(this.reader.registry, this.wallet);
     if (this.reader.classId === registryProtocols.v6.classId)
       return NameRegistryV6Contract.at(this.reader.registry, this.wallet);
     return this.reader.classId === registryProtocols.current.classId

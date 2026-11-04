@@ -55,7 +55,7 @@ export async function offerTransfer(
     ),
   };
 }
-export async function acceptTransfer(ctx: AnsContext, args: { name: NameRef }, opts?: TxOptions) {
+export async function acceptTransfer(ctx: AnsContext, args: { name: NameRef; acceptUnverifiedResolver?: boolean }, opts?: TxOptions) {
   await ctx.reader.assertCurrentClass();
   const contract = ctx.extendedContract(),
     h = await inspectHolding(ctx, args.name);
@@ -66,7 +66,13 @@ export async function acceptTransfer(ctx: AnsContext, args: { name: NameRef }, o
     offer.expiresAt <= h.snapshot.timestamp
   )
     throw new AnsError('invalid_argument', 'no active transfer offer for this account');
+  const resolverReset = ctx.reader.deployment.protocolVersion === 7;
+  const resolver = resolverReset ? undefined : await ctx.reader.inspectResolver(h.node, h.record.generation, h.snapshot);
+  if (resolver && !resolver.verified && args.acceptUnverifiedResolver !== true)
+    throw new AnsError('invalid_argument', 'inherited resolver is unverified; explicitly accept the risk and reset to the default resolver after acceptance');
   return {
+    resolverReset,
+    resolver,
     tx: await runTx(
       ctx,
       contract.methods.accept_transfer(h.node, h.record.generation, h.record.revision),
@@ -153,7 +159,7 @@ export async function setTextRecord(
       h.contract.methods.set_text(
         h.node,
         h.record.generation,
-        h.record.revision,
+        h.recordRevision,
         key,
         value.bytes,
         value.length,
