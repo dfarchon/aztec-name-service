@@ -2,6 +2,7 @@ import { AztecAddress } from '@aztec-labs/aztec.js/addresses';
 import type { Wallet } from '@aztec-labs/aztec.js/wallet';
 import {
   connectAns,
+  getFeeQuote,
   createRegistrationFlow,
   type RegistrationPlanStore,
   type RegistryReader,
@@ -29,4 +30,18 @@ export async function registrationActions(
     sponsoredFpc: AztecAddress.fromStringUnsafe(deployment.sponsoredFpc),
   });
   return createRegistrationFlow(ctx, store);
+}
+
+/** Read live public policy. This reserves nothing and does not open a wallet. */
+export async function inspectLaunch(reader: RegistryReader, name: string) {
+  const snapshot = await reader.snapshot();
+  const config = await reader.getConfig(snapshot);
+  const eligibility = await reader.eligibility(name, snapshot);
+  const quote = await getFeeQuote(reader, {
+    operation: 'register',
+    duration: 31536000n,
+    labelLength: name.length,
+    snapshot,
+  });
+  return { launch: config.launch, eligibility, quote, needsTokenAuthorization: quote.fee > 0n };
 }

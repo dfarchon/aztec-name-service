@@ -117,3 +117,33 @@ Mainnet identity is pinned to Aztec 6.0.0, L1 chain 1, rollup version 2070860440
 Web builds require `VITE_NETWORK` and `VITE_FEE_PAYMENT` on public networks. Embedded public sponsored mode requires an explicitly configured FPC; only proof-disabled chain 31337 may derive one. Fee-juice mode never registers an FPC. Before register, renew, records or primary writes, the shared wallet queue verifies identity and checks public Fee Juice against current minimum fees × default node gas limits. The bilingual error includes account and balance. The monitor keeps its existing check names; in fee-juice mode sponsorship is N/A, and an undecided operator balance is N/A. Once an operator is chosen, configure its precomputed map slot and watermark; `check:deployment` verifies the slot with the 6.0.0 stdlib.
 
 公网网页构建必须设置 `VITE_NETWORK`、`VITE_FEE_PAYMENT`。嵌入钱包的公网 sponsored 模式必须显式配置 FPC；只有关闭证明的 chain 31337 可以推导。fee-juice 模式不注册 FPC。注册、续费、记录及 primary 写入前，共享钱包队列先核对网络，再检查公开 Fee Juice 是否达到当前最低单价 × 节点默认 gas 限额。中英文错误包含账户地址与余额。监控保持历史检查名称；fee-juice 模式 sponsor 为 N/A，未确定 operator 时 balance 也为 N/A。确定 operator 后配置预计算 map slot 和低水位，`check:deployment` 用 6.0.0 stdlib 验证 slot。
+
+## Launch Registrar
+
+`NameRegistrarLaunch` 是可选的新 V6 收费模块，当前测试网清单不变，也不表示主网已部署。公开注册默认至少 7 个字符，管理员可在 3–31 内调整；短名显示 “Not yet available”，保留名显示 “Reserved”。保留表按 node 存储，32 个 node 一批，零值跳过；仓库 `deployments/reserved-labels.json` 当前为空列表，哈希随部署策略固定，后续由用户提供名单。
+
+每次注册和续期固定 365 天。`max_renew_ahead` 单位为秒：0（脚本默认值）不限制提前续期，可重复续期；非零时只有当前到期时间 `<= 链上时间 + max_renew_ahead` 才能续期。主网模板仍为 null，等待最终决定。暂停只阻止公开注册，持有人续期和管理员铸造继续开放，以免宽限期内丢失名字。
+
+免费实例要求 Token 地址和三档年费均为 0，不转 Token、不创建 AuthWit、不读私有 Token 余额；网络费仍由 Fee Juice 或代付承担。付费实例使用同一代码、不可变 Token/treasury 和 3/4/5+ 年费，长度、保留、暂停规则同样生效。管理员权限每次读取 Registry 的当前 administrator，提名者接受两步移交后立即生效，旧管理员失权。
+
+管理员可通过独立域的 commit-reveal 直接为接收方注册合法短名或保留名；至少等待 60 秒，最多 24 小时，固定一年，付费实例中也免注册费。管理员仍受标签字符和禁止 `--` / `0x` 的新注册规则约束。切换实例前，运维脚本合并规范名单和完整 ReservedChanged 事件发现的 node，复制策略、核对存储及不可变续期上限；price_version 必须递增，任何不一致阻止切换。原持有、generation 和记录不迁移，旧实例的注册计划失效，重新报价。
+
+## Launch Registrar (English)
+
+`NameRegistrarLaunch` is an optional V6 module. It does not change the current testnet manifest or announce a mainnet deployment. Public registration defaults to at least 7 characters; the live administrator can choose 3–31. Short names show “Not yet available”; reserved names show “Reserved”. Reservations use node keys, batches of 32 and zero padding. `deployments/reserved-labels.json` is currently empty; its canonical SHA-256 hash binds deployment policy, and the user supplies the eventual list.
+
+Each registration and renewal is exactly 365 days. `max_renew_ahead` is seconds: 0 (the script default) allows repeated renewal without a horizon; otherwise current expiry must be at most chain time plus the horizon. The mainnet template remains null pending the final choice. Pause blocks only public registration; holder renewal and administrator mint stay available, protecting holders during the grace period.
+
+Free mode requires a zero token and all three prices zero: no token transfer, AuthWit or private token balance read. Fee Juice or sponsorship still pays network fees. Paid mode uses the same code with immutable token, treasury and 3/4/5+ prices; all public policy gates still apply. Authority is read from the Registry on every operation, so the nominee gains authority only after accepting the two-step handoff and the old administrator immediately loses it.
+
+Administrator mint uses a separate commit-reveal domain, waits 60 seconds to 24 hours, writes the recipient directly, and grants one year without registration fees even in paid mode. Label rules, including no `--` or `0x`, still apply. Before switching instances, operator tooling combines the canonical list with every node discovered in the complete ReservedChanged history, copies policy and verifies storage parity and the immutable renewal cap. Price version must increase; any mismatch prevents the switch. Holdings, generations and records do not migrate. Old registration plans become invalid and need a fresh quote.
+
+### Local launch preview / 本地预览
+
+```sh
+npm run deploy:v6 -- --network local --node-url http://127.0.0.1:8082 --registrar launch --token none --price-version 1 --min-public-length 7 --initial-paused true --max-renew-ahead 0 --state-dir /tmp/ans-launch-preview --dry-run
+```
+
+This read-only local preview sends no transaction. Deployment seeding verifies the reserved list before bootstrap and leaves the requested pause state unchanged; unpause is an explicit administrator action. `e2e/src/launch-admin.ts` offers a read-only CLI preview. `runLaunchAdmin` and `switchLaunchRegistrar` require an injected `AnsContext` and explicit `{ broadcast: true }` to mutate; they never load keys. Keep an admin mint process alive through commit maturation: its secret stays in application memory, and interrupting it requires a new mint commitment. No website admin console or public SDK admin API is added.
+
+该本地预览只读，不发送交易。部署在 bootstrap 前核对保留名单，保持指定暂停状态，解除暂停必须由管理员显式操作。`launch-admin.ts` CLI 只输出预览；`runLaunchAdmin`、`switchLaunchRegistrar` 必须注入 `AnsContext` 且显式指定 `{ broadcast: true }` 才写入，不加载密钥。管理员铸造的 secret 只在应用内存中，需保持进程等待 commit 成熟；中断后需新建铸造承诺。没有新增网站管理台或公开 SDK 管理便捷接口。

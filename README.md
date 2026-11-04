@@ -135,8 +135,28 @@ npm run pack:sdk                       # 生成 ans-sdk-<version>.tgz
 npm install /path/to/ans-sdk-<version>.tgz
 ```
 
-SDK 尚未发布到 npm。它按链上准确类 ID 识别 V2–V6 与两种 Registrar，未知类返回 `wrong_deployment`。注册流程在发送前加密保存计划，已知交易哈希优先查询回执，只有回执证明失败才清除，不重复付款。接口、单位、错误与恢复规则见 [SDK 接入](docs/sdk-onboarding.md)，依赖边界见 [依赖安全](docs/dependency-security.md)。
+SDK 尚未发布到 npm。它按链上准确类 ID 识别 V2–V6 与三种 Registrar，未知类返回 `wrong_deployment`。注册流程在发送前加密保存计划，已知交易哈希优先查询回执，只有回执证明失败才清除，不重复付款。接口、单位、错误与恢复规则见 [SDK 接入](docs/sdk-onboarding.md)，依赖边界见 [依赖安全](docs/dependency-security.md)。
 
 ## 安全与许可证
 
 漏洞请按 [SECURITY.md](SECURITY.md) 私下报告。代码以 [Apache-2.0](LICENSE) 许可发布；第三方来源见 [third-party/](third-party/README.md)。
+
+## Launch Registrar
+
+`NameRegistrarLaunch` 是可选的新 V6 收费模块，当前测试网清单不变，也不表示主网已部署。公开注册默认至少 7 个字符，管理员可在 3–31 内调整；短名显示 “Not yet available”，保留名显示 “Reserved”。保留表按 node 存储，32 个 node 一批，零值跳过；仓库 `deployments/reserved-labels.json` 当前为空列表，哈希随部署策略固定，后续由用户提供名单。
+
+每次注册和续期固定 365 天。`max_renew_ahead` 单位为秒：0（脚本默认值）不限制提前续期，可重复续期；非零时只有当前到期时间 `<= 链上时间 + max_renew_ahead` 才能续期。主网模板仍为 null，等待最终决定。暂停只阻止公开注册，持有人续期和管理员铸造继续开放，以免宽限期内丢失名字。
+
+免费实例要求 Token 地址和三档年费均为 0，不转 Token、不创建 AuthWit、不读私有 Token 余额；网络费仍由 Fee Juice 或代付承担。付费实例使用同一代码、不可变 Token/treasury 和 3/4/5+ 年费，长度、保留、暂停规则同样生效。管理员权限每次读取 Registry 的当前 administrator，提名者接受两步移交后立即生效，旧管理员失权。
+
+管理员可通过独立域的 commit-reveal 直接为接收方注册合法短名或保留名；至少等待 60 秒，最多 24 小时，固定一年，付费实例中也免注册费。管理员仍受标签字符和禁止 `--` / `0x` 的新注册规则约束。切换实例前，运维脚本合并规范名单和完整 ReservedChanged 事件发现的 node，复制策略、核对存储及不可变续期上限；price_version 必须递增，任何不一致阻止切换。原持有、generation 和记录不迁移，旧实例的注册计划失效，重新报价。
+
+## Launch Registrar (English)
+
+`NameRegistrarLaunch` is an optional V6 module. It does not change the current testnet manifest or announce a mainnet deployment. Public registration defaults to at least 7 characters; the live administrator can choose 3–31. Short names show “Not yet available”; reserved names show “Reserved”. Reservations use node keys, batches of 32 and zero padding. `deployments/reserved-labels.json` is currently empty; its canonical SHA-256 hash binds deployment policy, and the user supplies the eventual list.
+
+Each registration and renewal is exactly 365 days. `max_renew_ahead` is seconds: 0 (the script default) allows repeated renewal without a horizon; otherwise current expiry must be at most chain time plus the horizon. The mainnet template remains null pending the final choice. Pause blocks only public registration; holder renewal and administrator mint stay available, protecting holders during the grace period.
+
+Free mode requires a zero token and all three prices zero: no token transfer, AuthWit or private token balance read. Fee Juice or sponsorship still pays network fees. Paid mode uses the same code with immutable token, treasury and 3/4/5+ prices; all public policy gates still apply. Authority is read from the Registry on every operation, so the nominee gains authority only after accepting the two-step handoff and the old administrator immediately loses it.
+
+Administrator mint uses a separate commit-reveal domain, waits 60 seconds to 24 hours, writes the recipient directly, and grants one year without registration fees even in paid mode. Label rules, including no `--` or `0x`, still apply. Before switching instances, operator tooling combines the canonical list with every node discovered in the complete ReservedChanged history, copies policy and verifies storage parity and the immutable renewal cap. Price version must increase; any mismatch prevents the switch. Holdings, generations and records do not migrate. Old registration plans become invalid and need a fresh quote.

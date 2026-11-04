@@ -40,7 +40,7 @@ export function ManagePage({ name }: { name: string }) {
   const [quoteRevision, refreshQuote] = useState(0);
   const [revision, refresh] = useState(0);
   const canRenew = !!h?.isHolder && !h.label.parent && (h.status === "active" || h.status === "grace");
-  const balance = useFeeBalance(ctx, canRenew ? quote?.feeToken.toString() : undefined);
+  const balance = useFeeBalance(ctx, canRenew && quote && quote.fee > 0n ? quote.feeToken.toString() : undefined);
   const tx = useTx();
   useEffect(() => {
     let live = true;
@@ -191,7 +191,7 @@ export function ManagePage({ name }: { name: string }) {
               value={years}
               onChange={(e) => setYears(Number(e.target.value))}
             >
-              {[1, 2, 3, 4, 5].map((y) => (
+              {(quote?.launch ? [1] : [1, 2, 3, 4, 5]).map((y) => (
                 <option key={y} value={y}>
                   {y} {y === 1 ? translate("year") : translate("years")}
                 </option>

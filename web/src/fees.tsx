@@ -18,7 +18,7 @@ export function useFeeBalance(ctx: AnsContext | undefined, token: string | undef
   useEffect(() => {
     let live = true;
     setRead(undefined);
-    if (ctx && token) void readFeeBalance(ctx, token)
+    if (ctx && token && !AztecAddress.fromStringUnsafe(token).isZero()) void readFeeBalance(ctx, token)
       .then(balance => { if (live) setRead({ ctx, token, balance }); })
       .catch(() => { if (live) setRead({ ctx, token, failed: true }); });
     return () => { live = false; };

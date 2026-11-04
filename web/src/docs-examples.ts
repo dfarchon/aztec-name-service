@@ -73,3 +73,20 @@ export async function updateModules(
   const modules = await administrator.reader.getModules();
   return { tx, modules };
 }`;
+
+export const launchExample = `import type { RegistryReader } from '@ans/sdk/read';
+import { getFeeQuote } from '@ans/sdk';
+
+/** Read live public policy. This reserves nothing and does not open a wallet. */
+export async function inspectLaunch(reader: RegistryReader, name: string) {
+  const snapshot = await reader.snapshot();
+  const config = await reader.getConfig(snapshot);
+  const eligibility = await reader.eligibility(name, snapshot);
+  const quote = await getFeeQuote(reader, {
+    operation: 'register',
+    duration: 31536000n,
+    labelLength: name.length,
+    snapshot,
+  });
+  return { launch: config.launch, eligibility, quote, needsTokenAuthorization: quote.fee > 0n };
+}`;

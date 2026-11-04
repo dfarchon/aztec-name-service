@@ -3,6 +3,7 @@ import pricing from '../../deployments/aztec-pricing.json';
 import { formatUnits } from './usability';
 import {
   configurationExample,
+  launchExample,
   connectionExample,
   profileExample,
   registrationExample,
@@ -49,6 +50,7 @@ export const articles: Article[] = [
       `Registration and renewal will be priced in AZTEC. Shorter names cost more: the provisional annual rate is ${aztecPrice3} AZTEC for 3 characters, ${aztecPrice4} AZTEC for 4 characters and ${aztecAnnualPrice} AZTEC for 5 or more, for one to five whole years. Renewals use the same tier. This is the target policy; AZTEC collection is not active on this test deployment. Today the test deployment charges the same tiers in ${testSymbol} per year: ${testTiers}; the Register page always shows the exact on-chain quote before you pay.`,
       'AZTEC is the official 18-decimal Ethereum token. Fee Juice is network fee credit obtained by depositing AZTEC; it cannot be transferred to a registration treasury. ANSF is an older project test token from earlier deployments. Receiving Fee Juice does not fund any registration payment; see “Which token do I need?”.',
       'The payment asset must be verified on the connected network before AZTEC collection can start. A website update or a token with the same symbol cannot change the active Registrar. The payment screen continues to show the current on-chain quote and token address.',
+      'When the connected module is NameRegistrarLaunch, public registration uses a live minimum length (initial default 7), reserved-name list and pause switch. A launch lease and each renewal are exactly 365 days. Free means no registration-token transfer or authorization; Fee Juice or sponsorship still pays network fees. Short names show Not yet available, reserved names show Reserved, and a pause blocks only public registration. This does not announce a deployment or change the current testnet fees.',
       'The administrator selects the active Registrar directly. A confirmed change takes effect immediately. Review the current token, treasury and exact quote before authorizing payment; prepare a new plan if its policy changed.',
     ],
   },
@@ -243,6 +245,7 @@ const headings: Record<string, string[]> = {
     'Annual pricing',
     'Understand the assets',
     'Activation requirements',
+    'Launch policy',
     'Deployment configuration',
   ],
   manage: ['Find your names', 'Renew a lease', 'Confirm a primary name'],
@@ -262,6 +265,23 @@ export function sectionsFor(article: Article): DocSection[] {
     title: headings[article.id][i],
     blocks: [{ type: 'paragraph', text }],
   }));
+  if (article.id === 'sdk-write')
+    sections.push({
+      id: 'launch-policy',
+      title: 'Launch eligibility and free quotes',
+      blocks: [
+        {
+          type: 'paragraph',
+          text: 'Read config.launch and eligibility(name, snapshot) through @ans/sdk/read. Results are open, too_short, reserved or paused. The SDK rechecks before commit and reveal, and rejects non-year leases. A free quote creates no token AuthWit and reads no token balance. Public policy reads reserve nothing; encrypted recovery stores secrets and transaction hashes, while ownership and policy remain chain state. Unknown RPC or wallet errors never clear a saved transaction hash.',
+        },
+        {
+          type: 'code',
+          title: 'Inspect a launch quote',
+          language: 'typescript',
+          value: launchExample,
+        },
+      ],
+    });
   if (article.id === 'getting-started') {
     sections[0].blocks.push({
       type: 'table',

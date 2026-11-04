@@ -180,3 +180,26 @@ SDK 在写入前读取当前注册代和修订号。注册代标识本次注册�
 | `unknown_tx_state`                 | 按「计划保存与恢复」核对已保存哈希或 `broadcastUnknown`。 |
 | `wallet_rejected`                  | 保留计划，由用户重试钱包确认。                            |
 | `unsupported` / `wrong_deployment` | 签名前核对网络、合约类与 SDK 版本。                       |
+
+## Launch 注册策略
+
+`registration.ts` (`inspectLaunch`) 只读取公开策略与一年报价；不发送交易。免费报价不创建 Token AuthWit，也不读私有 Token 余额。资格结果为 `open`、`too_short`、`reserved`、`paused`，SDK 在 commit/reveal 前重新核查。加密恢复数据与链上持有状态分别存储，RPC 异常不代表回滚。
+
+```typescript
+import type { RegistryReader } from '@ans/sdk/read';
+import { getFeeQuote } from '@ans/sdk';
+
+/** Read live public policy. This reserves nothing and does not open a wallet. */
+export async function inspectLaunch(reader: RegistryReader, name: string) {
+  const snapshot = await reader.snapshot();
+  const config = await reader.getConfig(snapshot);
+  const eligibility = await reader.eligibility(name, snapshot);
+  const quote = await getFeeQuote(reader, {
+    operation: 'register',
+    duration: 31536000n,
+    labelLength: name.length,
+    snapshot,
+  });
+  return { launch: config.launch, eligibility, quote, needsTokenAuthorization: quote.fee > 0n };
+}
+```
