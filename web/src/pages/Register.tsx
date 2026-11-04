@@ -18,6 +18,7 @@ import { config } from '../config';
 import { duration, errorMessage } from '../format';
 import { choosingAccount, recordWriter, useSession } from '../session';
 import { registrationFlow } from '../registration';
+import { canDiscardUncertain, parseTxHash } from '../registration-recovery';
 
 const YEAR = 365n * 86400n;
 
@@ -319,6 +320,8 @@ function PlanCard({ plan }: { plan: RegistrationPlan }) {
   const [check, setCheck] = useState<RegistrationCheck>();
   const [error, setError] = useState<string>();
   const tx = useTx();
+  const [hashInput, setHashInput] = useState('');
+  const [hashError, setHashError] = useState<string>();
   const canFinish =
     check?.state === 'ready_to_register' &&
     !plan.registerTx &&
@@ -369,6 +372,36 @@ function PlanCard({ plan }: { plan: RegistrationPlan }) {
       ...r,
       plans: r.plans.filter((p) => p.commitment !== plan.commitment),
     }));
+  const attachHash = (kind: 'commitTx' | 'registerTx') => {
+    const hash = parseTxHash(hashInput);
+    if (!hash) {
+      setHashError('Enter a 0x-prefixed 64-character transaction hash.');
+      return;
+    }
+    setHashError(undefined);
+    const write = recordWriter(ctx);
+    void tx.exec(`Recover transaction for ${plan.label}`, async (onUpdate) => {
+      // User-supplied hashes never clear uncertainty, even if an unrelated receipt is dropped.
+      let attached = { ...plan, [kind]: hash };
+      await write((r) => ({ ...r, plans: r.plans.map((p) => {
+        if (p.commitment !== plan.commitment) return p;
+        attached = { ...p, [kind]: hash };
+        return attached;
+      }) }));
+      await flow.recover(attached, kind, { timeoutMs: 15000, onUpdate });
+    });
+  };
+  const discard = async () => {
+    if (plan.broadcastUnknown) {
+      const fresh = await flow.check(plan);
+      setCheck(fresh);
+      if (!canDiscardUncertain(plan, fresh)) {
+        setError('Cannot remove yet: the quote has not expired on chain.');
+        return;
+      }
+    }
+    await abandon();
+  };
   const dead =
     check &&
     [
@@ -502,14 +535,28 @@ function PlanCard({ plan }: { plan: RegistrationPlan }) {
           </button>
         </>
       )}
-      {dead && !plan.registerTx && plan.broadcastUnknown !== 'registerTx' && (
+      {((dead && !plan.registerTx && !plan.broadcastUnknown) ||
+        (plan.broadcastUnknown && canDiscardUncertain(plan, check))) && (
         <button
           className="ghost"
           disabled={tx.busy}
-          onClick={() => void tx.exec('Discard registration', abandon)}
+          onClick={() => void tx.exec('Discard registration', discard)}
         >
           {translate('Remove record')}
         </button>
+      )}
+      {plan.broadcastUnknown && !plan[plan.broadcastUnknown] && (
+        <div>
+          <label>
+            Transaction hash
+            <input aria-label="Transaction hash" value={hashInput}
+              onChange={(e) => { setHashInput(e.target.value); setHashError(undefined); }} />
+          </label>
+          <button disabled={tx.busy} onClick={() => attachHash(plan.broadcastUnknown!)}>
+            Attach transaction hash
+          </button>
+          {hashError && <small role="alert" className="err">{hashError}</small>}
+        </div>
       )}
       {uncertain && (
         <p role="alert" className="warn">
