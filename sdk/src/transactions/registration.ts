@@ -20,7 +20,7 @@ import {
   sameFeeTerms,
 } from './fees.js';
 import { codeFor } from './registration-codes.js';
-import { runTxOutcome, unwrapTxOutcome, type TxOptions, type TxResult } from './tx.js';
+import { runTxOutcome, unwrapTxOutcome, type RunTxOptions, type TxOptions, type TxResult } from './tx.js';
 
 /**
  * Everything needed to finish a registration later. Contains the commit secret: persist it only in wallet storage or
@@ -49,7 +49,7 @@ export type RegistrationPlan = {
   createdAt: number;
   commitTx?: string;
   registerTx?: string;
-  /** A wallet transport failure returned no hash. Inspect the wallet before explicitly clearing this recovery flag. */
+  /** Durable marker set immediately before wallet send; a broadcast may have occurred without a saved hash. */
   broadcastUnknown?: 'commitTx' | 'registerTx';
 };
 
@@ -197,7 +197,7 @@ export async function submitCommit(ctx: AnsContext, plan: RegistrationPlan, opts
 }
 
 /** Internal flow variant; only the receipt interpreter returns a terminal failure. */
-export async function submitCommitOutcome(ctx: AnsContext, plan: RegistrationPlan, opts?: TxOptions) {
+export async function submitCommitOutcome(ctx: AnsContext, plan: RegistrationPlan, opts?: RunTxOptions) {
   assertPlanFor(ctx, plan);
   await validatePlan(ctx.reader, plan);
   const snapshot = await ctx.reader.snapshot();
@@ -299,7 +299,7 @@ export async function submitRegistration(
 }
 
 /** Internal flow variant; exceptions from wallets or observers remain exceptions. */
-export async function submitRegistrationOutcome(ctx: AnsContext, plan: RegistrationPlan, opts?: TxOptions) {
+export async function submitRegistrationOutcome(ctx: AnsContext, plan: RegistrationPlan, opts?: RunTxOptions) {
   assertPlanFor(ctx, plan);
   if (plan.registerTx)
     throw new AnsError(

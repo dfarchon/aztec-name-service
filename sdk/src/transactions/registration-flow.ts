@@ -18,7 +18,8 @@ import { normalizeName } from '../core/label.js';
 /**
  * The host owns encryption and durable storage. load must return undefined only when the key is absent.
  * load must return the result of the last successful save for that key (read-your-writes).
- * A store that serves stale reads can make the flow rebroadcast a transaction.
+ * save must resolve only after the plan is durable, including the marker saved immediately before wallet send.
+ * A store that serves stale reads or acknowledges an undurable save can make the flow rebroadcast a transaction.
  */
 export type RegistrationPlanStore = {
   load: (key: string) => Promise<RegistrationPlan | undefined>;
@@ -133,6 +134,30 @@ export function createRegistrationFlow(ctx: AnsContext, store: RegistrationPlanS
       const submit = kind === 'commitTx' ? submitCommitOutcome : submitRegistrationOutcome;
       const result = await submit(ctx, plan, {
         ...options,
+        async beforeBroadcast() {
+          plan = { ...plan, broadcastUnknown: kind };
+          const updated = plan;
+          known.set(registrationPlanKey(updated), updated);
+          persistence = persistence.then(() => persist(updated));
+          await persistence;
+        },
+        async notBroadcast() {
+          if (plan[kind]) return;
+          const uncertain = plan;
+          plan = { ...plan, broadcastUnknown: undefined };
+          const updated = plan;
+          known.set(registrationPlanKey(updated), updated);
+          persistence = persistence.then(() => persist(updated));
+          try {
+            await persistence;
+          } catch (error) {
+            // Failed cleanup must preserve uncertainty and the original wallet error.
+            plan = uncertain;
+            known.set(registrationPlanKey(uncertain), uncertain);
+            persistence = Promise.resolve();
+            throw error;
+          }
+        },
         onUpdate(update) {
           if (
             (update.txHash && update.txHash !== plan[kind]) ||

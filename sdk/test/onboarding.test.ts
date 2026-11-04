@@ -102,9 +102,11 @@ async function fixture() {
   const hash = TxHash.random().toString();
   let broadcasts = 0;
   const records = new Map<string, RegistrationPlan>();
+  const history: RegistrationPlan[] = [];
   const store: RegistrationPlanStore = {
     load: async (key) => records.get(key),
     save: async (key, plan) => {
+      history.push({ ...plan });
       records.set(key, { ...plan });
     },
   };
@@ -130,6 +132,7 @@ async function fixture() {
     },
   } as unknown as RegistryReader;
   const interaction = {
+    simulate: async () => {},
     send: async () => {
       assert.ok(records.size, 'secret must be durable before broadcast');
       broadcasts++;
@@ -147,7 +150,7 @@ async function fixture() {
   const flow = createRegistrationFlow(ctx, store);
   const quote = await flow.quote(31536000n);
   const plan = await flow.prepare({ name: 'alice', acceptedQuote: quote });
-  return { ctx, flow, store, records, plan, quote, interaction, broadcasts: () => broadcasts };
+  return { ctx, flow, store, records, history, plan, quote, interaction, broadcasts: () => broadcasts };
 }
 
 test('concurrent commits using an old plan copy broadcast once, including after creating a new flow', async () => {
@@ -381,3 +384,109 @@ test('a wallet disconnect during finish persists registerTx uncertainty and bloc
   await assert.rejects(reloaded.finish(f.plan), (e: AnsError) => e.code === 'unknown_tx_state');
   assert.equal(attempts, 1);
 });
+
+for (const kind of ['commitTx', 'registerTx'] as const) {
+  async function sendingFixture() {
+    const f = await fixture();
+    if (kind === 'registerTx')
+      f.ctx.reader.getCommit = async () => ({ committedAt: 900n, consumed: false });
+    const send = (options = {}) => kind === 'commitTx'
+      ? f.flow.commit(f.plan, options) : f.flow.finish(f.plan, options);
+    return { ...f, send };
+  }
+
+  test(`${kind}: durable marker blocks a reloaded flow while wallet send is unresolved`, async () => {
+    const f = await sendingFixture();
+    let entered!: () => void, release!: () => void, attempts = 0;
+    const started = new Promise<void>((r) => { entered = r; });
+    const pending = new Promise<void>((r) => { release = r; });
+    f.interaction.send = async () => {
+      attempts++;
+      if (attempts > 1) throw new Error('duplicate send');
+      entered();
+      await pending;
+      return { txHash: TxHash.random().toString() };
+    };
+    const first = f.send();
+    try {
+      await started;
+      assert.equal([...f.records.values()][0].broadcastUnknown, kind);
+      const reloaded = createRegistrationFlow(f.ctx, f.store);
+      await assert.rejects(kind === 'commitTx' ? reloaded.commit(f.plan) : reloaded.finish(f.plan),
+        (e: AnsError) => e.code === 'unknown_tx_state');
+      assert.equal(attempts, 1);
+    } finally { release(); await first; }
+  });
+
+  for (const failure of ['identity', 'artifacts', 'beforeSend', 'preflight', 'balance', 'chain check'] as const) {
+    test(`${kind}: ${failure} failure never saves a broadcast marker`, async () => {
+      const f = await sendingFixture();
+      const fail = async () => { throw new AnsError('network', 'synthetic validation failure'); };
+      if (failure === 'identity') f.ctx.assertWalletNetwork = fail;
+      if (failure === 'artifacts') {
+        Object.assign(f.ctx.reader, { modular: true });
+        // Keep module validation valid until the queued ensureRegistered check.
+        f.ctx.reader.getModules = async () => ({ registrar: AztecAddress.ZERO }) as any;
+        f.ctx.ensureRegistered = fail;
+      }
+      if (failure === 'beforeSend') f.ctx.signer.beforeSend = fail;
+      if (failure === 'preflight') f.interaction.simulate = fail;
+      if (failure === 'balance') {
+        f.plan.fee = 1n; // zero token balance, checked before submission
+        await f.store.save([...f.records.keys()][0], f.plan);
+      }
+      if (failure === 'chain check') f.ctx.reader.getCommit = fail;
+      await assert.rejects(f.send({ preflight: failure === 'preflight' }));
+      assert.ok(f.history.every((p) => p.broadcastUnknown === undefined));
+      assert.equal(f.broadcasts(), 0);
+    });
+  }
+
+  for (const failure of [new AnsError('wallet_rejected', 'cancelled'), new Error('SimulationError: assertion failed')]) {
+    test(`${kind}: ${failure.message} clears the marker and permits retry`, async () => {
+      const f = await sendingFixture();
+      const original = f.interaction.send;
+      f.interaction.send = async () => { throw failure; };
+      await assert.rejects(f.send());
+      assert.ok(f.history.some((p) => p.broadcastUnknown === kind));
+      assert.equal([...f.records.values()][0].broadcastUnknown, undefined);
+      f.interaction.send = original;
+      await f.send();
+      assert.equal(f.broadcasts(), 1);
+    });
+  }
+
+  test(`${kind}: returned hash replaces the durable marker`, async () => {
+    const f = await sendingFixture();
+    await f.send();
+    assert.ok(f.history.some((p) => p.broadcastUnknown === kind));
+    assert.ok([...f.records.values()][0][kind]);
+    assert.equal([...f.records.values()][0].broadcastUnknown, undefined);
+  });
+
+  test(`${kind}: marker persistence failure prevents wallet send`, async () => {
+    const f = await sendingFixture();
+    const save = f.store.save;
+    f.store.save = async (key, plan) => {
+      if (plan.broadcastUnknown) throw new Error('marker storage failed');
+      await save(key, plan);
+    };
+    await assert.rejects(f.send(), /marker storage failed/);
+    assert.equal(f.broadcasts(), 0);
+  });
+
+  test(`${kind}: a failed marker clear preserves the original wallet error and durable uncertainty`, async () => {
+    const f = await sendingFixture();
+    const save = f.store.save;
+    let marked = false;
+    f.store.save = async (key, plan) => {
+      if (marked && !plan.broadcastUnknown) throw new Error('clear storage failed');
+      marked ||= !!plan.broadcastUnknown;
+      await save(key, plan);
+    };
+    const rejected = new AnsError('wallet_rejected', 'cancelled');
+    f.interaction.send = async () => { throw rejected; };
+    await assert.rejects(f.send(), (e) => e === rejected);
+    assert.equal([...f.records.values()][0].broadcastUnknown, kind);
+  });
+}
