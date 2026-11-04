@@ -18,6 +18,7 @@ import { isL1ToL2MessageReady } from '@aztec-labs/aztec.js/messaging';
 import { createAztecNodeClient, type AztecNode } from '@aztec-labs/aztec.js/node';
 import { TxHash } from '@aztec-labs/aztec.js/tx';
 import { setLogLevel } from '@aztec-labs/foundation/log';
+import { defaultFetch } from '@aztec-labs/foundation/json-rpc/client';
 import type { Tx } from '@aztec-labs/stdlib/tx';
 import { EmbeddedWallet } from '@aztec-labs/wallets/embedded';
 import { randomKeys } from './common.js';
@@ -28,6 +29,7 @@ import { acquireTestnetLock } from './testnet-lock.js';
 import { runCheckpointedStep } from './testnet-checkpoint.js';
 import { COMMIT_OPTIONS, TX_OPTIONS, manifestBinding, privateDirectory, type AccountKeys } from './testnet-v6-e2e-state.js';
 import { V6_PROFILES, assertV6FeeJuice, assertV6Network, dryRunNode } from './v6-network.js';
+import { logRegistrationFailure, RegistrationFailure } from './testnet-v6-nofpc-errors.js';
 import {
   assertRegisterConfirmation, captureRegisterBroadcast, loadRehearsalManifest, parseRegisterArgs,
   readRegisterJson, recheckRegisterTransactions, recordRegisterReceipt, registerConfirmation,
@@ -70,7 +72,17 @@ async function loadUser(dir: string) {
   return a;
 }
 
-export async function main(argv = process.argv.slice(2), deps = { createNode: createAztecNodeClient }) {
+/** Override Aztec's default retrying transport, including below checkpointed sendTx. */
+export function createRegistrationNode(url: string) {
+  return createAztecNodeClient(url, {
+    maxBatchSize: V6_PROFILES['testnet-v6'].maxBatchSize,
+    fetch: async (...args) => {
+      try { return await defaultFetch(...args); }
+      catch (cause) { throw new RegistrationFailure('RPC_ERROR', { cause }); }
+    },
+  });
+}
+export async function main(argv = process.argv.slice(2), deps = { createNode: createRegistrationNode }) {
   const c = await registerPaths(parseRegisterArgs(argv));
   const manifest = await loadRehearsalManifest(c.manifest);
   assertRegisterConfirmation(c, manifest); // Before network, wallet, or private file loading.
@@ -82,14 +94,16 @@ export async function main(argv = process.argv.slice(2), deps = { createNode: cr
   let funderWallet: EmbeddedWallet | undefined;
   const releases: (() => void)[] = [];
   try {
-    const rawNode = deps.createNode(c.nodeUrl, { maxBatchSize: V6_PROFILES['testnet-v6'].maxBatchSize });
+    const rawNode = deps.createNode(c.nodeUrl);
     const used = new Set<string>();
     const preflightNode = c.dryRun ? dryRunNode(rawNode, used) : rawNode;
     const identity = async () => {
       const info = await preflightNode.getNodeInfo();
-      const id = assertV6Network('testnet-v6', info, c.nodeUrl);
-      assertV6FeeJuice('testnet-v6', info);
-      return id;
+      try {
+        const id = assertV6Network('testnet-v6', info, c.nodeUrl);
+        assertV6FeeJuice('testnet-v6', info);
+        return id;
+      } catch (cause) { throw new RegistrationFailure('IDENTITY_MISMATCH', { cause }); }
     };
     const network = await identity();
     for (const key of ['registry', 'registrar', 'resolver', 'token'] as const) {
@@ -158,7 +172,7 @@ export async function main(argv = process.argv.slice(2), deps = { createNode: cr
       }
     }(reader, { wallet, account: user, beforeSend: async account => {
       await identity();
-      assert((await readFeeJuiceBalance(node, account)) > 0n, 'User Fee Juice balance is empty');
+      if ((await readFeeJuiceBalance(node, account)) <= 0n) throw new RegistrationFailure('BALANCE_EMPTY');
     } }); // Omitted signer.fee means the account pays its own Fee Juice.
     const queued = <T>(fn: () => T | Promise<T>) => ctx.queue.run(async () => {
       await identity(); await ctx.assertWalletNetwork(); return fn();
@@ -181,7 +195,7 @@ export async function main(argv = process.argv.slice(2), deps = { createNode: cr
       try {
         await runCheckpointedStep(s, name, send, hash => trackTx(node, hash, TX_OPTIONS), verify, save);
       } catch (err) {
-        console.error('STEP-REASON ' + name + ' ' + ((err as Error)?.name ?? 'Error') + ': ' + String((err as Error)?.message ?? err).split('\n')[0].replace(/0x[0-9a-fA-F]{16,}/g, h => h.slice(0, 10) + '...').slice(0, 300));
+        logRegistrationFailure(err, name);
         // A callback/transport failure may follow acceptance. Preserve actual receipt evidence if available.
         if (s.transactions[name]) {
           try { await recordReceipt(name, await rawNode.getTxReceipt(TxHash.fromString(s.transactions[name]))); }
@@ -193,12 +207,13 @@ export async function main(argv = process.argv.slice(2), deps = { createNode: cr
     await step('deploy-user', () => queued(async () => {
       const claim = await readBridgeClaim(c.stateDir, 'testnet-v6', s.user);
       assert(claim?.messageHash && claim.leafIndex !== undefined, 'Complete user bridge claim required for deployment');
-      assert(await isL1ToL2MessageReady(node, Fr.fromString(claim.messageHash), 'proven'), 'User bridge claim is not ready at proven tip');
+      if (!await isL1ToL2MessageReady(node, Fr.fromString(claim.messageHash), 'proven'))
+        throw new RegistrationFailure('CLAIM_NOT_READY');
       const deploy = await account.getDeployMethod();
       return deploy.send(userDeploymentOptions(user, claim, !!await node.getContractClass(account.getInstance().currentContractClassId)));
     }), async () => {
       assert(await node.getContract(user), 'User account publication missing');
-      assert(BigInt(await balance()) > 0n, 'User has no Fee Juice after claim');
+      if (BigInt(await balance()) <= 0n) throw new RegistrationFailure('BALANCE_EMPTY');
     });
     const quote = await getFeeQuote(reader, { operation: 'register', duration: 31536000n, labelLength: s.name.length });
     if (s.transactions.mint || (!s.transactions.commit && await tokenBalance() < quote.fee)) {
@@ -216,7 +231,7 @@ export async function main(argv = process.argv.slice(2), deps = { createNode: cr
           assert.equal(ownerKeys.address, manifest.owner, 'Funder is not manifest owner');
           const owner = (await funderWallet!.createSchnorrInitializerlessAccount(Fr.fromString(ownerKeys.secret), Fr.fromString(ownerKeys.salt), Fq.fromString(ownerKeys.signingKey))).address;
           assert.equal(owner.toString(), manifest.owner, 'Restored funder mismatch');
-          assert((await readFeeJuiceBalance(node, owner)) > 0n, 'Funder Fee Juice is empty');
+          if ((await readFeeJuiceBalance(node, owner)) <= 0n) throw new RegistrationFailure('BALANCE_EMPTY');
           // The minting wallet only needs the recipient's public instance to deliver its note.
           await funderWallet!.registerContract(account.getInstance(), await account.getAccountContract().getContractArtifact());
           const tokenAddress = AztecAddress.fromStringUnsafe(manifest.feeToken);
@@ -285,9 +300,7 @@ export async function main(argv = process.argv.slice(2), deps = { createNode: cr
 }
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   main().catch((e: unknown) => {
-    // Never serialize arbitrary wallet/RPC errors or private checkpoint contents; only a redacted one-line reason.
-    const reason = String((e as Error)?.message ?? e).split('\n')[0].replace(/0x[0-9a-fA-F]{16,}/g, h => h.slice(0, 10) + '...').slice(0, 300);
-    console.error('REASON ' + ((e as Error)?.name ?? 'Error') + ': ' + reason);
+    logRegistrationFailure(e);
     console.error('V6 self-paid registration stopped. Check arguments, dry-run confirmation and private checkpoint; saved hashes are never resent.');
     process.exitCode = 1;
   });

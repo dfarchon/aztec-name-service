@@ -8,7 +8,7 @@ import { AztecAddress } from '@aztec-labs/aztec.js/addresses';
 import { NO_FROM } from '@aztec-labs/aztec.js/account';
 import { NO_WAIT } from '@aztec-labs/aztec.js/contracts';
 import { FeeJuicePaymentMethodWithClaim } from '@aztec-labs/aztec.js/fee';
-import { Fr } from '@aztec-labs/aztec.js/fields';
+import { Fq, Fr } from '@aztec-labs/aztec.js/fields';
 import type { AztecNode } from '@aztec-labs/aztec.js/node';
 import { TxStatus } from '@aztec-labs/aztec.js/tx';
 import canonical from '../../deployments/testnet-v6.json' with { type: 'json' };
@@ -17,7 +17,8 @@ import { FEE_JUICE, type BridgeClaim } from './fee-juice-payment.js';
 import { V6_PROFILES } from './v6-network.js';
 import { runCheckpointedStep } from './testnet-checkpoint.js';
 import { manifestBinding } from './testnet-v6-e2e-state.js';
-import { main, userDeploymentOptions } from './testnet-v6-nofpc-register.js';
+import { createRegistrationNode, main, userDeploymentOptions } from './testnet-v6-nofpc-register.js';
+import { logRegistrationFailure, RegistrationFailure } from './testnet-v6-nofpc-errors.js';
 import {
   assertRegisterConfirmation, captureRegisterBroadcast, loadRehearsalManifest, parseRegisterArgs,
   readRegisterJson, recheckRegisterTransactions, recordRegisterReceipt, registerConfirmation,
@@ -30,6 +31,7 @@ const hash = `0x${'1'.repeat(64)}`;
 const m: Manifest = { ...canonical, feePayment: 'fee-juice', sponsoredFpc: null,
   network: 'testnet-v6',
   registry: address(100), resolver: address(101), registrar: address(102), feeToken: address(103),
+  owner: address(105),
   feeTokenSource: 'official', registrarKind: 'tiered' };
 const profile = V6_PROFILES['testnet-v6'];
 const info = { nodeVersion: '6.0.0', l1ChainId: 11155111, rollupVersion: 679261766, realProofs: true,
@@ -77,16 +79,33 @@ test('self-paid args require manifest, state, valid label and confirmation; reje
     assert.throws(() => parseRegisterArgs([...base, ...extra]));
   assert.throws(() => parseRegisterArgs([...base, '--node-url', 'https://user:password@example.com', '--dry-run']));
 });
-test('canonical and all repository deployments paths are refused, including physical symlinks', async t => {
-  for (const manifest of [relative(process.cwd(), join(REPO, 'deployments/testnet-v6.json')), join(REPO, 'deployments/other.json')])
+test('canonical and all repository paths are refused, including physical symlinks', async t => {
+  for (const manifest of [relative(process.cwd(), join(REPO, 'deployments/testnet-v6.json')), join(REPO, 'deployments/other.json'),
+    join(REPO, 'scripts/fixtures/v6-manifest-local-rehearsal.json'), join(REPO, 'elsewhere.json')])
     assert.throws(() => parseRegisterArgs(['--manifest', manifest, ...base.slice(2), '--dry-run']), /deployments/);
   const f = await fixture(t);
   await symlink(join(REPO, 'deployments/testnet-v6.json'), join(f.deployer, 'link.json'));
   await assert.rejects(registerPaths({ ...options(), manifest: join(f.deployer, 'link.json'), stateDir: f.stateDir }), /deployments/);
+  await assert.rejects(loadRehearsalManifest(join(f.deployer, 'link.json')), /repository/);
+  const repoLink = join(f.deployer, 'repo-link.json');
+  await symlink(join(REPO, 'scripts/fixtures/v6-manifest-local-rehearsal.json'), repoLink);
+  await assert.rejects(registerPaths({ ...options(), manifest: repoLink, stateDir: f.stateDir }), /repository/);
+  await assert.rejects(loadRehearsalManifest(repoLink), /repository/);
   await writeFile(f.manifest, JSON.stringify({ ...m, registry: canonical.registry }));
   await assert.rejects(loadRehearsalManifest(f.manifest), /Canonical deployment/);
   await writeFile(f.manifest, JSON.stringify({ ...m, feePayment: undefined, sponsoredFpc: canonical.sponsoredFpc }));
   await assert.rejects(loadRehearsalManifest(f.manifest), /no FPC/);
+});
+test('each canonical address, including owner, is refused by value despite mixed case', async t => {
+  const f = await fixture(t);
+  for (const field of ['registry', 'registrar', 'resolver', 'feeToken', 'owner'] as const) {
+    for (const value of [canonical[field], `0x${canonical[field].slice(2).toUpperCase()}`]) {
+      await writeFile(f.manifest, JSON.stringify({ ...m, [field]: value }));
+      await assert.rejects(loadRehearsalManifest(f.manifest), /Canonical deployment/);
+    }
+  }
+  await writeFile(f.manifest, JSON.stringify(m));
+  assert.deepEqual(await loadRehearsalManifest(f.manifest), m);
 });
 test('user directories cannot overlap deployment/funder state, contain deployer files or be loose', async t => {
   const f = await fixture(t), c = parseRegisterArgs([...f.args, '--dry-run']);
@@ -130,8 +149,56 @@ test('missing/wrong confirmation fails before node creation or private files; id
   assert.equal(created, 0);
   for (const patch of [{ l1ChainId: 1 }, { rollupVersion: 1 }, { realProofs: false }]) {
     const calls: string[] = [];
-    await assert.rejects(main([...f.args, '--dry-run'], { createNode: () => fakeNode(calls, patch) }), /identity mismatch/);
+    await assert.rejects(main([...f.args, '--dry-run'], { createNode: () => fakeNode(calls, patch) }), /identity mismatch/i);
     assert.deepEqual(calls, ['getNodeInfo']);
+  }
+});
+test('top-level and STEP-REASON logging never echo raw parsing, wallet or RPC errors', () => {
+  const secret = 'deadbeef'.repeat(8), output: string[] = [], original = console.error;
+  let parsingError: unknown;
+  try { Fq.fromString(secret); } catch (error) { parsingError = error; }
+  assert(parsingError);
+  const hostile = { get name() { throw new Error('name must never be read'); },
+    get message() { throw new Error('message must never be read'); },
+    toString() { throw new Error('must never stringify'); } };
+  console.error = (...values) => output.push(values.join(' '));
+  try {
+    for (const error of [parsingError, new Error(`wallet ${secret}`), new TypeError(`RPC ${secret}`),
+      Object.assign(new Error(secret), { name: secret, code: secret }), secret, hostile, null]) {
+      logRegistrationFailure(error);
+      logRegistrationFailure(error, 'deploy-user');
+    }
+    for (const reason of ['CLAIM_NOT_READY', 'BALANCE_EMPTY', 'CONFIRM_MISMATCH', 'IDENTITY_MISMATCH', 'RPC_ERROR'] as const) {
+      logRegistrationFailure(new RegistrationFailure(reason, { cause: new Error(secret) }), 'commit');
+      assert.equal(output.at(-1), `STEP-REASON commit Error ${reason}`);
+    }
+  } finally { console.error = original; }
+  for (const line of output) {
+    assert.match(line, /^(REASON|STEP-REASON (deploy-user|commit)) (AssertionError|SyntaxError|TypeError|RangeError|Error) (UNKNOWN|CLAIM_NOT_READY|BALANCE_EMPTY|CONFIRM_MISMATCH|IDENTITY_MISMATCH|RPC_ERROR)$/);
+    assert(!line.includes(secret));
+  }
+});
+test('actual node transport issues one aztec_sendTx after lost response or HTTP failure and retains checkpoint', async t => {
+  const original = globalThis.fetch;
+  t.after(() => { globalThis.fetch = original; });
+  for (const failure of ['lost-response', 'http-503'] as const) {
+    const calls: string[] = [], s = initialState();
+    const node = createRegistrationNode('http://mock.invalid');
+    globalThis.fetch = async (_url, init) => {
+      const body = JSON.parse(String(init!.body));
+      for (const request of Array.isArray(body) ? body : [body]) calls.push(request.method);
+      assert.equal(s.transactions['deploy-user'], hash);
+      if (failure === 'lost-response') throw new Error('synthetic lost response');
+      return new Response(JSON.stringify({ error: { message: 'synthetic unavailable' } }), { status: 503 });
+    };
+    await assert.rejects(captureRegisterBroadcast(s, 'deploy-user', hash, s.user, '0', async () => {}, async () => {},
+      () => node.sendTx({ synthetic: true } as never)), /RPC request failed/);
+    assert.deepEqual(calls, ['aztec_sendTx']);
+    assert.equal(s.transactions['deploy-user'], hash);
+    await assert.rejects(captureRegisterBroadcast(s, 'deploy-user', hash, s.user, '0', async () => {}, async () => {},
+      () => node.sendTx({ synthetic: true } as never)), /duplicate/);
+    await runCheckpointedStep(s, 'deploy-user', () => node.sendTx({ synthetic: true } as never), async () => {}, async () => {}, async () => {});
+    assert.deepEqual(calls, ['aztec_sendTx']);
   }
 });
 test('offline init prints only public Schnorr address, writes 0600 keys and refuses overwrite', async t => {

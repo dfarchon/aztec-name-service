@@ -11,6 +11,7 @@ import { REPO, assertPrivateDir, within, type Manifest } from './deploy-v6-plan.
 import { physicalPath } from './deploy-v6.js';
 import { manifestBinding, savePrivateJson } from './testnet-v6-e2e-state.js';
 import { V6_PROFILES, assertV6Url } from './v6-network.js';
+import { RegistrationFailure } from './testnet-v6-nofpc-errors.js';
 
 const { assertV6ManifestFile } = createRequire(import.meta.url)('../../scripts/deployment-config.mjs');
 export const REGISTER_STEPS = ['deploy-user', 'mint', 'commit', 'register', 'set-address'] as const;
@@ -20,7 +21,7 @@ export type RegisterOptions = {
   funderStateDir?: string; initUser: boolean; dryRun: boolean; confirm?: string;
 };
 export function refuseManifestPath(path: string) {
-  assert(!within(join(REPO, 'deployments'), path), 'Rehearsal manifest cannot be inside repository deployments');
+  assert(!within(REPO, path), 'Rehearsal manifest cannot be inside repository (including deployments)');
 }
 export function parseRegisterArgs(argv: string[]): RegisterOptions {
   const flags = new Set(['init-user', 'dry-run']);
@@ -83,13 +84,14 @@ export async function registerPaths(c: RegisterOptions): Promise<RegisterOptions
   return { ...c, manifest, stateDir, funderStateDir };
 }
 export async function loadRehearsalManifest(path: string): Promise<Manifest> {
+  path = await physicalPath(resolve(path));
   refuseManifestPath(path);
   const m = assertV6ManifestFile(path, { expectNetwork: 'testnet-v6' }) as Manifest;
   assert(m.feePayment === 'fee-juice' && m.sponsoredFpc === null, 'Rehearsal requires Fee Juice and no FPC');
   assert(m.feeSymbol === 'mAZTEC' && m.feeDecimals === 18, 'Rehearsal requires mAZTEC fee token');
   const canonical = JSON.parse(await readFile(join(REPO, 'deployments/testnet-v6.json'), 'utf8')) as Manifest;
-  for (const field of ['registry', 'registrar', 'resolver', 'feeToken'] as const)
-    assert(m[field] !== canonical[field], 'Canonical deployment addresses cannot be used for rehearsal');
+  for (const field of ['registry', 'registrar', 'resolver', 'feeToken', 'owner'] as const)
+    assert(BigInt(m[field]) !== BigInt(canonical[field]), 'Canonical deployment addresses cannot be used for rehearsal');
   return m;
 }
 export function registerConfirmation(c: RegisterOptions, m: Manifest) {
@@ -100,7 +102,8 @@ export function registerConfirmation(c: RegisterOptions, m: Manifest) {
   return `register:testnet-v6:11155111:679261766:fee-juice:${c.name}:${binding}`;
 }
 export function assertRegisterConfirmation(c: RegisterOptions, m: Manifest) {
-  assert(c.dryRun || c.initUser || c.confirm === registerConfirmation(c, m), 'Exact --confirm from --dry-run is required');
+  if (!(c.dryRun || c.initUser || c.confirm === registerConfirmation(c, m)))
+    throw new RegistrationFailure('CONFIRM_MISMATCH');
 }
 export type TransactionRecord = {
   txHash: string; payer: string; status: string; blockNumber: number | null; transactionFee: string | null;
