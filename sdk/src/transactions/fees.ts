@@ -13,7 +13,7 @@ import {
   TRANSFER_IN_PRIVATE_SIGNATURE,
 } from "../core/constants.js";
 import { AnsError } from "../core/errors.js";
-import { annualPriceFor, assertDuration, chargeFor } from "../core/lifecycle.js";
+import { annualPriceFor, assertDuration, assertPolicyDuration, chargeFor } from "../core/lifecycle.js";
 import type { RegistryConfig, Snapshot } from "../core/types.js";
 import type { AnsContext } from "../wallet/context.js";
 
@@ -30,6 +30,7 @@ export type FeeQuote = {
   labelLength?: number;
   /** Tiered registrars only: annual prices for 3- and 4-character labels. */
   lengthPrices?: { three: bigint; four: bigint };
+  launch?: RegistryConfig["launch"];
   /** Exact amount the contract will transfer. 0 on a free registry. */
   fee: bigint;
   /** Upper bound the user accepted; the contract rejects any higher charge. */
@@ -55,6 +56,7 @@ export async function getFeeQuote(
   assertDuration(args.duration);
   const snapshot = args.snapshot ?? (await reader.snapshot());
   const config = await reader.getConfig(snapshot);
+  assertPolicyDuration(config, args.duration);
   const fee = chargeFor(config, args.duration, args.labelLength);
   const maxFee = args.maxFee ?? fee;
   if (maxFee < fee)

@@ -84,7 +84,7 @@ export async function renew(
   const call = async () => {
     const target = await ctx.registrationTarget(quote.registrar?.toString());
     // Tiered registrars derive the node, and so the price tier, from the label.
-    return target.kind === 'registrarTiered'
+    return (target.kind === 'registrarTiered' || target.kind === 'registrarLaunch')
       ? target.contract.methods.renew(h.label.bytes, h.label.len, generation, revision, args.duration, quote.maxFee, quote.quoteExpiry, feeNonce)
       : target.contract.methods.renew(h.node, generation, revision, args.duration, quote.maxFee, quote.quoteExpiry, feeNonce);
   };

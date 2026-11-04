@@ -37,6 +37,8 @@ export type PublishedLabel = {
   labelLen: number;
 };
 
+export type LaunchEligibility = "open" | "too_short" | "reserved" | "paused";
+
 export type RegistryConfig = {
   /** V3 immutable fee policy that is currently active. Absent for legacy registries. */
   registrar?: AztecAddress;
@@ -47,6 +49,8 @@ export type RegistryConfig = {
   priceVersion: number;
   /** Tiered registrars only: annual prices for 3- and 4-character labels. */
   lengthPrices?: { three: bigint; four: bigint };
+  /** Live launch policy. Seconds; maxRenewAhead=0 disables the renewal horizon. */
+  launch?: { minPublicLength: number; paused: boolean; maxRenewAhead: bigint };
 };
 
 export type Finality = "proposed" | "checkpointed" | "proven" | "finalized";

@@ -21,6 +21,7 @@ import type {
   Deployment,
   Finality,
   NameRecord,
+  LaunchEligibility,
   PrimaryRecord,
   PublishedLabel,
   RegistryConfig,
@@ -137,7 +138,10 @@ export class RegistryReader {
     if (this.modular) {
       await this.assertCurrentClass();
       const { registrar } = await this.getModules(s);
-      const tiered = (await this.assertModule(registrar, 'registrar', s)) === 'registrarTiered';
+      const kind = await this.assertModule(registrar, 'registrar', s);
+      const tiered = kind === 'registrarTiered' || kind === 'registrarLaunch';
+      const policy = kind === 'registrarLaunch' ? await this.readFields(BigInt(modular.registrarLaunch.storage.policy), 2, s, registrar) : undefined;
+      const cap = policy ? (await this.readFields(BigInt(modular.registrarLaunch.storage.max_renew_ahead), 1, s, registrar))[0] : undefined;
       const [[feeToken, treasury, annualPrice, priceVersion], tiers] = await Promise.all([
         this.readFields(BigInt(modular.registrar.storage.config), 4, s, registrar),
         tiered
@@ -150,6 +154,7 @@ export class RegistryReader {
         annualPrice,
         priceVersion: Number(priceVersion),
         registrar,
+        ...(policy ? { launch: { minPublicLength: Number(policy[0]), paused: policy[1] !== 0n, maxRenewAhead: cap! } } : {}),
         ...(tiers ? { lengthPrices: { three: tiers[0], four: tiers[1] } } : {}),
       };
     }
@@ -378,11 +383,31 @@ export class RegistryReader {
     return id;
   }
 
+  /** Reserved status at one snapshot; other registrar kinds have no launch reservations. */
+  async isReserved(node: bigint, snap?: Snapshot): Promise<boolean> {
+    const s = snap ?? await this.snapshot();
+    const config = await this.getConfig(s);
+    if (!config.launch) return false;
+    const slot = await hashWithSeparator([BigInt(modular.registrarLaunch.storage.reserved), node], BigInt(DomainSeparator.PUBLIC_STORAGE_MAP_SLOT));
+    return (await this.readFields(slot, 1, s, config.registrar))[0] !== 0n;
+  }
+
+  /** Public launch channel only. Availability/ownership is queried separately; admin mint and renewal bypass this policy. */
+  async eligibility(name: string, snap?: Snapshot): Promise<LaunchEligibility> {
+    const label = normalizeName(name);
+    const s = snap ?? await this.snapshot();
+    const config = await this.getConfig(s);
+    if (!config.launch) return 'open';
+    if (config.launch.paused) return 'paused';
+    if (label.len < config.launch.minPublicLength) return 'too_short';
+    return await this.isReserved(await nodeOf(label), s) ? 'reserved' : 'open';
+  }
+
   /** Verifies a module's class and registry binding; returns which supported implementation it is. */
   async assertModule(address: AztecAddress, kind: 'registrar' | 'resolver', snap: Snapshot) {
     const instance = await this.guard(() => this.node.getContract(address));
     const classId = instance?.currentContractClassId.toString();
-    const impl = (kind === 'registrar' ? (['registrar', 'registrarTiered'] as const) : (['resolver'] as const)).find(
+    const impl = (kind === 'registrar' ? (['registrar', 'registrarTiered', 'registrarLaunch'] as const) : (['resolver'] as const)).find(
       (k) => modular[k].classId === classId,
     );
     if (!impl) throw new AnsError('wrong_deployment', `unsupported ${kind} class`);
