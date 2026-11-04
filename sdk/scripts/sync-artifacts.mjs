@@ -12,6 +12,7 @@ const contracts = [
   ['registry_upgrade_test', 'RegistryUpgradeTest'], ['name_registry_v4', 'NameRegistryV4'],
   ['name_registry_v5', 'NameRegistryV5'],
   ['name_registry_v6', 'NameRegistryV6'],
+  ['name_registry_v7', 'NameRegistryV7'],
   ['name_registrar_tiered', 'NameRegistrarTiered'],
   ['name_registrar_launch', 'NameRegistrarLaunch'],
 ];
