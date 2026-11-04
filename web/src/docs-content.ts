@@ -273,7 +273,7 @@ export function sectionsFor(article: Article): DocSection[] {
       blocks: [
         {
           type: 'paragraph',
-          text: 'Before preparing a plan or sending commit, the quote needs at least 180 chain seconds remaining: 60 minimum commit age, 60 reveal margin and 60 inclusion slack. COMMIT_QUOTE_MARGIN is 180n and REVEAL_MARGIN is 60n; insufficient lifetime returns quote_expired before wallet submission. Read config.launch and eligibility(name, snapshot) through @ans/sdk/read. Results are open, too_short, reserved or paused. The SDK rechecks before commit and reveal, and rejects non-year leases. A free quote creates no token AuthWit and reads no token balance. Public policy reads reserve nothing; encrypted recovery stores secrets and transaction hashes, while ownership and policy remain chain state. Unknown RPC or wallet errors never clear a saved transaction hash.',
+          text: 'Before preparing a plan or sending commit, the quote needs at least 300 chain seconds remaining: 60 minimum commit age, 60 reveal margin and 180 proving, inclusion and checkpoint slack. COMMIT_QUOTE_MARGIN is 300n and REVEAL_MARGIN is 60n; insufficient lifetime returns quote_expired before wallet submission. Read config.launch and eligibility(name, snapshot) through @ans/sdk/read. Results are open, too_short, reserved or paused. The SDK rechecks before commit and reveal, and rejects non-year leases. A free quote creates no token AuthWit and reads no token balance. Public policy reads reserve nothing; encrypted recovery stores secrets and transaction hashes, while ownership and policy remain chain state. Unknown RPC or wallet errors never clear a saved transaction hash.',
         },
         {
           type: 'code',
@@ -290,7 +290,7 @@ export function sectionsFor(article: Article): DocSection[] {
       blocks: [
         {
           type: 'paragraph',
-          text: 'inspectResolver(node, generation, snapshot) returns address, verified, isDefault and optional zero, unknown_class or other_registry reason. Network errors still throw. resolveAddress returns untrusted_resolver instead of a payment address for an unverified binding; resolvePrimary returns stale with reason untrusted_resolver. Reset checks the target resolver without requiring a verified inherited resolver.',
+          text: 'inspectResolver(node, generation, snapshot) returns address, verified, isDefault and optional zero, unknown_class or other_registry reason. Network errors still throw. resolveAddress returns untrusted_resolver instead of a payment address for an unverified binding; resolvePrimary returns stale with reason untrusted_resolver. setPrimary refuses an unverified resolver with invalid_argument unless acceptUnverifiedResolver:true explicitly accepts that risk; network, active-lease and forward checks still apply. Only resolveAddress and resolvePrimary validate resolver trust. Raw RegistryReader.getAddress returns public chain records without that guard. Reset checks the target resolver without requiring a verified inherited resolver. AddressChangedV3.revision is the shared name revision on V3–V6 and the record revision on V7; indexers must select by protocol version.',
         },
         {
           type: 'code',
@@ -303,7 +303,7 @@ export function sectionsFor(article: Article): DocSection[] {
   if (article.id === 'permissions')
     sections[1].blocks.push({
       type: 'paragraph',
-      text: 'On V7, acceptance resets the resolver to the current default and reports resolverReset:true. On V6, acceptTransfer inherits the resolver and refuses an unverified one unless acceptUnverifiedResolver:true is explicit. Review it and use the default resolver after acceptance. V7 editor writes advance Holding.recordRevision without changing the holder NameRecord.revision; holder changes can invalidate pending editor writes.',
+      text: 'On V7, acceptance resets the resolver to the current default and reports resolverReset:true. On V6, acceptTransfer inherits the resolver and refuses an unverified one unless acceptUnverifiedResolver:true is explicit. The inherited V6 resolver can pump the shared revision and prevent reliable recovery. V6 testnet names must not be treated as holding value. Administrator changes to the default resolver apply immediately to future V7 registrations, reissues and accepted transfers (L-02); monitor configure_modules. V7 editor writes advance Holding.recordRevision without changing the holder NameRecord.revision; holder changes can invalidate pending editor writes.',
     });
   if (article.id === 'manage')
     sections[1].blocks.push({
@@ -313,7 +313,7 @@ export function sectionsFor(article: Article): DocSection[] {
   if (article.id === 'pricing')
     sections[3].blocks.push({
       type: 'paragraph',
-      text: 'The v1 reservation file contains 173 canonical labels, all at least 7 characters, grouped into Aztec, ANS, system identities and ecosystem identities. The loader rejects invalid and duplicate labels before hashing the sorted flat list. Short public names remain closed. Mainnet admin and treasury are still null with an adminPlaceholder marker; a placeholder must be replaced before launch.',
+      text: 'The v1 reservation file contains 195 canonical labels, all at least 7 characters, grouped into Aztec, ANS, system identities and ecosystem identities. The loader rejects invalid and duplicate labels before hashing the sorted flat list. Short public names remain closed. Mainnet admin and treasury hold a supervisor-supplied placeholder address with an adminPlaceholder marker; a placeholder must be replaced before launch.',
     });
   if (article.id === 'getting-started') {
     sections[0].blocks.push({
