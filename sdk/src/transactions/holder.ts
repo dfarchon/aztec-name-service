@@ -71,12 +71,15 @@ export async function renew(
     throw new AnsError('invalid_argument', 'subname leases are controlled by their parent owner');
   const quote = await getFeeQuote(ctx.reader, {
     operation: 'renew',
+    expiresAt: h.record.expiresAt,
     duration: args.duration,
     labelLength: h.label.len,
     maxFee: args.maxFee,
     validForSeconds: args.quoteValiditySeconds ?? 3600n,
     snapshot: h.snapshot,
   });
+  if (quote.renewableAt !== undefined && h.snapshot.timestamp < quote.renewableAt)
+    throw new AnsError('renewal_too_early', `renewable from chain timestamp ${quote.renewableAt}`);
   assertAcceptedQuote(quote, args.acceptedQuote);
   const feeNonce = newFeeNonce();
   const authWitness = await buildFeeAuthorization(ctx, { ...quote, feeNonce });

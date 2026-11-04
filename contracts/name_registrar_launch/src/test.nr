@@ -203,3 +203,20 @@ unconstrained fn paid_pause_rejects_public_registration() {
     s.env.call_public(s.admin, NameRegistrarLaunch::at(s.registrar).set_paused(true));
     let _ = reveal(s, "seventh", 1);
 }
+
+#[test]
+unconstrained fn constructor_accepts_maximum_renewal_cap() {
+    let s = setup(false, 10 * YEAR);
+    assert_eq(s.env.view_public(NameRegistrarLaunch::at(s.registrar).get_max_renew_ahead()), 10 * YEAR);
+}
+#[test(should_fail_with = "renewal cap too large")]
+unconstrained fn constructor_rejects_cap_above_ten_years() { let _ = setup(false, 10 * YEAR + 1); }
+#[test(should_fail_with = "renewal cap too large")]
+unconstrained fn constructor_rejects_u64_max_cap() { let _ = setup(false, 0xffffffffffffffff); }
+#[test]
+unconstrained fn capped_renewal_in_grace_does_not_underflow() {
+    let s = setup(false, YEAR); let n = register(s, "seventh");
+    s.env.advance_next_block_timestamp_by(YEAR + 1);
+    renew(s, "seventh", 0, 2);
+    assert(s.env.view_public(NameRegistryV6::at(s.registry).get_name(n)).expires_at > 0);
+}

@@ -66,7 +66,7 @@ export function parseOptions(argv: string[], env: { home?: string; repo?: string
   const maxRenewAhead=values.get('max-renew-ahead')??'0';
   const paused=values.get('initial-paused')??'true';
   if (!Number.isInteger(minPublicLength) || minPublicLength<3 || minPublicLength>31) throw new Error('min-public-length must be 3–31');
-  if (!/^(0|[1-9][0-9]*)$/.test(maxRenewAhead) || BigInt(maxRenewAhead)>=(1n<<64n)) throw new Error('max-renew-ahead must be u64 seconds');
+  if (!/^(0|[1-9][0-9]*)$/.test(maxRenewAhead) || BigInt(maxRenewAhead)>10n*31536000n) throw new Error('max-renew-ahead must be 0 to 315360000 seconds (10 years; 0 disables cap)');
   if (!['true','false'].includes(paused)) throw new Error('initial-paused must be true|false');
   const treasury = values.get('treasury')?.toLowerCase();
   if (treasury && (!/^0x[0-9a-f]{64}$/.test(treasury) || (token !== 'none' && BigInt(treasury) === 0n) || BigInt(treasury) >= 21888242871839275222246405745257275088548364400416034343698204186575808495617n)) throw new Error('A valid nonzero --treasury AztecAddress is required');

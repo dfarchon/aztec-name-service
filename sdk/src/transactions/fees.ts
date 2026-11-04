@@ -37,6 +37,9 @@ export type FeeQuote = {
   maxFee: bigint;
   /** Latest block timestamp at which the contract still accepts this quote. */
   quoteExpiry: bigint;
+  /** Earliest chain timestamp (seconds) for this renewal; 0 means no horizon restriction.
+   * Absent unless a renewal quote includes the current expiresAt. Not a lease/ownership check. */
+  renewableAt?: bigint;
   snapshot: Snapshot;
 };
 
@@ -47,6 +50,8 @@ export async function getFeeQuote(
     duration: bigint;
     /** Label length of the name; required by tiered registrars. */
     labelLength?: number;
+    /** Current name expiry in chain seconds, to include renewableAt in a renewal quote. */
+    expiresAt?: bigint;
     maxFee?: bigint;
     validForSeconds?: bigint;
     /** Reuse a snapshot the caller already took, saving a round trip. */
@@ -70,6 +75,11 @@ export async function getFeeQuote(
     fee,
     maxFee,
     quoteExpiry: snapshot.timestamp + (args.validForSeconds ?? MAX_COMMIT_AGE),
+    ...(args.operation === "renew" && args.expiresAt !== undefined
+      ? { renewableAt: config.launch && config.launch.maxRenewAhead > 0n
+          ? (args.expiresAt > config.launch.maxRenewAhead ? args.expiresAt - config.launch.maxRenewAhead : 0n)
+          : 0n }
+      : {}),
     snapshot,
   };
 }

@@ -21,6 +21,20 @@ try {
  assert.equal(await page.evaluate(()=>document.body.innerText.includes('Private payment balance:')),false);
  assert.equal(await page.$$eval('button',buttons=>buttons.some(b=>/token approval/i.test(b.textContent))),false);pass('free registration fixes one year and omits token approval and balance');
  assert(await page.evaluate(()=>/Network fees|network fees/.test(document.body.innerText)));pass('network fee guidance remains');
+ await page.evaluate(async()=>{
+   const f=window.launchFixture,ctx=f.session.getSession().ctx;
+   const snap=await f.reader.snapshot();
+   f.launch.maxRenewAhead=31536000n;
+   f.reader.getName=async()=>({generation:1,revision:0,expiresAt:snap.timestamp+31536000n+1000n,owner:ctx.account});
+   location.hash='/manage/seventh';
+ });
+ await wait('Renewable from');
+ const renewDisabled=()=>page.$$eval('button',buttons=>buttons.find(b=>b.textContent.trim()==='Confirm renewal')?.disabled);
+ assert.equal(await renewDisabled(),true);pass('early capped renewal is disabled with its availability date');
+ await page.evaluate(()=>{window.launchFixture.launch.maxRenewAhead=0n;});
+ await page.$$eval('button',buttons=>buttons.find(b=>b.textContent.trim()==='Refresh').click());
+ await page.waitForFunction(()=>[...document.querySelectorAll('button')].some(b=>b.textContent.trim()==='Confirm renewal'&&!b.disabled));
+ assert.equal(await page.evaluate(()=>document.body.innerText.includes('Renewable from')),false);pass('refreshing an uncapped quote enables renewal without signing');
  await page.setViewport({width:390,height:844});assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));assert.equal(broadcasts,0);assert.deepEqual(errors,[]);pass('mobile layout, no runtime errors or broadcasts');
  console.log(`ALL ${count} LAUNCH UI CHECKS PASSED`);
 } finally {await browser.close();}

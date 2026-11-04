@@ -20,9 +20,10 @@ test('launch free plan defaults to minimum seven, paused and no renewal cap',()=
  assert(!plan.steps.includes('deploy-token'));assert(plan.steps.indexOf('seed-reserved')<plan.steps.indexOf('verify-reserved'));assert(plan.steps.indexOf('verify-reserved')<plan.steps.indexOf('bootstrap'));
 });
 test('launch bounds constructor policy flags and isolates none to launch',()=>{
- for(const pair of [['--min-public-length','2'],['--min-public-length','32'],['--initial-paused','yes'],['--max-renew-ahead','-1'],['--max-renew-ahead','18446744073709551616']])assert.throws(()=>parseArgs([...args,...pair]));
+ for(const pair of [['--min-public-length','2'],['--min-public-length','32'],['--initial-paused','yes'],['--max-renew-ahead','-1'],['--max-renew-ahead','315360001'],['--max-renew-ahead','18446744073709551615'],['--max-renew-ahead','18446744073709551616']])assert.throws(()=>parseArgs([...args,...pair]));
  assert.throws(()=>parseArgs(['--network','local','--registrar','tiered','--token','none','--price-version','1']));
  assert.equal(parseArgs([...args,'--max-renew-ahead','31536000']).maxRenewAhead,'31536000');
+ assert.equal(parseArgs([...args,'--max-renew-ahead','315360000']).maxRenewAhead,'315360000');
 });
 test('launch confirmation binds minimum, pause, renewal cap and reserved hash',()=>{
  const c=parseArgs(args),before=confirmation(c);

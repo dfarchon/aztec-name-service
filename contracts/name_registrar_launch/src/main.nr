@@ -35,6 +35,7 @@ pub contract NameRegistrarLaunch {
     #[initializer]
     fn constructor(registry: AztecAddress, fee_token: AztecAddress, treasury: AztecAddress, annual_price: u128, price_three: u128, price_four: u128, price_version: u32, min_public_length: u32, paused: bool, max_renew_ahead: u64) {
         assert((min_public_length >= 3) & (min_public_length <= 31), "invalid public length");
+        assert(max_renew_ahead <= 10 * SECONDS_PER_YEAR, "renewal cap too large");
         assert(!registry.is_zero(), "registry required");
         assert(price_version > 0, "price version required");
         if fee_token.is_zero() {
@@ -162,7 +163,11 @@ pub contract NameRegistrarLaunch {
         let cap = self.storage.max_renew_ahead.read();
         if cap != 0 {
             let record = self.view(NameRegistryV6::at(self.storage.registry.read()).get_name(node));
-            assert(record.expires_at <= self.context.timestamp() + cap, "renewal too early");
+            let now = self.context.timestamp();
+            // Expired names have no remaining lease; guard subtraction against underflow.
+            if record.expires_at > now {
+                assert(record.expires_at - now <= cap, "renewal too early");
+            }
         }
     }
 

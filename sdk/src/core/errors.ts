@@ -10,6 +10,7 @@ export type AnsErrorCode =
   | "name_reserved"
   | "name_not_available_yet"
   | "registration_paused"
+  | "renewal_too_early"
   | "migration_required"
   | "conflict"
   | "commit_not_ready"
@@ -68,7 +69,7 @@ const CONTRACT_MESSAGES: [string, AnsErrorCode][] = [
   ["name reserved", "name_reserved"],
   ["registration paused", "registration_paused"],
   ["lease must be one year", "invalid_argument"],
-  ["renewal too early", "invalid_argument"],
+  ["renewal too early", "renewal_too_early"],
   ["name not available", "name_taken"],
   ["commitment too young", "commit_not_ready"],
   ["commitment expired", "commit_expired"],

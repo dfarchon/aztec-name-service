@@ -562,3 +562,22 @@ test('launch manifests validate both free and paid modes without changing the te
   ])
     assert(v6ManifestProblems({ ...m, ...patch }).length > 0);
 });
+
+test('mainnet launch readiness bounds renewal cap to ten years, with zero uncapped', (t) => {
+  const f = fixture(t);
+  for (const [maxRenewAhead, blocked] of [
+    ['0', false],
+    ['315360000', false],
+    ['315360001', true],
+    ['18446744073709551615', true],
+    ['-1', true],
+    ['1.5', true],
+    [null, true],
+  ]) {
+    writeFileSync(
+      new URL('deployments/mainnet.json', f.root),
+      JSON.stringify({ registrarKind: 'launch', maxRenewAhead }),
+    );
+    assert.equal(mainnetBlockers(f.root).includes('maxRenewAhead'), blocked, String(maxRenewAhead));
+  }
+});

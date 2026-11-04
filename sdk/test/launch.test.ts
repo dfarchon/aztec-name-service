@@ -90,7 +90,7 @@ test('policy changes after preparation block commit and reveal before constructi
   await assert.rejects(submitRegistration(f.ctx,plan),(e:any)=>e.code==='registration_paused');
 });
 test('launch assertion messages expose stable SDK error codes',()=>{
-  for(const [message,code] of [['name reserved','name_reserved'],['name not yet available','name_not_available_yet'],['registration paused','registration_paused'],['lease must be one year','invalid_argument']] as const)
+  for(const [message,code] of [['name reserved','name_reserved'],['name not yet available','name_not_available_yet'],['registration paused','registration_paused'],['renewal too early','renewal_too_early'],['lease must be one year','invalid_argument']] as const)
     assert.equal(toAnsError(new Error(message)).code,code);
 });
 
@@ -124,4 +124,40 @@ test('launch reveal simulates before send by default',async()=>{
   f.ctx.registrationContract=async()=>({methods:{register:()=>({simulate:async()=>{simulations++;},send:async()=>{assert.equal(simulations,1);sends++;return {txHash:TxHash.random()};}})}});
   await submitRegistration(f.ctx,plan);
   assert.equal(sends,1);assert.equal(simulations,1);
+});
+
+test('renewal quotes expose the horizon in chain seconds, including uncapped and expired leases',async()=>{
+  const f=await fixture();
+  for(const [cap,expiresAt,expected] of [[YEAR,2n*YEAR+1000n,YEAR+1000n],[YEAR,YEAR+1000n,1000n],[YEAR,999n,0n],[0n,2n*YEAR,0n]] as const){
+    f.write(f.registrar,metadata.registrarLaunch.storage.max_renew_ahead,[cap]);
+    const quote=await getFeeQuote(f.reader,{operation:'renew',duration:YEAR,labelLength:7,expiresAt,snapshot:f.snap});
+    assert.equal(quote.renewableAt,expected);
+  }
+  assert.equal((await getFeeQuote(f.reader,{operation:'renew',duration:YEAR,labelLength:7,snapshot:f.snap})).renewableAt,undefined);
+  assert.equal((await getFeeQuote(f.reader,{operation:'register',duration:YEAR,labelLength:7,expiresAt:2n*YEAR,snapshot:f.snap})).renewableAt,undefined);
+});
+test('early capped renewals reject before wallet access for free and paid instances',async()=>{
+  const {renew}=await import('../src/transactions/holder.js');
+  for(const paid of [false,true]){
+    const f=await fixture();
+    if(paid){
+      f.write(f.registrar,metadata.registrarLaunch.storage.config,[9n,8n,1n,1n]);
+      f.write(f.registrar,metadata.registrarLaunch.storage.length_prices,[128n,32n]);
+    }
+    f.reader.getName=async()=>({owner:f.ctx.account,generation:1,revision:0,expiresAt:YEAR+1001n});
+    await assert.rejects(renew(f.ctx,{name:'seventh',duration:YEAR}),(e:any)=>e.code==='renewal_too_early');
+  }
+});
+test('renewals send at the exact horizon boundary, in grace, and with cap zero',async()=>{
+  const {renew}=await import('../src/transactions/holder.js');
+  const {TxStatus,TxHash}=await import('@aztec-labs/aztec.js/tx');
+  for(const [cap,expiresAt] of [[YEAR,YEAR+1000n],[YEAR,999n],[0n,2n*YEAR]] as const){
+    const f=await fixture();let sends=0;
+    f.write(f.registrar,metadata.registrarLaunch.storage.max_renew_ahead,[cap]);
+    f.reader.getName=async()=>({owner:f.ctx.account,generation:1,revision:0,expiresAt});
+    f.reader.node.getTxReceipt=async()=>({status:TxStatus.CHECKPOINTED,blockNumber:10,hasExecutionReverted:()=>false}) as any;
+    Object.assign(f.ctx,{assertWalletNetwork:async()=>{},registrationTarget:async()=>({kind:'registrarLaunch',contract:{methods:{renew:()=>({send:async()=>{sends++;return {txHash:TxHash.random()};}})}}})});
+    const {quote}=await renew(f.ctx,{name:'seventh',duration:YEAR});
+    assert.equal(sends,1);assert(quote.renewableAt!<=f.snap.timestamp);
+  }
 });

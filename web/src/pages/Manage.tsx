@@ -40,6 +40,7 @@ export function ManagePage({ name }: { name: string }) {
   const [quoteRevision, refreshQuote] = useState(0);
   const [revision, refresh] = useState(0);
   const canRenew = !!h?.isHolder && !h.label.parent && (h.status === "active" || h.status === "grace");
+  const renewalTooEarly = quote?.renewableAt !== undefined && quote.snapshot.timestamp < quote.renewableAt;
   const balance = useFeeBalance(ctx, canRenew && quote && quote.fee > 0n ? quote.feeToken.toString() : undefined);
   const tx = useTx();
   useEffect(() => {
@@ -77,6 +78,7 @@ export function ManagePage({ name }: { name: string }) {
     if (ctx && canRenew)
       getFeeQuote(ctx.reader, {
         operation: "renew",
+        expiresAt: h?.record.expiresAt,
         duration: BigInt(years) * YEAR,
         labelLength: h?.label.len,
       })
@@ -89,7 +91,7 @@ export function ManagePage({ name }: { name: string }) {
     return () => {
       live = false;
     };
-  }, [ctx, years, revision, quoteRevision, canRenew, h?.label.len]);
+  }, [ctx, years, revision, quoteRevision, canRenew, h?.label.len, h?.record.expiresAt]);
   if (!ctx) return <NeedsAccount />;
   if (error)
     return (
@@ -201,7 +203,7 @@ export function ManagePage({ name }: { name: string }) {
               {quote ? <FeeAmount amount={quote.fee} token={quote.feeToken.toString()} /> : quoteError ? "—" : translate("Searching…")}
             </span>
             <button
-              disabled={tx.busy || !quote || quote.duration !== BigInt(years) * YEAR || (quote.fee > 0n && (balance.balance === undefined || balance.balance < quote.fee))}
+              disabled={tx.busy || renewalTooEarly || !quote || quote.duration !== BigInt(years) * YEAR || (quote.fee > 0n && (balance.balance === undefined || balance.balance < quote.fee))}
               onClick={() =>
                 void tx.exec("Renew", async (onUpdate) => {
                   await renew(
@@ -222,6 +224,7 @@ export function ManagePage({ name }: { name: string }) {
               }
             >{translate("Confirm renewal")}</button>
           </div>
+          {renewalTooEarly && <p role="status">Renewable from {date(quote!.renewableAt!)}. Refresh the quote once this date is reached. <button className="ghost" onClick={() => refreshQuote(n => n + 1)}>{translate("Refresh")}</button></p>}
           {quote && <FeeBalance amount={quote.fee} token={quote.feeToken.toString()} read={balance} />}
               {quoteError && <p role="alert" className="err">{translate(quoteError)} <button className="ghost" onClick={() => refreshQuote(n => n + 1)}>{translate("Refresh")}</button></p>}
         </Card>
