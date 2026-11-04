@@ -165,7 +165,7 @@ export function WalletConnection() {
           <select
             aria-label={translate("Wallet account")}
             value={s.ctx?.account.toString() ?? ""}
-            disabled={busy}
+            disabled={busy || s.pendingTxs > 0}
             onChange={async (e) => {
               const a = s.accounts.find(
                 (a) => a.address.toString() === e.target.value,
@@ -189,6 +189,7 @@ export function WalletConnection() {
               </option>
             ))}
           </select>
+          {s.pendingTxs > 0 && <p role="status">Finish the pending transaction before switching accounts.</p>}
           <button className="ghost" disabled={busy} onClick={() => void lock()}>{translate("Disconnect wallet")}</button>
         </div>
       ) : (

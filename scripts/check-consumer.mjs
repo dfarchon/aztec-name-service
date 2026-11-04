@@ -5,6 +5,7 @@ import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { packageConsumer } from './package-consumer.mjs';
+import { assertV6ManifestFile } from './deployment-config.mjs';
 
 const temporary = mkdtempSync(join(tmpdir(), 'ans-independent-consumer-'));
 try {
@@ -12,7 +13,11 @@ try {
   const release = execFileSync('git', ['rev-parse', '--short', 'HEAD'], {
     encoding: 'utf8',
   }).trim();
-  const manifest = packageConsumer(output, release);
+  const deployment = assertV6ManifestFile('deployments/testnet-v6.json', {
+    expectNetwork: 'testnet-v6',
+    canonical: true,
+  });
+  const manifest = packageConsumer(output, release, deployment);
   for (const artifact of [manifest.sdk, manifest.starter]) {
     const bytes = readFileSync(join(output, artifact.url.split('/').pop()));
     assert.equal(createHash('sha256').update(bytes).digest('hex'), artifact.sha256);
@@ -24,6 +29,7 @@ try {
     temporary,
   ]);
   const cwd = join(temporary, 'ans-consumer');
+  assert.deepEqual(JSON.parse(readFileSync(join(cwd, 'deployment.json'), 'utf8')), deployment);
   assert.deepEqual(JSON.parse(readFileSync(join(cwd, 'pricing.json'), 'utf8')), manifest.pricing);
   assert.equal(existsSync(join(cwd, 'fee-switch.json')), false);
   assert.equal('feeSwitch' in manifest, false);

@@ -48,6 +48,13 @@ export type TxOptions = {
   pollMs?: number;
 };
 
+/** Internal persistence hooks; intentionally absent from the public TxOptions API. */
+export type RunTxOptions = TxOptions & {
+  authWitnesses?: AuthWitness[];
+  beforeBroadcast?: () => Promise<void>;
+  notBroadcast?: () => Promise<void>;
+};
+
 export type TxResult = { txHash: string; state: TxState; blockNumber?: number };
 /** Internal result from the receipt interpreter; never inferred from a caught exception. */
 export type TxOutcome =
@@ -88,7 +95,7 @@ export async function runTx(
 export async function runTxOutcome(
   ctx: AnsContext,
   call: TxCall,
-  opts: TxOptions & { authWitnesses?: AuthWitness[] } = {},
+  opts: RunTxOptions = {},
 ): Promise<TxOutcome> {
   const emit = (u: TxUpdate) => opts.onUpdate?.(u);
   const send = {
@@ -113,15 +120,23 @@ export async function runTxOutcome(
       throw toAnsError(cause);
     }
     emit({ state: 'awaiting_wallet' });
+    emit({ state: 'proving' });
     try {
-      emit({ state: 'proving' });
+      await opts.beforeBroadcast?.();
+    } catch (cause) {
+      throw toAnsError(cause);
+    }
+    try {
       const sent = await interaction.send({ ...send, wait: NO_WAIT });
       return sent.txHash.toString();
     } catch (e) {
       let error = toAnsError(e);
       let state: TxState;
       if (error.code === 'wallet_rejected') state = 'cancelled';
-      else if (error.code === 'network' && failedReadingBeforeSend(e)) throw error; // No sendTx reached the node: safe to retry.
+      else if (error.code === 'network' && failedReadingBeforeSend(e)) {
+        if (!error.txHash) await clearNotBroadcast();
+        throw error; // No sendTx reached the node: safe to retry.
+      }
       else if (error.code === 'network' || error.code === 'unknown_tx_state') state = 'unknown';
       else if (error.code !== 'reverted' || failedBeforeBroadcast(e)) state = 'reverted';
       else {
@@ -129,12 +144,18 @@ export async function runTxOutcome(
         state = 'unknown';
         error = new AnsError('unknown_tx_state', `wallet returned no transaction hash: ${error.message}`, e, error.txHash);
       }
+      if (!error.txHash && (state === 'cancelled' || state === 'reverted'))
+        await clearNotBroadcast();
       emit({ state, txHash: error.txHash, error });
       throw error;
     }
   });
   emit({ state: 'submitted', txHash });
   return trackTxOutcome(ctx.reader.node, txHash, opts);
+
+  async function clearNotBroadcast() {
+    try { await opts.notBroadcast?.(); } catch { /* Keep the marker and original wallet error. */ }
+  }
 }
 
 /** Follows a sent transaction by hash. Safe to call again after a reload or a timeout. */

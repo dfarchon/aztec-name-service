@@ -1,6 +1,6 @@
 import { execFileSync } from 'node:child_process';
 import { readFileSync, writeFileSync, realpathSync } from 'node:fs';
-import { packageConsumer } from './package-consumer.mjs';
+import { packageConsumer as packageConsumerDefault } from './package-consumer.mjs';
 import { validateAztecPricing } from './aztec-pricing.mjs';
 import { assertDeploymentConfig, assertV6ManifestFile } from './deployment-config.mjs';
 import { assertMainnetReady } from './mainnet-readiness.mjs';
@@ -9,7 +9,7 @@ import { pathToFileURL, fileURLToPath } from 'node:url';
 import { contentSecurityPolicy } from './testnet-security.mjs';
 export function buildSite(
   argv = process.argv.slice(2),
-  { exec = execFileSync, root = new URL('../', import.meta.url) } = {},
+  { exec = execFileSync, root = new URL('../', import.meta.url), packageConsumer = packageConsumerDefault } = {},
 ) {
   const options = new Map();
   for (let i = 0; i < argv.length; i += 2) {
@@ -94,7 +94,7 @@ export function buildSite(
     });
   } else exec('npm', ['run', 'build'], { env, stdio: 'inherit' });
   exec('node', ['--import', 'tsx', 'scripts/export-docs.mjs', out, release], { stdio: 'inherit' });
-  packageConsumer(`${out}/downloads/sdk`, release);
+  packageConsumer(`${out}/downloads/sdk`, release, deployment);
   writeFileSync(`${out}/health.txt`, `ans:${release}\n`);
   // Wallet key material lives in this origin's storage, so script sources are restricted to the site itself.
   // WebAssembly (proving, encrypted SQLite) needs 'wasm-unsafe-eval'; RPC and wallet endpoints are any HTTPS/WSS origin.
