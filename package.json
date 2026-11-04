@@ -23,7 +23,7 @@
     "test:deployment": "node --test scripts/deployment-config.test.mjs scripts/testnet-security.test.mjs",
     "prepare:aztec-pricing": "node scripts/prepare-aztec-pricing.mjs",
     "test:sdk": "npm test -w @ans/sdk",
-    "test:contracts": "cd contracts && node ../scripts/aztec.mjs test --package name_registry --test-threads 2 && node ../scripts/aztec.mjs test --package name_registrar --test-threads 2 && node ../scripts/aztec.mjs test --package name_registry_v4 --test-threads 2 && node ../scripts/aztec.mjs test --package name_registry_v5 --test-threads 2 && node ../scripts/aztec.mjs test --package name_registry_v6 --test-threads 2 && node ../scripts/aztec.mjs test --package name_registrar_tiered --test-threads 2 && node ../scripts/aztec.mjs test --package name_registrar_launch --test-threads 2",
+    "test:contracts": "cd contracts && node ../scripts/aztec.mjs test --package name_registry --test-threads 2 && node ../scripts/aztec.mjs test --package name_registrar --test-threads 2 && node ../scripts/aztec.mjs test --package name_registry_v4 --test-threads 2 && node ../scripts/aztec.mjs test --package name_registry_v5 --test-threads 2 && node ../scripts/aztec.mjs test --package name_registry_v6 --test-threads 2 && node ../scripts/aztec.mjs test --package name_registrar_tiered --test-threads 2 && node ../scripts/aztec.mjs test --package name_registrar_launch --test-threads 2 && node ../scripts/aztec.mjs test --package name_registry_v7 --test-threads 2",
     "test:e2e": "npm run e2e -w ans-e2e",
     "test:web": "npm run smoke -w @ans/web && npm run smoke:review -w @ans/web && npm run smoke:storage -w @ans/web && npm run smoke:retry -w @ans/web",
     "dev": "npm run build:sdk && npm run dev -w @ans/web",

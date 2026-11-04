@@ -75,3 +75,12 @@ test('brillig path normalization keeps an ordinary path unchanged', () => {
   assert.equal(normalizeContractPath('/home/u/ans/contracts/name_resolver/src/main.nr', '/home/u/ans'), 'contracts/name_resolver/src/main.nr');
   assert.equal(normalizePath('contracts/name_resolver/src/main.nr'), 'contracts/name_resolver/src/main.nr');
 });
+
+test('new package extensions retain every frozen multiplicity and reject excess or missing occurrences', () => {
+  const reference = { ...baseline, extensions: { name_registry_v7: baseline.entries } };
+  assert.deepEqual(check([...rows, ...rows], reference, '6.0.0').errors, []);
+  assert(check(rows, reference, '6.0.0').errors.some(e => e.startsWith('Baseline diagnostic missing')));
+  assert(check([...rows, ...rows, ...rows], reference, '6.0.0').errors.some(e => e.startsWith('R2')));
+  assert.equal(normalizePath('name_registry_v7/src/main.nr'), 'contracts/name_registry_v7/src/main.nr');
+  assert.equal(normalizePath('evil_resolver_test/src/main.nr'), 'contracts/evil_resolver_test/src/main.nr');
+});
