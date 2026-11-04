@@ -180,7 +180,8 @@ export async function main(argv = process.argv.slice(2), deps = { createNode: cr
       await save();
       try {
         await runCheckpointedStep(s, name, send, hash => trackTx(node, hash, TX_OPTIONS), verify, save);
-      } catch {
+      } catch (err) {
+        console.error('STEP-REASON ' + name + ' ' + ((err as Error)?.name ?? 'Error') + ': ' + String((err as Error)?.message ?? err).split('\n')[0].replace(/0x[0-9a-fA-F]{16,}/g, h => h.slice(0, 10) + '...').slice(0, 300));
         // A callback/transport failure may follow acceptance. Preserve actual receipt evidence if available.
         if (s.transactions[name]) {
           try { await recordReceipt(name, await rawNode.getTxReceipt(TxHash.fromString(s.transactions[name]))); }
@@ -283,8 +284,10 @@ export async function main(argv = process.argv.slice(2), deps = { createNode: cr
   }
 }
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
-  main().catch(() => {
-    // Never serialize arbitrary wallet/RPC errors or private checkpoint contents.
+  main().catch((e: unknown) => {
+    // Never serialize arbitrary wallet/RPC errors or private checkpoint contents; only a redacted one-line reason.
+    const reason = String((e as Error)?.message ?? e).split('\n')[0].replace(/0x[0-9a-fA-F]{16,}/g, h => h.slice(0, 10) + '...').slice(0, 300);
+    console.error('REASON ' + ((e as Error)?.name ?? 'Error') + ': ' + reason);
     console.error('V6 self-paid registration stopped. Check arguments, dry-run confirmation and private checkpoint; saved hashes are never resent.');
     process.exitCode = 1;
   });
