@@ -3,7 +3,7 @@ import { Fr } from '@aztec-labs/aztec.js/fields';
 
 import type { RegistryReader } from '../client/reader.js';
 import { getName } from '../client/resolve.js';
-import { MAX_COMMIT_AGE, MIN_COMMIT_AGE } from '../core/constants.js';
+import { MAX_COMMIT_AGE, MIN_COMMIT_AGE, REVEAL_MARGIN, COMMIT_QUOTE_MARGIN } from '../core/constants.js';
 import { AnsError } from '../core/errors.js';
 import { nodeOf, registerCommitment } from '../core/hash.js';
 import { assertRegistrableLabel, labelFromCanonical, type NormalizeOptions } from '../core/label.js';
@@ -100,6 +100,8 @@ export async function prepareRegistration(
     snapshot: info.snapshot,
   });
   assertAcceptedQuote(quote, args.acceptedQuote);
+  if (info.snapshot.timestamp + COMMIT_QUOTE_MARGIN > quote.quoteExpiry)
+    throw new AnsError('quote_expired', 'registration quote needs at least 180 seconds before commit');
   await assertPublicRegistration(ctx.reader, info.label.label, args.duration, info.snapshot);
   const expectedGeneration = info.nextExpectedGeneration;
   const secret = Fr.random().toBigInt();
@@ -213,8 +215,8 @@ export async function submitCommitOutcome(ctx: AnsContext, plan: RegistrationPla
   assertPlanFor(ctx, plan);
   await validatePlan(ctx.reader, plan);
   const snapshot = await ctx.reader.snapshot();
-  if (snapshot.timestamp + 60n > plan.quoteExpiry)
-    throw new AnsError('quote_expired', 'registration quote has expired');
+  if (snapshot.timestamp + COMMIT_QUOTE_MARGIN > plan.quoteExpiry)
+    throw new AnsError('quote_expired', 'registration quote needs at least 180 seconds before commit');
   const tx = await runTxOutcome(
     ctx,
     async () => {
@@ -254,7 +256,7 @@ export type RegistrationCheck =
 export async function checkRegistration(
   reader: RegistryReader,
   plan: RegistrationPlan,
-  marginSeconds = 60n,
+  marginSeconds = REVEAL_MARGIN,
 ): Promise<RegistrationCheck> {
   await validatePlan(reader, plan);
   const snapshot = await reader.snapshot('checkpointed');
