@@ -47,6 +47,7 @@ type Status = 'booting' | 'misconfigured' | 'offline' | 'locked' | 'unlocking' |
 
 export type SessionState = {
   status: Status;
+  pendingTxs: number;
   error?: string;
   node: AztecNode;
   reader?: RegistryReader;
@@ -61,6 +62,7 @@ export type SessionState = {
 
 let state: SessionState = {
   status: 'booting',
+  pendingTxs: 0,
   node: createWebNode(config.nodeUrl),
   accounts: [],
 };
@@ -307,6 +309,7 @@ export async function selectAccount(address: AztecAddress) {
       `ans:v2:${reader.deployment.chainId}:${reader.registry}:${address}`,
       emptyRecords,
     );
+    await saveQueue.catch(() => {});
     const records = await store.load();
     if (epoch !== sessionEpoch) return;
     recordStore = store;
@@ -346,11 +349,22 @@ export async function updateRecords(
   const store = recordStore;
   if (!store || !state.records || epoch !== sessionEpoch)
     throw new Error('Wallet account changed. Try the action again.');
-  const save = saveQueue
-    .catch(() => {})
-    .then(async () => {
-      if (epoch !== sessionEpoch || !state.records)
-        throw new Error('Wallet account changed. Try the action again.');
+  return queueRecordSave(() => saveCurrentRecords(store, fn, epoch));
+}
+
+function queueRecordSave(work: () => Promise<void>) {
+  const save = saveQueue.catch(() => {}).then(work);
+  saveQueue = save;
+  return save;
+}
+
+async function saveCurrentRecords(
+  store: RecordStore<AccountRecords>,
+  fn: (r: AccountRecords) => AccountRecords,
+  epoch: number,
+) {
+  if (epoch !== sessionEpoch || !state.records)
+    throw new Error('Wallet account changed. Try the action again.');
       const before = state.records;
       const next = fn(before);
       // Persist before publishing success; callers must not send a commit if persistence failed.
@@ -376,9 +390,28 @@ export async function updateRecords(
         });
         set({ records: { ...next, plans } });
       }
-    });
-  saveQueue = save;
-  return save;
+}
+
+async function saveDetached(
+  store: Pick<RecordStore<AccountRecords>, 'load' | 'save'>,
+  fn: (r: AccountRecords) => AccountRecords,
+) {
+  await store.save(fn(await store.load()));
+}
+
+/** Serialize a write to an originating account without publishing it to the active session. */
+export function writeDetached(
+  store: Pick<RecordStore<AccountRecords>, 'load' | 'save'>,
+  fn: (r: AccountRecords) => AccountRecords,
+) {
+  return queueRecordSave(() => saveDetached(store, fn));
+}
+
+/** Account selection is disabled while registration wallet work or receipt recovery is pending. */
+export async function withPendingTx<T>(run: () => Promise<T>): Promise<T> {
+  set({ pendingTxs: state.pendingTxs + 1 });
+  try { return await run(); }
+  finally { set({ pendingTxs: state.pendingTxs - 1 }); }
 }
 
 /** Per-device non-extractable key, separate from all existing embedded-wallet keys. */
@@ -535,7 +568,24 @@ export function rememberRegistrationProgress(ctx: AnsContext, plan: Registration
 
 /** Bind a multi-step action to the account that started it. */
 export function recordWriter(ctx: AnsContext) {
-  if (ctx !== state.ctx) throw new Error('Wallet account changed. Try the action again.');
+  if (ctx !== state.ctx || !recordStore) throw new Error('Wallet account changed. Try the action again.');
   const epoch = sessionEpoch;
-  return (fn: (records: AccountRecords) => AccountRecords) => updateRecords(fn, epoch);
+  const store = recordStore;
+  return (fn: (records: AccountRecords) => AccountRecords) => queueRecordSave(() =>
+    epoch === sessionEpoch
+      ? saveCurrentRecords(store, fn, epoch)
+      : saveDetached(store, fn),
+  );
+}
+
+/** Read current memory while selected; after a switch, read the captured account's durable records. */
+export function recordReader(ctx: AnsContext) {
+  if (ctx !== state.ctx || !recordStore) throw new Error('Wallet account changed. Try the action again.');
+  const epoch = sessionEpoch;
+  const store = recordStore;
+  return async () => {
+    if (epoch === sessionEpoch && state.records) return state.records;
+    await saveQueue.catch(() => {});
+    return store.load();
+  };
 }

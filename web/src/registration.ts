@@ -1,5 +1,5 @@
 import { createRegistrationFlow, registrationPlanKey, type AnsContext } from '@ans/sdk';
-import { getSession, rememberRegistrationProgress, recordWriter } from './session';
+import { rememberRegistrationProgress, recordReader, recordWriter, withPendingTx } from './session';
 
 const flows = new WeakMap<AnsContext, ReturnType<typeof createRegistrationFlow>>();
 
@@ -8,12 +8,10 @@ export function registrationFlow(ctx: AnsContext) {
   let flow = flows.get(ctx);
   if (flow) return flow;
   const write = recordWriter(ctx);
-  flow = createRegistrationFlow(ctx, {
+  const read = recordReader(ctx);
+  const base = createRegistrationFlow(ctx, {
     load: async (key) => {
-      const session = getSession();
-      if (session.ctx !== ctx || !session.records)
-        throw new Error('Wallet account changed. Try the action again.');
-      return session.records.plans.find((plan) => registrationPlanKey(plan) === key);
+      return (await read()).plans.find((plan) => registrationPlanKey(plan) === key);
     },
     save: async (key, plan) => {
       rememberRegistrationProgress(ctx, plan);
@@ -25,6 +23,12 @@ export function registrationFlow(ctx: AnsContext) {
       }));
     },
   });
+  flow = {
+    ...base,
+    commit: (...args) => withPendingTx(() => base.commit(...args)),
+    finish: (...args) => withPendingTx(() => base.finish(...args)),
+    recover: (...args) => withPendingTx(() => base.recover(...args)),
+  };
   flows.set(ctx, flow);
   return flow;
 }
