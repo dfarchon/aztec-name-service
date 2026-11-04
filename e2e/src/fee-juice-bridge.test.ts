@@ -47,6 +47,27 @@ test('bridge rejects loose key permissions, symlinks and outside-directory keys'
   await mkdir(join(dir, 'other'));
   await assert.rejects(assertKeyFile(join(dir, 'other'), key), /inside state directory/);
 });
+test('explicit L1 key can fund a separate testnet user state but must stay private', async (t) => {
+  const dir = await mkdtemp(join(tmpdir(), 'ans-bridge-external-key-'));
+  t.after(() => rm(dir, { recursive: true, force: true }));
+  const userDir = join(dir, 'user'), ownerDir = join(dir, 'owner');
+  await mkdir(userDir, { mode: 0o700 }); await mkdir(ownerDir, { mode: 0o700 });
+  const key = join(ownerDir, 'dummy.json');
+  await writeFile(key, '{}', { mode: 0o600 });
+  const c = parseBridgeArgs(['--network', 'testnet-v6', '--state-dir', userDir,
+    '--recipient', `0x${'1'.repeat(64)}`, '--l1-key-file', key,
+    '--l1-rpc-url', 'https://l1.invalid', '--amount', '1', '--dry-run']);
+  assert.equal(c.recipient, `0x${'1'.repeat(64)}`);
+  assert.equal(c.keyPath, key); assert(c.explicitKey);
+  await assertKeyFile(userDir, key, c.explicitKey);
+  await assert.rejects(assertKeyFile(userDir, key), /inside state directory/);
+  await chmod(ownerDir, 0o755);
+  await assert.rejects(assertKeyFile(userDir, key, true), /0700/);
+  await chmod(ownerDir, 0o700); await chmod(key, 0o644);
+  await assert.rejects(assertKeyFile(userDir, key, true), /0600/);
+  await chmod(key, 0o600); await symlink(key, join(ownerDir, 'link'));
+  await assert.rejects(assertKeyFile(userDir, join(ownerDir, 'link'), true), /regular/);
+});
 test('bridge persists private claim before first fake send and checkpoints hash before forwarding', async (t) => {
   const dir = await mkdtemp(join(tmpdir(), 'ans-bridge-order-'));
   t.after(() => rm(dir, { recursive: true, force: true }));

@@ -14,6 +14,7 @@
     "deploy:v6": "tsx src/deploy-v6.ts",
     "e2e:v6-manifest": "tsx src/e2e-v6-manifest.ts",
     "testnet:v6": "tsx src/testnet-v6-e2e.ts",
+    "testnet:v6-nofpc-register": "tsx src/testnet-v6-nofpc-register.ts",
     "bridge:fee-juice": "tsx src/fee-juice-bridge.ts",
     "test:fee-juice-local": "tsx src/fee-juice-local.ts"
   },

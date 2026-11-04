@@ -1,6 +1,6 @@
 /** Explicit, resumable L1 bridge. CLI errors deliberately exclude RPC payloads and private material. */
 import { chmod, lstat, mkdir, readFile, realpath, writeFile } from 'node:fs/promises';
-import { join, resolve } from 'node:path';
+import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import {
   createPublicClient,
@@ -19,7 +19,7 @@ import { TestERC20Abi } from '@aztec-foundation/l1-artifacts/TestERC20Abi';
 import { Fr } from '@aztec-labs/aztec.js/fields';
 import { createAztecNodeClient } from '@aztec-labs/aztec.js/node';
 import { computeSecretHash } from '@aztec-labs/stdlib/hash';
-import { assertPrivateDir, within } from './deploy-v6-plan.js';
+import { REPO, assertPrivateDir, within } from './deploy-v6-plan.js';
 import { atomicJson, physicalPath } from './deploy-v6.js';
 import { acquireTestnetLock } from './testnet-lock.js';
 import { readPublicKeys } from './init-keys.js';
@@ -61,7 +61,7 @@ export function parseBridgeArgs(argv: string[]) {
     network,
     undefined,
     undefined,
-    network === 'testnet-v6' ? 'fee-juice' : 'sponsored',
+    network === 'testnet-v6' && !v.has('recipient') ? 'fee-juice' : 'sponsored',
   );
   const nodeUrl = v.get('node-url') ?? V6_PROFILES[network].nodeUrl;
   assertV6Url(network, nodeUrl);
@@ -77,20 +77,28 @@ export function parseBridgeArgs(argv: string[]) {
     amount: v.get('amount'),
     recipient: v.get('recipient'),
     keyPath: resolve(v.get('l1-key-file') ?? join(stateDir, 'l1-key.json')),
+    explicitKey: v.has('l1-key-file'),
     init: v.has('init-l1-key'),
     dryRun: v.has('dry-run'),
     confirm: v.get('confirm'),
   };
 }
-export async function assertKeyFile(stateDir: string, path: string) {
+export async function assertKeyFile(stateDir: string, path: string, explicitKey = false) {
   const stat = await lstat(path);
   if (
     stat.isSymbolicLink() ||
     !stat.isFile() ||
+    stat.uid !== process.getuid!() ||
     (stat.mode & 0o777) !== 0o600 ||
-    !within(await realpath(stateDir), await realpath(path))
+    (!explicitKey && !within(await realpath(stateDir), await realpath(path)))
   )
     throw new Error('Fee bridge key must be a regular 0600 file inside state directory');
+  if (explicitKey) {
+    const physical = await realpath(path), parent = await lstat(dirname(physical));
+    if (within(REPO, physical) || !parent.isDirectory() || parent.uid !== process.getuid!() ||
+      (parent.mode & 0o777) !== 0o700)
+      throw new Error('Fee bridge explicit key requires an owned 0700 directory outside repository');
+  }
 }
 export async function initL1Key(stateDir: string) {
   await mkdir(stateDir, { recursive: true, mode: 0o700 });
@@ -157,13 +165,13 @@ export async function bridgeMain(argv = process.argv.slice(2)) {
     c.network,
     undefined,
     undefined,
-    c.network === 'testnet-v6' ? 'fee-juice' : 'sponsored',
+    c.network === 'testnet-v6' && !c.recipient ? 'fee-juice' : 'sponsored',
   );
   if (c.init) {
     console.log(await initL1Key(physical));
     return;
   }
-  await assertKeyFile(physical, c.keyPath);
+  await assertKeyFile(physical, c.keyPath, c.explicitKey);
   const node = createAztecNodeClient(c.nodeUrl, { maxBatchSize: 3 });
   const info = await node.getNodeInfo();
   assertV6Network(c.network, info, c.nodeUrl);
