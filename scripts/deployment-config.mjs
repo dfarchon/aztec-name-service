@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import { readFileSync, realpathSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { resolve } from 'node:path';
@@ -93,9 +94,11 @@ export function v6ManifestProblems(m, { expectNetwork } = {}) {
     if (!ok) problems.push(label);
   };
   check(m.schema === 'ans-deployment-v6/1', 'v6 schema');
-  check(m.aztecVersion === '6.0.0' && m.protocol === 6, 'v6 version/protocol');
+  check(m.aztecVersion === '6.0.0' && [6, 7].includes(m.protocol), 'v6 version/protocol');
   check(['local', 'testnet-v6', 'mainnet'].includes(m.network), 'v6 network');
   if (expectNetwork) check(m.network === expectNetwork, 'v6 expected network');
+  if (m.registryVersion !== undefined)
+    check(m.registryVersion === m.protocol, 'registryVersion/protocol');
   const address = (x) =>
     typeof x === 'string' &&
     /^0x[0-9a-f]{64}$/i.test(x) &&
@@ -169,7 +172,7 @@ export function v6ManifestProblems(m, { expectNetwork } = {}) {
     check(address(m.classIds?.[key]), `v6 classIds.${key}`);
   const baseline = read('sdk/test/fixtures/classids-6.0.0.json', repository).classIds;
   check(
-    m.classIds?.registry === baseline.v6 &&
+    m.classIds?.registry === (m.protocol === 7 ? baseline.v7 : baseline.v6) &&
       m.classIds?.resolver === baseline.resolver &&
       m.classIds?.registrar ===
         (launch
@@ -233,6 +236,7 @@ export function v6ManifestProblems(m, { expectNetwork } = {}) {
   if (m.network === 'local')
     check(m.chainId === '31337' && m.realProofs === false, 'v6 local identity');
   if (expectNetwork === 'testnet-v6' || m.network === 'testnet-v6') {
+    check(m.protocol === 6, 'testnet requires protocol 6');
     check(m.nodeUrl === 'https://aztec-testnet.drpc.org', 'v6 testnet nodeUrl');
     for (const key of ['chainId', 'rollupVersion', 'rollup', 'sponsoredFpc', 'realProofs'])
       check(
@@ -243,6 +247,9 @@ export function v6ManifestProblems(m, { expectNetwork } = {}) {
       );
   }
   if (m.network === 'mainnet') {
+    check(m.protocol === 7, 'mainnet requires protocol 7');
+    check(m.adminPlaceholder !== true, 'admin placeholder');
+    if (launch) check(m.maxRenewAhead === '31536000', 'mainnet maxRenewAhead must be 31536000');
     check(fee === 'fee-juice', 'v6 mainnet feePayment');
     for (const key of ['chainId', 'rollupVersion', 'rollup', 'realProofs'])
       check(m[key] === V6_MAINNET[key], `v6 mainnet ${key}`);
@@ -276,7 +283,8 @@ export function mainnetTemplateProblems(root = repository) {
   if (
     m.template !== true ||
     m.network !== 'mainnet' ||
-    m.protocol !== 6 ||
+    m.protocol !== 7 ||
+    m.registryVersion !== 7 ||
     m.aztecVersion !== '6.0.0'
   )
     problems.push('mainnet template marker/identity');
@@ -284,8 +292,6 @@ export function mainnetTemplateProblems(root = repository) {
     if (m[key] !== value) problems.push(`mainnet template ${key}`);
   for (const key of [
     'nodeUrl',
-    'admin',
-    'treasury',
     'domain',
     'registry',
     'resolver',
@@ -298,12 +304,27 @@ export function mainnetTemplateProblems(root = repository) {
     'operator',
     'operatorBalanceSlot',
     'operatorLowWatermark',
-    'registrarKind',
-    'minPublicLength',
-    'reservedListHash',
-    'maxRenewAhead',
   ])
     if (m[key] !== null) problems.push(`mainnet undecided ${key} must be null`);
+  const address = (value) =>
+    typeof value === 'string' &&
+    /^0x[0-9a-f]{64}$/i.test(value) &&
+    BigInt(value) > 0n &&
+    BigInt(value) < 21888242871839275222246405745257275088548364400416034343698204186575808495617n;
+  if (m.admin !== null && !address(m.admin)) problems.push('mainnet template admin');
+  if (m.treasury !== m.admin)
+    problems.push('mainnet template treasury must match placeholder admin');
+  if (m.adminPlaceholder !== true || !/PLACEHOLDER/.test(m._note ?? ''))
+    problems.push('mainnet template admin placeholder marker');
+  if (m.registrarKind !== 'launch' || m.minPublicLength !== 7 || m.initialPaused !== true)
+    problems.push('mainnet template launch policy');
+  if (m.maxRenewAhead !== '31536000')
+    problems.push('mainnet template maxRenewAhead must be 31536000');
+  const reserved = read('deployments/reserved-labels.json', root);
+  const hash = createHash('sha256')
+    .update(JSON.stringify(Object.values(reserved.categories).flat().sort()))
+    .digest('hex');
+  if (m.reservedListHash !== hash) problems.push('mainnet template reservedListHash');
   const paths = ['ops/wrangler-mainnet.jsonc', 'ops/wrangler-monitor-mainnet.jsonc'];
   const configs = paths.map((path) => read(path, root));
   const expected = {

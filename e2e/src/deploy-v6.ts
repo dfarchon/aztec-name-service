@@ -6,6 +6,7 @@ import { fileURLToPath } from 'node:url';
 import { createRequire } from 'node:module';
 import { getSchnorrInitializerlessAccountContractAddress } from '@aztec-labs/accounts/schnorr';
 import { RegistryReader, NameRegistrarLaunchContract, NameRegistrarContract, NameRegistrarTieredContract, NameResolverContract, readFeeTokenMetadata, trackTx } from '@ans/sdk';
+import { NameRegistryV7Contract } from '../../sdk/src/artifacts/NameRegistryV7.js';
 import { NameRegistryV6Contract } from '../../sdk/src/artifacts/NameRegistryV6.js';
 import baseline from '../../sdk/test/fixtures/classids-6.0.0.json' with { type: 'json' };
 import metadata from '../../web/src/public-metadata.json' with { type: 'json' };
@@ -27,7 +28,7 @@ import { acquireTestnetLock } from './testnet-lock.js';
 import { acceptanceChecks, runCheckpointedStep } from './testnet-checkpoint.js';
 import { V6_PROFILES, assertV6Fpc, assertV6FeeJuice, assertV6Network, dryRunNode } from './v6-network.js';
 import { REPO, ZERO, DEPLOY_STEPS, deploymentSteps, deploymentTransactionSteps, assertPrivateDir, buildManifest, configHash, deploymentPlan, makePolicy, parseOptions, finalizeConfig, parseInitKeysArgs, within, type Config, type Policy } from './deploy-v6-plan.js';
-import { canonicalReservedLabels, reservedNodes, reservedBatches, verifyReservations } from './launch-policy.js';
+import { loadReservedList, reservedNodes, reservedBatches, verifyReservations } from './launch-policy.js';
 import { initKeys, readKeys, readPublicKeys, type KeysFile, type PublicKeys } from './init-keys.js';
 const { assertMainnetReady, mainnetBlockers } = createRequire(import.meta.url)('../../scripts/mainnet-readiness.mjs');
 const { v6ManifestProblems } = createRequire(import.meta.url)('../../scripts/deployment-config.mjs');
@@ -54,10 +55,10 @@ export async function atomicJson(path: string, value: unknown, mode = 0o600) {
   await writeFile(`${path}.tmp`, JSON.stringify(value, null, 2) + '\n', { mode });
   await chmod(`${path}.tmp`, mode); await rename(`${path}.tmp`, path);
 }
-export async function v6Artifacts(token: Config['token'], registrar: Config['registrar']) {
+export async function v6Artifacts(token: Config['token'], registrar: Config['registrar'], registryVersion: 6 | 7 = 6) {
   const tokenArtifact = token !== 'repo' ? TokenContractArtifact : loadContractArtifact(JSON.parse(await readFile(join(REPO, 'contracts/target/test_token-Token.json'), 'utf8')));
-  const artifacts = { token: tokenArtifact, registry: NameRegistryV6Contract.artifact, resolver: NameResolverContract.artifact, registrar: registrar === 'launch' ? NameRegistrarLaunchContract.artifact : registrar === 'flat' ? NameRegistrarContract.artifact : NameRegistrarTieredContract.artifact };
-  const expected = { token: token !== 'repo' ? metadata.tokenClassId : baseline.classIds.testToken, registry: baseline.classIds.v6, resolver: baseline.classIds.resolver, registrar: registrar === 'launch' ? baseline.classIds.registrarLaunch : registrar === 'flat' ? baseline.classIds.registrar : baseline.classIds.registrarTiered };
+  const artifacts = { token: tokenArtifact, registry: registryVersion === 7 ? NameRegistryV7Contract.artifact : NameRegistryV6Contract.artifact, resolver: NameResolverContract.artifact, registrar: registrar === 'launch' ? NameRegistrarLaunchContract.artifact : registrar === 'flat' ? NameRegistrarContract.artifact : NameRegistrarTieredContract.artifact };
+  const expected = { token: token !== 'repo' ? metadata.tokenClassId : baseline.classIds.testToken, registry: registryVersion === 7 ? baseline.classIds.v7 : baseline.classIds.v6, resolver: baseline.classIds.resolver, registrar: registrar === 'launch' ? baseline.classIds.registrarLaunch : registrar === 'flat' ? baseline.classIds.registrar : baseline.classIds.registrarTiered };
   const classIds: Record<string, string> = {};
   for (const key of Object.keys(artifacts) as (keyof typeof artifacts)[]) {
     classIds[key] = (await getContractClassFromArtifact(artifacts[key])).id.toString();
@@ -102,7 +103,7 @@ export async function main(argv = process.argv.slice(2), dependencies = { create
   }
   // Public key projection and confirmation are resolved before any network I/O.
   const options = parseOptions(argv);
-  if(options.registrar==='launch') options.reservedLabels=canonicalReservedLabels(JSON.parse(await readFile(options.reservedList!,'utf8')));
+  if(options.registrar==='launch') options.reservedLabels=loadReservedList(JSON.parse(await readFile(options.reservedList!,'utf8')));
   if (options.network === 'mainnet') {
     if (!options.dryRun) { assertMainnetReady(); throw new Error('Mainnet blocked: registration fee-token mode undecided; token-deploying flow refused'); }
     const info = await dependencies.createNode(options.nodeUrl, { maxBatchSize: 3 }).getNodeInfo();
@@ -128,7 +129,7 @@ export async function main(argv = process.argv.slice(2), dependencies = { create
       const fpcStatus = assertV6Fpc(c.network, fpc.instance, (await getContractClassFromArtifact(fpc.artifact)).id.toString(), publishedFpc);
       console.log(`PASS SponsoredFPC ${fpc.instance.address} class ${fpc.instance.currentContractClassId} ${fpcStatus}`);
     } else assertV6FeeJuice(c.network, info);
-    const { artifacts, classIds } = await v6Artifacts(c.token, c.registrar);
+    const { artifacts, classIds } = await v6Artifacts(c.token, c.registrar, c.registryVersion);
     console.log(`PASS frozen artifact classes ${JSON.stringify(classIds)}`);
     const pricing = JSON.parse(await readFile(c.pricing, 'utf8'));
     if (pricing.annualPriceStatus === 'provisional') console.log('WARNING annualPriceStatus=provisional; using unchanged pricing');
@@ -270,7 +271,7 @@ export async function main(argv = process.argv.slice(2), dependencies = { create
         await step(`deploy-${key}`, () => deploy.send({ from: owner, fee: fee(), wait: NO_WAIT }));
         await wallet.registerContract(prepared.values[key], artifacts[key]);
       }
-      const core = NameRegistryV6Contract.at(prepared.values.registry.address, wallet);
+      const core = (c.registryVersion === 7 ? NameRegistryV7Contract : NameRegistryV6Contract).at(prepared.values.registry.address, wallet);
       if(p.registrar==='launch') {
         const nodes=await reservedNodes(p.reservedLabels??[]),batches=reservedBatches(nodes);
         for(const [i,batch] of batches.entries()) await step(`seed-reserved-${i}`,()=>launch.methods.set_reserved(batch,true).send({from:owner,fee:fee(),wait:NO_WAIT}));
@@ -281,6 +282,8 @@ export async function main(argv = process.argv.slice(2), dependencies = { create
       }
       await step('bootstrap', () => core.methods.bootstrap(prepared.values.registrar.address, prepared.values.resolver.address).send({ from: owner, fee: fee(), wait: NO_WAIT }));
       const reader = await RegistryReader.connect(node, core.address), policy = await reader.getConfig(), modules = await reader.getModules();
+      check('registry implementation version', Number((await core.methods.implementation_version().simulate({from:owner})).result) === c.registryVersion);
+      check('registry class', reader.classId === classIds.registry);
       check('registrar binding', modules.registrar.equals(prepared.values.registrar.address));
       check('resolver binding', modules.resolver.equals(prepared.values.resolver.address));
       check('legacy zero', !(await reader.getLegacyRegistry()));

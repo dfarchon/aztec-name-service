@@ -6,6 +6,7 @@ import {
   launchExample,
   connectionExample,
   profileExample,
+  resolverTrustExample,
   registrationExample,
 } from './docs-examples';
 const aztecAnnualPrice = formatUnits(BigInt(pricing.annualPrice), pricing.decimals);
@@ -73,7 +74,7 @@ export const articles: Article[] = [
       'Commit: the first registration step. It records a sealed fingerprint of your request so nobody can see or front-run the name; after about one minute you send the actual registration.',
       'Sponsored fee payer (FPC): a shared contract that pays Aztec network fees for you, so you do not need Fee Juice. It does not pay the registration fee.',
       'Registrar: the contract that takes the registration fee and creates or renews names. Resolver: the contract that stores where a name points, such as its Aztec address and profile records.',
-      'Generation and revision: internal counters ANS uses so an old or stale action cannot change a name. Generation changes when a name is registered again; revision changes whenever its records or roles change. If you see a mismatch, reload and try again.',
+      'Generation and revision: internal counters ANS uses so an old or stale action cannot change a name. Generation changes on registration or accepted transfer. V7 keeps holder changes and editor writes on separate revision counters; V6 shares one counter. If you see a mismatch, reload and try again.',
       'Generating proof: Aztec transactions are private, so your browser builds a cryptographic proof before sending. This can take a minute and uses a lot of CPU; keep the tab open. Dropped by network: the network discarded the transaction; nothing was charged, and you can retry.',
     ],
   },
@@ -272,7 +273,7 @@ export function sectionsFor(article: Article): DocSection[] {
       blocks: [
         {
           type: 'paragraph',
-          text: 'Read config.launch and eligibility(name, snapshot) through @ans/sdk/read. Results are open, too_short, reserved or paused. The SDK rechecks before commit and reveal, and rejects non-year leases. A free quote creates no token AuthWit and reads no token balance. Public policy reads reserve nothing; encrypted recovery stores secrets and transaction hashes, while ownership and policy remain chain state. Unknown RPC or wallet errors never clear a saved transaction hash.',
+          text: 'Before preparing a plan or sending commit, the quote needs at least 180 chain seconds remaining: 60 minimum commit age, 60 reveal margin and 60 inclusion slack. COMMIT_QUOTE_MARGIN is 180n and REVEAL_MARGIN is 60n; insufficient lifetime returns quote_expired before wallet submission. Read config.launch and eligibility(name, snapshot) through @ans/sdk/read. Results are open, too_short, reserved or paused. The SDK rechecks before commit and reveal, and rejects non-year leases. A free quote creates no token AuthWit and reads no token balance. Public policy reads reserve nothing; encrypted recovery stores secrets and transaction hashes, while ownership and policy remain chain state. Unknown RPC or wallet errors never clear a saved transaction hash.',
         },
         {
           type: 'code',
@@ -281,6 +282,38 @@ export function sectionsFor(article: Article): DocSection[] {
           value: launchExample,
         },
       ],
+    });
+  if (article.id === 'sdk')
+    sections.push({
+      id: 'resolver-trust',
+      title: 'Resolver trust and recovery',
+      blocks: [
+        {
+          type: 'paragraph',
+          text: 'inspectResolver(node, generation, snapshot) returns address, verified, isDefault and optional zero, unknown_class or other_registry reason. Network errors still throw. resolveAddress returns untrusted_resolver instead of a payment address for an unverified binding; resolvePrimary returns stale with reason untrusted_resolver. Reset checks the target resolver without requiring a verified inherited resolver.',
+        },
+        {
+          type: 'code',
+          title: 'Check a receiving address and restore the default resolver',
+          language: 'typescript',
+          value: resolverTrustExample,
+        },
+      ],
+    });
+  if (article.id === 'permissions')
+    sections[1].blocks.push({
+      type: 'paragraph',
+      text: 'On V7, acceptance resets the resolver to the current default and reports resolverReset:true. On V6, acceptTransfer inherits the resolver and refuses an unverified one unless acceptUnverifiedResolver:true is explicit. Review it and use the default resolver after acceptance. V7 editor writes advance Holding.recordRevision without changing the holder NameRecord.revision; holder changes can invalidate pending editor writes.',
+    });
+  if (article.id === 'manage')
+    sections[1].blocks.push({
+      type: 'paragraph',
+      text: 'The mainnet launch template sets maxRenewAhead to 31536000 chain seconds: renewal opens 1 year before expiry. The contract supports a configurable horizon per Registrar; the connected on-chain policy controls the displayed window. Local and testnet scripts retain their existing uncapped default.',
+    });
+  if (article.id === 'pricing')
+    sections[3].blocks.push({
+      type: 'paragraph',
+      text: 'The v1 reservation file contains 173 canonical labels, all at least 7 characters, grouped into Aztec, ANS, system identities and ecosystem identities. The loader rejects invalid and duplicate labels before hashing the sorted flat list. Short public names remain closed. Mainnet admin and treasury are still null with an adminPlaceholder marker; a placeholder must be replaced before launch.',
     });
   if (article.id === 'getting-started') {
     sections[0].blocks.push({
@@ -715,6 +748,10 @@ export function sectionsFor(article: Article): DocSection[] {
         ['V4', 'Profiles, accepted transfers, editors and subnames'],
         ['V5', 'All V4 name features; direct administrator configuration and holder migration'],
         [
+          'V7',
+          'Fresh mainnet target; resolver reset on transfer and independent holder/record revisions; frozen V6 remains the testnet class',
+        ],
+        [
           'V6',
           'Aztec 6 name features and tiered pricing; fresh deployment with no imported or reserved legacy names',
         ],
@@ -724,8 +761,9 @@ export function sectionsFor(article: Article): DocSection[] {
       {
         type: 'list',
         items: [
-          'The current administrator calls configureModules to select Registrar and default Resolver, effective after confirmation. V5 uses setAdministrator for direct handover. V6 requires nominate_administrator and accept_administrator through the V6 bindings; the SDK setAdministrator helper rejects V6.',
+          'The current administrator calls configureModules to select Registrar and default Resolver, effective after confirmation. V5 uses setAdministrator for direct handover. V6/V7 require nominate_administrator and accept_administrator through their matching bindings; the SDK setAdministrator helper rejects both.',
           'Payment changes preserve name records but invalidate obsolete quotes and unconsumed plans. A new default Resolver applies to subsequent names; existing names retain their selected Resolver.',
+          'The mainnet template targets protocol 7, retaining schema ans-deployment-v6/1, minPublicLength 7, the v1 reserved hash and maxRenewAhead 31536000. Readiness rejects the adminPlaceholder marker, protocol 6 on mainnet and any other launch renewal horizon. No mainnet deployment is implied.',
           'A new implementation has a new contract address. The current V6 deployment starts fresh with legacy set to zero; names on the old rollup are not migrated, reserved or snapshotted.',
           'For historical deployments with an explicitly configured legacy registry, holders may migrate root names during their lease or 30-day grace period, preserving owner, expiry and default address. Configure editors, profiles and subnames on the destination and confirm reverse consent again. These legacy migration rules do not apply to the fresh V6 testnet.',
           'A website release does not change the active contract class.',

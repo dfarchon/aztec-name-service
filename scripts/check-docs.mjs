@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { resolverTrustExample } from '../web/src/docs-examples.ts';
 import { articles, articleToMarkdown, sectionsFor, summaries } from '../web/src/docs-content.ts';
 
 const contentText = (value, label) => {
@@ -64,6 +65,10 @@ for (const article of articles) {
 }
 const codeBlocks = (path) =>
   [...readFileSync(path, 'utf8').matchAll(/```[^\n]*\n([\s\S]*?)```/g)].map((match) => match[1]);
+assert.ok(
+  codeBlocks('README.md').some((block) => block.trim() === resolverTrustExample.trim()),
+  'README resolver example must match documentation source',
+);
 assert.deepEqual(
   codeBlocks('examples/consumer/README.md'),
   codeBlocks('examples/consumer/README.zh-CN.md'),

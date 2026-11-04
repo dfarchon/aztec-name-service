@@ -90,3 +90,17 @@ export async function inspectLaunch(reader: RegistryReader, name: string) {
   });
   return { launch: config.launch, eligibility, quote, needsTokenAuthorization: quote.fee > 0n };
 }`;
+
+export const resolverTrustExample = `import { resolveAddress, type RegistryReader } from '@ans/sdk/read';
+import { setResolver, type AnsContext } from '@ans/sdk';
+
+export async function receivingAddress(reader: RegistryReader, name: string) {
+  const result = await resolveAddress(reader, name);
+  if (result.status === 'untrusted_resolver') throw new Error('Verify the resolver before using this address');
+  return result.status === 'resolved' ? result.address : undefined;
+}
+
+export async function restoreDefaultResolver(ctx: AnsContext, name: string) {
+  const modules = await ctx.reader.getModules();
+  return setResolver(ctx, { name, resolver: modules.resolver });
+}`;

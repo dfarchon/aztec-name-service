@@ -16,6 +16,8 @@ export function mainnetBlockers(root = repository) {
   const monitor = read('ops/wrangler-monitor-mainnet.jsonc');
   const absent = (v) => !v || v === 'UNDECIDED';
   const blockers = [];
+  if (m.adminPlaceholder === true) blockers.push('admin placeholder');
+  if (m.protocol !== 7) blockers.push('protocol 7 required');
   const free=m.registrarKind==='launch' && m.annualPrice==='0' && (m.feeToken===null||/^0x0{64}$/.test(m.feeToken??'')) && m.feeTokenSource==='none';
   if (!free && absent(pricing.settlement?.l2Token)) blockers.push('settlement.l2Token');
   if (!free && pricing.annualPriceStatus !== 'final') blockers.push('annualPriceStatus provisional');
@@ -25,7 +27,7 @@ export function mainnetBlockers(root = repository) {
   if(m.registrarKind==='launch') {
     if(!Number.isInteger(m.minPublicLength)||m.minPublicLength<3||m.minPublicLength>31)blockers.push('minPublicLength');
     if(!/^[a-f0-9]{64}$/.test(m.reservedListHash??''))blockers.push('reservedListHash');
-    if(typeof m.maxRenewAhead!=='string'||!/^(0|[1-9][0-9]*)$/.test(m.maxRenewAhead)||BigInt(m.maxRenewAhead)>10n*31536000n)blockers.push('maxRenewAhead');
+    if(m.maxRenewAhead!=='31536000')blockers.push('maxRenewAhead');
     if(m.reservedVerified!==true)blockers.push('reservedVerified');
   }
   for (const [name, c] of [

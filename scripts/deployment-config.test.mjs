@@ -12,6 +12,7 @@ function fixture(t) {
   t.after(() => rmSync(directory, { recursive: true, force: true }));
   const files = [
     'deployments/mainnet.template.json',
+    'deployments/reserved-labels.json',
     'ops/wrangler-mainnet.jsonc',
     'ops/wrangler-monitor-mainnet.jsonc',
     'deployments/aztec-pricing.json',
@@ -563,11 +564,12 @@ test('launch manifests validate both free and paid modes without changing the te
     assert(v6ManifestProblems({ ...m, ...patch }).length > 0);
 });
 
-test('mainnet launch readiness bounds renewal cap to ten years, with zero uncapped', (t) => {
+test('mainnet launch readiness requires exactly one year and rejects all other caps', (t) => {
   const f = fixture(t);
   for (const [maxRenewAhead, blocked] of [
-    ['0', false],
-    ['315360000', false],
+    ['31536000', false],
+    ['0', true],
+    ['315360000', true],
     ['315360001', true],
     ['18446744073709551615', true],
     ['-1', true],
@@ -580,4 +582,38 @@ test('mainnet launch readiness bounds renewal cap to ten years, with zero uncapp
     );
     assert.equal(mainnetBlockers(f.root).includes('maxRenewAhead'), blocked, String(maxRenewAhead));
   }
+});
+
+test('V7 mainnet template pins the reserved hash and a flagged placeholder administrator', (t) => {
+  const { root, update } = fixture(t);
+  assert.deepEqual(mainnetTemplateProblems(root), []);
+  const template = JSON.parse(
+    readFileSync(new URL('deployments/mainnet.template.json', root), 'utf8'),
+  );
+  assert.match(template.admin, /^0x[0-9a-f]{64}$/);
+  assert.equal(template.treasury, template.admin);
+  assert.equal(template.protocol, 7);
+  assert.equal(template.registryVersion, 7);
+  assert.equal(template.adminPlaceholder, true);
+  assert.equal(template.maxRenewAhead, '31536000');
+  writeFileSync(new URL('deployments/mainnet.json', root), JSON.stringify(template));
+  assert(mainnetBlockers(root).includes('admin placeholder'));
+  update('deployments/mainnet.template.json', (m) => {
+    m.protocol = 6;
+    m.maxRenewAhead = '0';
+    m.reservedListHash = '0'.repeat(64);
+  });
+  const errors = mainnetTemplateProblems(root);
+  for (const text of ['identity', 'maxRenewAhead', 'reservedListHash'])
+    assert(errors.some((error) => error.includes(text)));
+});
+test('readiness rejects V6 mainnet and every launch renewal horizon other than one year', (t) => {
+  const { root } = fixture(t);
+  writeFileSync(
+    new URL('deployments/mainnet.json', root),
+    JSON.stringify({ protocol: 6, registrarKind: 'launch', maxRenewAhead: '31536000' }),
+  );
+  assert(mainnetBlockers(root).includes('protocol 7 required'));
+  assert(!mainnetBlockers(root).includes('maxRenewAhead'));
+  assert.deepEqual(v6ManifestProblems(v6Canonical), []);
 });

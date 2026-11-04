@@ -120,9 +120,9 @@ Web builds require `VITE_NETWORK` and `VITE_FEE_PAYMENT` on public networks. Emb
 
 ## Launch Registrar
 
-`NameRegistrarLaunch` 是可选的新 V6 收费模块，当前测试网清单不变，也不表示主网已部署。公开注册默认至少 7 个字符，管理员可在 3–31 内调整；短名显示 “Not yet available”，保留名显示 “Reserved”。保留表按 node 存储，32 个 node 一批，零值跳过；仓库 `deployments/reserved-labels.json` 当前为空列表，哈希随部署策略固定，后续由用户提供名单。
+`NameRegistrarLaunch` 是 V6/V7 可选的收费模块，当前测试网清单不变，也不表示主网已部署。公开注册默认至少 7 个字符，管理员可在 3–31 内调整；短名显示 “Not yet available”，保留名显示 “Reserved”。保留表按 node 存储，32 个 node 一批，零值跳过；仓库 `deployments/reserved-labels.json` 为 v1 分类名单，共 173 项且全部至少 7 个字符；加载器校验合法性和跨分类重复，排序后的规范哈希随部署策略固定，分类和变更流程见 `deployments/reserved-labels.md`。
 
-每次注册和续期固定 365 天。`max_renew_ahead` 单位为秒，构造时须在 0–315360000（10 年）内：0（脚本默认值）不限制提前续期，可重复续期；非零时只有当前到期时间 `<= 链上时间 + max_renew_ahead` 才能续期。主网模板仍为 null，等待最终决定。暂停只阻止公开注册，持有人续期和管理员铸造继续开放，以免宽限期内丢失名字。
+每次注册和续期固定 365 天。`max_renew_ahead` 单位为秒，构造时须在 0–315360000（10 年）内：0（本地/测试网脚本默认值）不限制提前续期，可重复续期；非零时只有当前到期时间 `<= 链上时间 + max_renew_ahead` 才能续期。主网配置 `maxRenewAhead = 31536000`，到期前 1 年内可续期。管理员和 treasury 暂为 null，带 `adminPlaceholder: true`；主管在沙箱外生成占位账户后填入，正式启动前必须替换为多签并通过 readiness。暂停只阻止公开注册，持有人续期和管理员铸造继续开放，以免宽限期内丢失名字。
 
 免费实例要求 Token 地址和三档年费均为 0，不转 Token、不创建 AuthWit、不读私有 Token 余额；网络费仍由 Fee Juice 或代付承担。付费实例使用同一代码、不可变 Token/treasury 和 3/4/5+ 年费，长度、保留、暂停规则同样生效。管理员权限每次读取 Registry 的当前 administrator，提名者接受两步移交后立即生效，旧管理员失权。
 
@@ -130,9 +130,9 @@ Web builds require `VITE_NETWORK` and `VITE_FEE_PAYMENT` on public networks. Emb
 
 ## Launch Registrar (English)
 
-`NameRegistrarLaunch` is an optional V6 module. It does not change the current testnet manifest or announce a mainnet deployment. Public registration defaults to at least 7 characters; the live administrator can choose 3–31. Short names show “Not yet available”; reserved names show “Reserved”. Reservations use node keys, batches of 32 and zero padding. `deployments/reserved-labels.json` is currently empty; its canonical SHA-256 hash binds deployment policy, and the user supplies the eventual list.
+`NameRegistrarLaunch` is an optional V6/V7 module. It does not change the current testnet manifest or announce a mainnet deployment. Public registration defaults to at least 7 characters; the live administrator can choose 3–31. Short names show “Not yet available”; reserved names show “Reserved”. Reservations use node keys, batches of 32 and zero padding. `deployments/reserved-labels.json` contains the categorized v1 list of 173 labels, all at least 7 characters. The loader rejects illegal labels and duplicates before hashing the sorted flat list; categories and change procedure are in `deployments/reserved-labels.md`.
 
-Each registration and renewal is exactly 365 days. `max_renew_ahead` is seconds, bounded at construction to 0–315360000 (10 years): 0 (the script default) allows repeated renewal without a horizon; otherwise current expiry must be at most chain time plus the horizon. The mainnet template remains null pending the final choice. Pause blocks only public registration; holder renewal and administrator mint stay available, protecting holders during the grace period.
+Each registration and renewal is exactly 365 days. `max_renew_ahead` is seconds, bounded at construction to 0–315360000 (10 years): 0 (the local/testnet script default) allows repeated renewal without a horizon; otherwise current expiry must be at most chain time plus the horizon. Mainnet sets `maxRenewAhead = 31536000`: renewal opens 1 year before expiry. Admin and treasury remain null with `adminPlaceholder: true` until the supervisor supplies an offline placeholder; replace it with a multisig and pass readiness before launch. Pause blocks only public registration; holder renewal and administrator mint stay available, protecting holders during the grace period.
 
 Free mode requires a zero token and all three prices zero: no token transfer, AuthWit or private token balance read. Fee Juice or sponsorship still pays network fees. Paid mode uses the same code with immutable token, treasury and 3/4/5+ prices; all public policy gates still apply. Authority is read from the Registry on every operation, so the nominee gains authority only after accepting the two-step handoff and the old administrator immediately loses it.
 
@@ -147,3 +147,39 @@ npm run deploy:v6 -- --network local --node-url http://127.0.0.1:8082 --registra
 This read-only local preview sends no transaction. Deployment seeding verifies the reserved list before bootstrap and leaves the requested pause state unchanged; unpause is an explicit administrator action. `e2e/src/launch-admin.ts` offers a read-only CLI preview. `runLaunchAdmin` and `switchLaunchRegistrar` require an injected `AnsContext` and explicit `{ broadcast: true }` to mutate; they never load keys. Keep an admin mint process alive through commit maturation: its secret stays in application memory, and interrupting it requires a new mint commitment. No website admin console or public SDK admin API is added.
 
 该本地预览只读，不发送交易。部署在 bootstrap 前核对保留名单，保持指定暂停状态，解除暂停必须由管理员显式操作。`launch-admin.ts` CLI 只输出预览；`runLaunchAdmin`、`switchLaunchRegistrar` 必须注入 `AnsContext` 且显式指定 `{ broadcast: true }` 才写入，不加载密钥。管理员铸造的 secret 只在应用内存中，需保持进程等待 commit 成熟；中断后需新建铸造承诺。没有新增网站管理台或公开 SDK 管理便捷接口。
+
+## V7 resolver and revision rules / V7 解析器与修订号
+
+主网使用新部署的 V7（`protocol: 7`，清单仍为 `ans-deployment-v6/1`）；当前测试网继续使用冻结的 V6，V2–V5 仅为旧网络存档，不迁移到 Aztec 6。V7 接收转移时将解析器重置为当时的默认解析器，并发出 ResolverChanged；旧 generation 的地址、资料、编辑者、主名字确认及子域不能复用。解析器只能在当前持有人选择或默认策略绑定的 generation 内写入，仍需校验当前持有人或编辑者身份。SDK/网站另外校验解析器类和 Registry 归属。
+
+V7 的 `NameRecord.revision` 用于持有人操作；`Holding.recordRevision` 用于地址和资料写入。编辑者写入不会使续期、移除编辑者、换解析器或接收转移的持有人修订号过时。持有人换解析器会清除地址并推进记录修订号，使待执行的旧编辑操作失效。V3–V6 仍共用名字修订号。`get_record_revision(node, generation)` / `getRecordRevision(node, generation, snapshot)` 返回当前代记录修订号（u32 / number）。
+
+解析器未经验证时，`resolveAddress` 返回 `untrusted_resolver`，不返回可信付款地址；`resolvePrimary` 返回 `stale`，reason 为 `untrusted_resolver`。`inspectResolver` 返回公开地址、verified、isDefault 及可选原因 zero / unknown_class / other_registry；网络错误继续抛出。V6 的 `acceptTransfer` 默认拒绝未经验证的继承解析器；显式 `acceptUnverifiedResolver: true` 才可接收，并应立即切换默认解析器。V7 返回 `resolverReset: true`。更换解析器不要求原解析器可信，但目标解析器必须通过校验。
+
+SDK 创建计划及发送 commit 前要求报价至少剩余 180 链上秒：60 秒最小承诺年龄 + 60 秒 reveal 余量 + 60 秒包含交易余量。`COMMIT_QUOTE_MARGIN = 180n`，`REVEAL_MARGIN = 60n`；不足时在请求钱包前返回 `quote_expired`，仍需为实际证明和上链时间留出充足时间。恢复计划继续使用原有加密存储与回执证据规则。
+
+Mainnet targets a fresh V7 (`protocol: 7`, retaining schema `ans-deployment-v6/1`). The current testnet stays on frozen V6; V2–V5 remain archives on the old rollup, with no migration to Aztec 6. Acceptance on V7 resets the resolver to the current default and emits ResolverChanged. Old-generation addresses, profiles, editors, primary consent and descendants cannot revive. A resolver can write only in the generation bound by that holder or default policy, and the supplied actor must be the current holder or editor. The SDK and web also verify its class and Registry binding.
+
+V7 separates holder `NameRecord.revision` from editor `Holding.recordRevision`: editor writes cannot stale holder renewal, editor removal, resolver replacement or transfer acceptance. Resolver replacement clears the address and advances record revision, invalidating pending editor writes. V3–V6 retain a shared revision. `get_record_revision(node, generation)` / `getRecordRevision(node, generation, snapshot)` returns the generation's record revision as u32 / number.
+
+An unverified resolver produces `resolveAddress.status = 'untrusted_resolver'` and `resolvePrimary.status = 'stale'` with reason `untrusted_resolver`. `inspectResolver` returns public address, verified, isDefault and optional zero / unknown_class / other_registry reason; transport errors still throw. V6 `acceptTransfer` refuses an unverified inherited resolver unless `acceptUnverifiedResolver: true` is explicit; reset it immediately after acceptance. V7 reports `resolverReset: true`. Reset checks the target resolver without requiring trust in the inherited one.
+
+Before creating a plan or sending commit, the SDK requires 180 chain seconds of quote lifetime: 60 minimum commit age + 60 reveal margin + 60 inclusion slack. `COMMIT_QUOTE_MARGIN = 180n`; `REVEAL_MARGIN = 60n`. Insufficient lifetime returns `quote_expired` before wallet submission. Allow adequate time for actual proving/inclusion; encrypted recovery and receipt-evidence rules still apply.
+
+### Version selection and offline placeholder / 版本选择和离线占位账户
+
+`--registry-version 6|7` defaults to 6 for local/testnet and 7 for mainnet. Testnet requires 6; mainnet requires 7. The confirmation includes registryVersion; V7 checkpoint policy hashes bind that version. Readback checks both class ID and implementation_version. The mainnet broadcaster remains blocked by the existing readiness and fee-token decisions.
+
+`--registry-version 6|7` 在本地/测试网默认 6、主网默认 7；测试网只允许 6，主网只允许 7。确认串包含 registryVersion，V7 检查点策略哈希绑定版本；部署后同时核对类 ID 与 implementation_version。原有主网 readiness 和收费资产条件仍阻止主网广播。
+
+The supervisor runs the following offline command outside the executor sandbox. It creates a new private directory and exclusively writes a 0600 file, prints only address/directory and makes no deployment or transaction. The mainnet placeholder uses the 6.0.0 Schnorr account helper; its owner/treasury/salts field conventions match existing key files, but it is not a local/testnet initializerless deployment checkpoint. Preserve it offline and replace both admin and treasury before launch; never paste secret material into a report.
+
+主管在执行沙箱外运行下列离线命令。脚本创建新 0700 目录，以独占方式写入 0600 文件，只输出公开地址和目录，不部署、不发送交易。占位账户使用 6.0.0 Schnorr helper；owner/treasury/salts 沿用既有字段，但不是本地/测试网 initializerless 部署检查点。离线保存，正式启动前替换 admin 和 treasury，不将秘密粘贴进报告。
+
+```sh
+node --import tsx e2e/src/generate-placeholder-admin.ts
+```
+
+The template deliberately has null admin/treasury plus adminPlaceholder:true. Readiness rejects a copied placeholder even after its public address is supplied. It also requires protocol 7 and exactly 31536000 seconds for launch renewals. Supplying an address is supervisor work; implementation does not authorize publication or a public transaction.
+
+模板刻意保留 null 的 admin/treasury 和 adminPlaceholder:true。即使填入公开占位地址，readiness 仍拒绝带标记的占位管理员，并要求 protocol 7、launch 续期上限恰好 31536000 秒。提供地址由主管负责；实现工作不授权发布或公网交易。
