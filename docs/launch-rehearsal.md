@@ -1,0 +1,24 @@
+# Isolated V7 launch rehearsal on the Aztec 6 testnet
+
+This runner prepares an independent Registry V7, the frozen NameResolver, and NameRegistrarLaunch. It does not edit or reuse `deployments/testnet-v6.json`. The default is read-only, with no wallet creation, key loading, checkpoint creation or transaction submission:
+
+```sh
+umask 077
+npm run testnet:v7-launch-rehearsal -w ans-e2e -- --dry-run
+```
+
+The public configuration is `e2e/launch-rehearsal.json`. The plan checks Aztec 6.0.0, Sepolia chain 11155111, rollup version 679261766, the pinned rollup and Fee Juice portal, and real proving. It reads only public Fee Juice balances, Sepolia ETH balance and gas price. Estimates are planning allowances: the prior approximately 3.96 FJ per user registration is the only measured input; the deployment and per-call allocations are unmeasured. The ETH allowance covers mint, approve and deposit gas, assuming testnet mint-handler availability. It does not price Fee Juice in ETH.
+
+A supervisor must first create a **new**, owned, private checkpoint directory under `~/.local/share/ans/testnet-v7-launch-rehearsal-<suffix>`, generate independent testnet owner and treasury accounts with the existing offline key initializer, and bridge Fee Juice to both public addresses. The treasury account acts as the transfer recipient. Prior rehearsal balances shown in the plan do not fund these new accounts automatically. Do not reuse an existing deployment's keys or checkpoints. The old deployment CLI's `--network testnet-v6 --init-keys --state-dir <new-directory>` supports offline initialization; do not run its deployment path, which intentionally permits only Registry V6 on testnet.
+
+Only after separate authorization, rerun this planner with the intended `--state-dir`, then supply **both** `--send` and the exact printed `--confirm` value. This document does not authorize that action. There is no automatic bridging or key generation in the rehearsal runner. The send path requires existing private keys and positive public Fee Juice balances; account publication and any bridge claim setup are prerequisites, outside the rehearsal budget.
+
+The confirmed execution deploys fresh Registry V7, resolver and launch registrar, configures modules, seeds and verifies reservations, and resumes public registration. It registers a name of at least seven characters, selects a second holder-chosen NameResolver, writes through it, transfers the name, and verifies that the former resolver cannot write in the new generation. `evil_resolver_test` is explicitly a TXE-only fixture, so this testnet rehearsal uses the supported custom-resolver fallback. That probe establishes retired-resolver rejection; it does not establish the arbitrary forged-owner coverage of the local evil-resolver regression.
+
+Reserved and short public names must fail SDK preflight with their specific error codes. The administrator commits and mints a short name directly to the recipient. Pause must reject public preparation, and resume must restore the live policy. Negative probes use simulation or SDK preflight, without paid reverted transactions; they do not replace the contract or local chain regressions.
+
+Quote windows of 60, 120, 180, 240 and 300 seconds are tested through read-only SDK preparation. The SDK requires 300 seconds remaining before commit, so the shorter windows are expected to fail before sending. The actual registration uses the normal 86400-second quote. Its elapsed time from commit submission preparation to L1 checkpoint is recorded separately from the subsequent wait for a proven receipt. The report computes each short window's remaining lifetime after both checkpoint latency and the 60-second minimum commit age, and compares it with the 60-second reveal margin. These are measured margins, not attempts to broadcast five short-lived commitments. A resumed measurement may include downtime; inspect its original start timestamp before interpreting latency.
+
+The private `rehearsal-checkpoint.json` contains registration recovery material and must remain outside the repository. `rehearsal-report.json` exposes only addresses, class IDs, transaction hashes, verified completion history, receipt fees and quote measurements. The runner locks the directory and persists each computed hash **before** forwarding `sendTx`. On resume it checks all saved receipts, then resumes hashes instead of creating new transactions. Reverted, dropped, timed-out and ambiguous hashes are retained; operator investigation is required. A completed historical step rechecks its receipt without repeating state assertions superseded by later transfers or pause changes.
+
+This script has unit coverage for planning, dry-run method restrictions and confirmation refusal. A successful dry-run or local fixture is not real-proof acceptance. Record actual testnet results only after a separately authorized run.
