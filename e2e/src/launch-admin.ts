@@ -8,6 +8,7 @@ import { createAztecNodeClient } from '@aztec-labs/aztec.js/node';
 import { getPublicEvents, type EventCursor } from '@aztec-labs/aztec.js/events';
 import { deriveStorageSlotInMap } from '@aztec-labs/stdlib/hash';
 import { RegistryReader, NameRegistrarLaunchContract, runTx, configureModules, assertRegistrableLabel, registerCommitment, hashWithSeparator, normalizeName, nodeOf, SECONDS_PER_YEAR, type AnsContext } from '@ans/sdk';
+import { executeLaunchSwitch, type SwitchState } from './launch-switch.js';
 import { loadReservedList, canonicalReservedLabels, reservedNodes, reservedBatches, reservedListHash, reservationParity, verifyReservations } from './launch-policy.js';
 
 export type LaunchAction = {kind:'reserve';labels:string[];reserved:boolean} | {kind:'minimum';length:number} | {kind:'pause';paused:boolean} | {kind:'mint';name:string;recipient:string};
@@ -82,15 +83,49 @@ export async function copyLaunchPolicy(ctx:AnsContext,to:AztecAddress,labels:str
   await send(c=>c.methods.set_paused(config.launch!.paused));
   return {dryRun:false,verified:true,from:from.toString(),to:to.toString(),reservedListHash:reservedListHash(labels)};
 }
-/** Only switches after copy/readback succeeds. The replacement instance must have an identical immutable renewal cap. */
-export async function switchLaunchRegistrar(ctx:AnsContext,to:AztecAddress,labels:string[],options:{broadcast?:boolean}={}) {
-  const copy=await copyLaunchPolicy(ctx,to,labels,options);
-  if(!options.broadcast)return copy;
-  assert('verified' in copy&&copy.verified,'Reservation verification required');
-  const modules=await ctx.reader.getModules();
-  assert.equal(modules.registrar.toString(),copy.from,'Active registrar changed during copy');
-  await configureModules(ctx,{registrar:to,resolver:modules.resolver});
-  return copy;
+/** Fresh pinned public policy and complete reservation union, including events added during copying. */
+async function readSwitchState(ctx:AnsContext,address:AztecAddress,sources:AztecAddress[],labels:string[]):Promise<SwitchState> {
+  const snap=await ctx.reader.snapshot();
+  const policy=await ctx.queue.run(async()=>{
+    await ctx.assertWalletNetwork();
+    const c=await target(ctx,address);
+    const p=(await c.methods.get_policy().simulate({from:ctx.account})).result;
+    const cap=(await c.methods.get_max_renew_ahead().simulate({from:ctx.account})).result;
+    return {minPublicLength:Number(p.min_public_length),paused:p.paused,maxRenewAhead:BigInt(cap)};
+  });
+  const events:{node:bigint;reserved:boolean}[]=[];
+  for(const source of sources) {
+    let after:EventCursor|undefined;
+    do {
+      const page:Awaited<ReturnType<typeof getPublicEvents<{node:bigint;reserved:boolean}>>>=await getPublicEvents(ctx.reader.node,NameRegistrarLaunchContract.events.ReservedChanged,{contractAddress:source,toBlock:BlockNumber(snap.blockNumber+1),afterEvent:after});
+      events.push(...page.events.map(({event})=>({node:BigInt(event.node),reserved:event.reserved})));after=page.nextCursor;
+    }while(after);
+  }
+  const entries=await reservationParity(await reservedNodes(labels),events,async node=>{
+    const slot=await deriveStorageSlotInMap(NameRegistrarLaunchContract.storage.reserved.slot,new Fr(node));
+    return (await ctx.reader.node.getPublicStorageAt(BlockNumber(snap.blockNumber),address,slot)).toBigInt()!==0n;
+  });
+  // The union can grow while copying the old map to a previously populated replacement.
+  // Include false entries too: they are necessary to erase stale replacement reservations.
+  return {policy,entries};
+}
+/** Pause the old instance by default; aborts expose an explicit operator recovery plan. */
+export async function switchLaunchRegistrar(ctx:AnsContext,to:AztecAddress,labels:string[],options:{broadcast?:boolean;pauseOldDuringSwitch?:boolean}={}) {
+  if(!options.broadcast)return {...await copyLaunchPolicy(ctx,to,labels,options),pauseOldDuringSwitch:options.pauseOldDuringSwitch!==false,
+    resumePlan:'On abort inspect active module and policy before restoring the old pause state; successful switches leave the old registrar paused.'};
+  const from=(await ctx.reader.getModules()).registrar;
+  const result=await executeLaunchSwitch({
+    active:async()=>(await ctx.reader.getModules()).registrar.toString(),
+    read:address=>readSwitchState(ctx,AztecAddress.fromStringUnsafe(address),[from,to],labels),
+    pause:async(address,paused)=>{await runTx(ctx,async()=>(await target(ctx,AztecAddress.fromStringUnsafe(address))).methods.set_paused(paused),{preflight:true});},
+    copy:()=>copyLaunchPolicy(ctx,to,labels,{broadcast:true}),
+    configure:async()=>{
+      const modules=await ctx.reader.getModules();
+      assert(modules.registrar.equals(from),'Active registrar changed before configure');
+      await configureModules(ctx,{registrar:to,resolver:modules.resolver});
+    },
+  },from.toString(),to.toString(),options.pauseOldDuringSwitch!==false);
+  return {...result,verified:true,dryRun:false};
 }
 async function cli() {
   const args=process.argv.slice(2);assert(args.length===4,'Usage: launch-admin.ts <node-url> <registry> <action-json> <reserved-labels-json>; read-only preview');
