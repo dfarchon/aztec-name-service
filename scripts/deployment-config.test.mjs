@@ -639,3 +639,21 @@ test('template and readiness require reserved minLength to equal deployment minP
   assert(!mainnetTemplateProblems(root).includes(issue));
   assert(!mainnetBlockers(root).includes(issue));
 });
+
+test('mainnet rejects the published placeholder address even when its flag is false or absent', (t) => {
+  const { root } = fixture(t);
+  const admin = '0x2419a5bafa9cd88d6a625c21b96f16f79bf6e279253b1993609a3edc169f8c68';
+  for (const address of [admin, `0x${admin.slice(2).toUpperCase()}`]) {
+    for (const flag of [{}, { adminPlaceholder: false }, { adminPlaceholder: true }]) {
+      const manifest = { ...v6Canonical, network: 'mainnet', admin: address, ...flag };
+      writeFileSync(new URL('deployments/mainnet.json', root), JSON.stringify(manifest));
+      assert(mainnetBlockers(root).includes('admin placeholder'));
+      assert(v6ManifestProblems(manifest).includes('admin placeholder'));
+    }
+  }
+  writeFileSync(
+    new URL('deployments/mainnet.json', root),
+    JSON.stringify({ admin: v6Canonical.admin }),
+  );
+  assert(!mainnetBlockers(root).includes('admin placeholder'));
+});

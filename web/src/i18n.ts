@@ -1,9 +1,15 @@
+/** Chinese entries are available to bilingual consumers; the website defaults to English. */
+export const zh: Record<string, string> = {
+  'Use "Use default resolver" first, then set your address and primary name again.': '请先点击“使用默认解析器”，然后重新设置地址和主名称。',
+  'Go to resolver controls': '前往解析器设置',
+};
+
 export const dateLocale = () => "en-US";
 
 /** Translate presentation only; never translate protocol values, wallet aliases or user records. */
-export function translate(message: string | undefined, values: Record<string, string | number> = {}): string {
+export function translate(message: string | undefined, values: Record<string, string | number> = {}, language: 'en' | 'zh' = 'en'): string {
   if (!message) return "";
-  return message.replace(/\{(\w+)\}/g, (token, key: string) => Object.hasOwn(values, key) ? String(values[key]) : token);
+  return (language === 'zh' ? zh[message] ?? message : message).replace(/\{(\w+)\}/g, (token, key: string) => Object.hasOwn(values, key) ? String(values[key]) : token);
 }
 
 export function activityLabel(label: string) {

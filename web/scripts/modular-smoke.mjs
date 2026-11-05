@@ -25,11 +25,15 @@ try{
   },name);
   await wait('Resolver');pass('holder management exposes its resolver without an administrator panel');
   await page.evaluate(()=>{const f=window.moduleFixture;f.reader.inspectResolver=async()=>({address:f.reader.registry,verified:false,isDefault:false,reason:'unknown_class'});location.hash='/status';});
-  await wait('Contract modules');await page.evaluate(name=>{location.hash=`/manage/${name}`;},name);await wait('Unverified resolver: address records may be controlled by a third party');await wait('Use default resolver');pass('unknown resolver remains visible with a default-resolver recovery action');
+  await wait('Contract modules');await page.evaluate(name=>{location.hash=`/manage/${name}`;},name);await wait('Unverified resolver: address records may be controlled by a third party');await wait('Use default resolver');assert.equal(await page.$$eval('button',buttons=>buttons.find(b=>b.textContent.trim()==='Set primary name')?.disabled),true);
+  await wait('first, then set your address and primary name again.');
+  await page.$$eval('button.link',buttons=>buttons.find(b=>b.textContent.trim()==='Go to resolver controls').click());
+  assert(['use-default-resolver','resolver-controls'].includes(await page.evaluate(()=>document.activeElement?.id)));
+  pass('unknown resolver disables primary and links to default-resolver recovery');
   await page.evaluate(()=>{window.moduleFixture.reader.inspectResolver=async()=>{throw Error('fixture resolver read unavailable');};location.hash='/status';});
   await wait('Contract modules');await page.evaluate(name=>{location.hash=`/manage/${name}`;},name);await wait('Resolver');await wait('Use default resolver');
   assert.equal(await page.evaluate(()=>[...document.querySelectorAll('button')].find(e=>e.textContent.trim()==='Use default resolver')?.disabled),true);
-  await wait('Refresh contract status');pass('resolver read errors disable signing and offer retry');
+  await wait('Refresh contract status');assert.equal(await page.evaluate(()=>document.body.innerText.includes('Go to resolver controls')),false);pass('resolver read errors disable signing and offer retry without switch guidance');
   await page.evaluate(()=>{const f=window.moduleFixture;f.reader.inspectResolver=async()=>({address:f.reader.registry,verified:true,isDefault:false});});
   await click('Refresh contract status');await wait('Non-default resolver: review its address records.');
   assert.equal(await page.evaluate(()=>[...document.querySelectorAll('button')].find(e=>e.textContent.trim()==='Use default resolver')?.disabled),false);pass('successful retry restores the recovery action');

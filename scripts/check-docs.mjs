@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
-import { readFileSync, writeFileSync } from 'node:fs';
+import { readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { assertTemplateAdmin } from './docs-template.mjs';
 import { resolverTrustExample } from '../web/src/docs-examples.ts';
 import { articles, articleToMarkdown, sectionsFor, summaries } from '../web/src/docs-content.ts';
 
@@ -76,3 +77,10 @@ assert.deepEqual(
 console.log(
   `Checked ${articles.length} English articles and matching README examples; ${snippets} TypeScript snippets${destination ? ' staged for consumer compilation' : ''}`,
 );
+
+const template = JSON.parse(readFileSync('deployments/mainnet.template.json', 'utf8'));
+for (const path of ['README.md', 'docs/deploy-v6.md', 'docs/protocol.md', 'docs/sdk-onboarding.md'])
+  assertTemplateAdmin(readFileSync(path, 'utf8'), template, path);
+
+for (const path of readdirSync('docs', { recursive: true }).filter((path) => path.endsWith('.md')))
+  assertTemplateAdmin(readFileSync(join('docs', path), 'utf8'), template, path, false);

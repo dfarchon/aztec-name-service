@@ -32,6 +32,7 @@ export function ManagePage({ name }: { name: string }) {
   const [h, setH] = useState<Holding>();
   const [forward, setForward] = useState<AddressResolution>();
   const [primary, setCurrentPrimary] = useState(false);
+  const [resolverVerified, setResolverVerified] = useState<boolean | undefined>();
   const [primaryUntrusted, setPrimaryUntrusted] = useState(false);
   const [error, setError] = useState<string>();
   const [target, setTarget] = useState("");
@@ -51,6 +52,7 @@ export function ManagePage({ name }: { name: string }) {
     setForward(undefined);
     setCurrentPrimary(false);
     setPrimaryUntrusted(false);
+    setResolverVerified(undefined);
     if (ctx)
       ctx.reader.snapshot().then((snapshot) => Promise.allSettled([
         inspectHolding(ctx, name, { snapshot }),
@@ -59,7 +61,13 @@ export function ManagePage({ name }: { name: string }) {
       ]))
         .then(([holding, f, p]) => {
           if (live) {
-            if (holding.status === 'fulfilled') setH(holding.value);
+            if (holding.status === 'fulfilled') {
+              setH(holding.value);
+              if (!ctx.reader.modular) setResolverVerified(true);
+              else if (!(holding.value.isHolder && holding.value.status === 'active')) ctx.reader.inspectResolver(holding.value.node, holding.value.record.generation, holding.value.snapshot)
+                .then(result => { if (live) setResolverVerified(result.verified); })
+                .catch(() => { if (live) setResolverVerified(undefined); });
+            }
             if (f.status === 'fulfilled') setForward(f.value);
             if (p.status === 'fulfilled') {
               setPrimaryUntrusted(p.value.status === 'stale' && p.value.reason === 'untrusted_resolver');
@@ -248,10 +256,16 @@ export function ManagePage({ name }: { name: string }) {
               ? translate("Use this name as the default for your account.")
               : translate("Connect the wallet for the resolved address to confirm.")}
         </p>
+        {active && h.isHolder && resolverVerified === false && <p role="status">{translate('Use "Use default resolver" first, then set your address and primary name again.')} <button className="link" onClick={() => {
+          const control = document.getElementById("use-default-resolver") as HTMLButtonElement | null;
+          const target = control && !control.disabled ? control : document.getElementById("resolver-controls");
+          target?.scrollIntoView({ behavior: "smooth", block: "center" });
+          target?.focus({ preventScroll: true });
+        }}>{translate("Go to resolver controls")}</button></p>}
         <div className="row">
-          {isTarget && !primary && (
+          {(isTarget || (active && h.isHolder && !resolverVerified)) && !primary && (
             <button
-              disabled={tx.busy}
+              disabled={tx.busy || !isTarget || resolverVerified !== true}
               onClick={() =>
                 void tx.exec("Set primary name", async (onUpdate) => {
                   await setPrimary(ctx, { name }, { onUpdate });
@@ -277,7 +291,7 @@ export function ManagePage({ name }: { name: string }) {
       {!ctx.reader.extended && <p className="muted">{translate("This registry supports core names. Profiles, transfers, editors and subnames require V4.")} <a href="#/docs/deployments">{translate("Networks and versions")}</a></p>}
       {ctx.reader.extended && <Suspense fallback={<p>{translate("Loading records…")}</p>}><Extensions ctx={ctx} holding={h} onDone={done}/></Suspense>}
       <ShareName name={name} />
-      <NameModules holding={h} onDone={done} />
+      <NameModules holding={h} onDone={done} onResolverVerified={setResolverVerified} />
       <TxLine tx={tx} />
     </>
   );

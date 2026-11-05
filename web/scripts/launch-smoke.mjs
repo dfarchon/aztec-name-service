@@ -35,6 +35,73 @@ try {
  await page.$$eval('button',buttons=>buttons.find(b=>b.textContent.trim()==='Refresh').click());
  await page.waitForFunction(()=>[...document.querySelectorAll('button')].some(b=>b.textContent.trim()==='Confirm renewal'&&!b.disabled));
  assert.equal(await page.evaluate(()=>document.body.innerText.includes('Renewable from')),false);pass('refreshing an uncapped quote enables renewal without signing');
+ await page.evaluate(()=>{
+   const f=window.launchFixture;
+   f.reader.inspectResolver=async()=>({address:f.reader.registry,verified:false,isDefault:false,reason:'unknown_class'});
+   location.hash='/status';
+ });
+ await wait('Contract modules');await page.evaluate(()=>{location.hash='/manage/seventh';});
+ await wait('Go to resolver controls');
+ assert.equal(await page.$$eval('button',buttons=>buttons.find(b=>b.textContent.trim()==='Set primary name')?.disabled),true);
+ await page.$$eval('button',buttons=>buttons.find(b=>b.textContent.trim()==='Go to resolver controls').click());
+ assert(['use-default-resolver','resolver-controls'].includes(await page.evaluate(()=>document.activeElement?.id)));
+ pass('unverified resolver disables primary and recovery guidance focuses resolver controls');
+ await page.evaluate(()=>{
+  const f=window.launchFixture;
+  f.reader.inspectResolver=async()=>({address:f.reader.registry,verified:true,isDefault:false});
+  f.reader.getAddress=async()=>({present:true,addr:f.session.getSession().ctx.account,bindingVersion:1});
+  location.hash='/status';
+ });
+ await wait('Contract modules');await page.evaluate(()=>{location.hash='/manage/seventh';});
+ await page.waitForFunction(()=>[...document.querySelectorAll('button')].some(b=>b.textContent.trim()==='Set primary name'&&!b.disabled));
+ assert.equal(await page.evaluate(()=>document.body.innerText.includes('Go to resolver controls')),false);
+ pass('verified resolver with matching address enables primary');
+ // Keep unresolved reads pending so loading cannot accidentally be treated as unverified.
+ await page.evaluate(()=>{
+  const f=window.launchFixture;
+  f.reader.inspectResolver=()=>document.getElementById('resolver-controls') ? new Promise(()=>{}) : Promise.resolve({address:f.reader.registry,verified:true,isDefault:false});
+  location.hash='/status';
+ });
+ await wait('Contract modules');await page.evaluate(()=>{location.hash='/manage/seventh';});
+ await wait('Resolver');
+ assert.equal(await page.$$eval('button',buttons=>buttons.find(b=>b.textContent.trim()==='Set primary name')?.disabled),true);
+ assert.equal(await page.evaluate(()=>document.body.innerText.includes('Go to resolver controls')),false);
+ pass('pending resolver verification disables primary without premature switch guidance');
+ await page.evaluate(()=>{window.launchFixture.reader.inspectResolver=async()=>{throw Error('fixture resolver unavailable');};location.hash='/status';});
+ await wait('Contract modules');await page.evaluate(()=>{location.hash='/manage/seventh';});
+ await wait('Refresh contract status');
+ assert.equal(await page.$$eval('button',buttons=>buttons.find(b=>b.textContent.trim()==='Set primary name')?.disabled),true);
+ assert.equal(await page.evaluate(()=>document.body.innerText.includes('Go to resolver controls')),false);
+ pass('resolver RPC failure remains unknown and does not recommend a disabled switch');
+ await page.evaluate(()=>{
+  const f=window.launchFixture;
+  f.reader.inspectResolver=async()=>({address:f.reader.registry,verified:false,isDefault:false,reason:'unknown_class'});
+  f.reader.getName=async()=>({generation:1,revision:0,expiresAt:(await f.reader.snapshot()).timestamp+1000n,owner:f.reader.registry.constructor.ZERO});
+  location.hash='/status';
+ });
+ await wait('Contract modules');await page.evaluate(()=>{location.hash='/manage/seventh';});
+ await wait('Owner');
+ assert.equal(await page.evaluate(()=>document.body.innerText.includes('Go to resolver controls')),false);
+ pass('non-holder receives no resolver recovery link');
+ await page.evaluate(()=>{
+  const f=window.launchFixture;
+  f.reader.getName=async()=>({generation:1,revision:0,expiresAt:(await f.reader.snapshot()).timestamp-1n,owner:f.session.getSession().ctx.account});
+  location.hash='/status';
+ });
+ await wait('Contract modules');await page.evaluate(()=>{location.hash='/manage/seventh';});
+ await wait('Expired · Renewable');
+ assert.equal(await page.evaluate(()=>document.body.innerText.includes('Go to resolver controls')),false);
+ pass('grace holder receives no resolver recovery link');
+ await page.evaluate(()=>{
+  const f=window.launchFixture;
+  f.reader.getName=async()=>({generation:1,revision:0,expiresAt:(await f.reader.snapshot()).timestamp-31n*86400n,owner:f.session.getSession().ctx.account});
+  location.hash='/status';
+ });
+ await wait('Contract modules');await page.evaluate(()=>{location.hash='/manage/seventh';});
+ await wait('Available to register again');
+ assert.equal(await page.evaluate(()=>document.body.innerText.includes('Go to resolver controls')),false);
+ pass('expired holder receives no resolver recovery link');
+
  await page.setViewport({width:390,height:844});assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));assert.equal(broadcasts,0);assert.deepEqual(errors,[]);pass('mobile layout, no runtime errors or broadcasts');
  console.log(`ALL ${count} LAUNCH UI CHECKS PASSED`);
 } finally {await browser.close();}

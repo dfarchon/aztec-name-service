@@ -1,3 +1,4 @@
+import { isPlaceholderAdmin } from './mainnet-readiness.mjs';
 import { createHash } from 'node:crypto';
 import { readFileSync, realpathSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
@@ -248,7 +249,7 @@ export function v6ManifestProblems(m, { expectNetwork } = {}) {
   }
   if (m.network === 'mainnet') {
     check(m.protocol === 7, 'mainnet requires protocol 7');
-    check(m.adminPlaceholder !== true, 'admin placeholder');
+    check(m.adminPlaceholder !== true && !isPlaceholderAdmin(m.admin), 'admin placeholder');
     if (launch) check(m.maxRenewAhead === '31536000', 'mainnet maxRenewAhead must be 31536000');
     check(fee === 'fee-juice', 'v6 mainnet feePayment');
     for (const key of ['chainId', 'rollupVersion', 'rollup', 'realProofs'])
