@@ -73,12 +73,12 @@ try {
   await page.evaluate(() => { location.hash = '/register/review-name'; });
   await page.waitForFunction(() => ![...document.querySelectorAll('button')].some(b => b.textContent.trim() === 'Start registration'));
   pass('an existing registration hides the duplicate start form');
-  await wait('Pay and register');
-  assert.ok(await hasButton('Pay and register'));
+  await wait('Register for free');
+  assert.ok(await hasButton('Register for free'));
   pass('valid ready plan offers registration');
   await page.evaluate(() => { window.review.mode = 'offline'; });
   await wait('Unable to read the network');
-  assert.ok(!(await hasButton('Pay and register')));
+  assert.ok(!(await hasButton('Register for free')));
   pass('failed status refresh removes stale payment action');
   await page.evaluate(async () => {
     window.review.mode = 'missing';
@@ -94,7 +94,7 @@ try {
     await recordWriter(getSession().ctx)(r => ({ ...r, plans: r.plans.map(p => ({ ...p, registerTx: 'known-register' })) }));
   });
   await wait('Check registration transaction');
-  assert.ok(!(await hasButton('Pay and register')));
+  assert.ok(!(await hasButton('Register for free')));
   pass('known registration hash blocks another payment');
   const afterSlowSave = await page.evaluate(async () => {
     const { getSession, recordWriter, rememberRegistrationProgress } = window.reviewSession;
@@ -137,7 +137,7 @@ try {
   assert.ok(retained.rejected);
   assert.equal(retained.hash, '0x' + 'a'.repeat(64));
   await wait(retained.hash);
-  assert.ok(!(await hasButton('Pay and register')));
+  assert.ok(!(await hasButton('Register for free')));
   pass('broadcast hash survives save failure in memory and ignores another account');
   await page.setViewport({ width: 390, height: 844 });
   assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth));

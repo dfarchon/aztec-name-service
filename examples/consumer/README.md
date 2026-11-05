@@ -180,3 +180,26 @@ Before each write, the SDK reads the current registration generation and revisio
 | `unknown_tx_state`                 | Check the stored hash or `broadcastUnknown` as described in Plan storage and recovery. |
 | `wallet_rejected`                  | Retain the plan and let the user retry wallet approval.                                |
 | `unsupported` / `wrong_deployment` | Verify the network, contract class and SDK version before signing.                     |
+
+## Launch registration policy
+
+`registration.ts` (`inspectLaunch`) reads public policy and a one-year quote without broadcasting. A free quote creates no token AuthWit and reads no private token balance. Eligibility is `open`, `too_short`, `reserved` or `paused`; the SDK rechecks before commit/reveal. Encrypted recovery data is separate from chain ownership, and an RPC exception is not a reverted receipt.
+
+```typescript
+import type { RegistryReader } from '@ans/sdk/read';
+import { getFeeQuote } from '@ans/sdk';
+
+/** Read live public policy. This reserves nothing and does not open a wallet. */
+export async function inspectLaunch(reader: RegistryReader, name: string) {
+  const snapshot = await reader.snapshot();
+  const config = await reader.getConfig(snapshot);
+  const eligibility = await reader.eligibility(name, snapshot);
+  const quote = await getFeeQuote(reader, {
+    operation: 'register',
+    duration: 31536000n,
+    labelLength: name.length,
+    snapshot,
+  });
+  return { launch: config.launch, eligibility, quote, needsTokenAuthorization: quote.fee > 0n };
+}
+```

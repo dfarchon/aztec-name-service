@@ -1,7 +1,7 @@
 import { lazy, Suspense } from "react";
 import { SetupChecklist, ShareName } from "../NameExtras";
 const Extensions = lazy(() => import("./Extensions").then(m => ({ default: m.Extensions })));
-import { translate } from "../i18n";
+import { translate, renewalWindowHint } from "../i18n";
 import {
   clearAddress,
   clearPrimary,
@@ -32,6 +32,8 @@ export function ManagePage({ name }: { name: string }) {
   const [h, setH] = useState<Holding>();
   const [forward, setForward] = useState<AddressResolution>();
   const [primary, setCurrentPrimary] = useState(false);
+  const [resolverVerified, setResolverVerified] = useState<boolean | undefined>();
+  const [primaryUntrusted, setPrimaryUntrusted] = useState(false);
   const [error, setError] = useState<string>();
   const [target, setTarget] = useState("");
   const [years, setYears] = useState(1);
@@ -40,7 +42,8 @@ export function ManagePage({ name }: { name: string }) {
   const [quoteRevision, refreshQuote] = useState(0);
   const [revision, refresh] = useState(0);
   const canRenew = !!h?.isHolder && !h.label.parent && (h.status === "active" || h.status === "grace");
-  const balance = useFeeBalance(ctx, canRenew ? quote?.feeToken.toString() : undefined);
+  const renewalTooEarly = quote?.renewableAt !== undefined && quote.snapshot.timestamp < quote.renewableAt;
+  const balance = useFeeBalance(ctx, canRenew && quote && quote.fee > 0n ? quote.feeToken.toString() : undefined);
   const tx = useTx();
   useEffect(() => {
     let live = true;
@@ -48,19 +51,30 @@ export function ManagePage({ name }: { name: string }) {
     setError(undefined);
     setForward(undefined);
     setCurrentPrimary(false);
+    setPrimaryUntrusted(false);
+    setResolverVerified(undefined);
     if (ctx)
-      ctx.reader.snapshot().then((snapshot) => Promise.all([
+      ctx.reader.snapshot().then((snapshot) => Promise.allSettled([
         inspectHolding(ctx, name, { snapshot }),
         resolveAddress(ctx.reader, name, { snapshot }),
         resolvePrimary(ctx.reader, ctx.account, snapshot),
       ]))
         .then(([holding, f, p]) => {
           if (live) {
-            setH(holding);
-            setForward(f);
-            setCurrentPrimary(
-              p.status === "verified" && p.name === holding.label.label,
-            );
+            if (holding.status === 'fulfilled') {
+              setH(holding.value);
+              if (!ctx.reader.modular) setResolverVerified(true);
+              else if (!(holding.value.isHolder && holding.value.status === 'active')) ctx.reader.inspectResolver(holding.value.node, holding.value.record.generation, holding.value.snapshot)
+                .then(result => { if (live) setResolverVerified(result.verified); })
+                .catch(() => { if (live) setResolverVerified(undefined); });
+            }
+            if (f.status === 'fulfilled') setForward(f.value);
+            if (p.status === 'fulfilled') {
+              setPrimaryUntrusted(p.value.status === 'stale' && p.value.reason === 'untrusted_resolver');
+              setCurrentPrimary(p.value.status === 'verified' && holding.status === 'fulfilled' && p.value.name === holding.value.label.label);
+            }
+            const failed = [holding, f, p].find(result => result.status === 'rejected');
+            if (failed?.status === 'rejected') setError(errorMessage(failed.reason));
           }
         })
         .catch((e) => {
@@ -77,6 +91,7 @@ export function ManagePage({ name }: { name: string }) {
     if (ctx && canRenew)
       getFeeQuote(ctx.reader, {
         operation: "renew",
+        expiresAt: h?.record.expiresAt,
         duration: BigInt(years) * YEAR,
         labelLength: h?.label.len,
       })
@@ -89,9 +104,9 @@ export function ManagePage({ name }: { name: string }) {
     return () => {
       live = false;
     };
-  }, [ctx, years, revision, quoteRevision, canRenew, h?.label.len]);
+  }, [ctx, years, revision, quoteRevision, canRenew, h?.label.len, h?.record.expiresAt]);
   if (!ctx) return <NeedsAccount />;
-  if (error)
+  if (error && !h)
     return (
       <Card tone="err">
         {translate(error)}
@@ -114,6 +129,9 @@ export function ManagePage({ name }: { name: string }) {
   const done = () => refresh((n) => n + 1);
   return (
     <>
+      {error && <Card tone="err"><p role="alert">{translate(error)}</p><button onClick={() => refresh(n => n + 1)}>{translate("Refresh")}</button></Card>}
+      {primaryUntrusted && <Card tone="err"><p role="alert">{translate("Your primary name uses an unverified resolver.")}</p></Card>}
+
       <Card title={<CopyValue value={h.label.label} label={translate("Copy name")} />}>
         <SetupChecklist registered={active} address={forward?.status === "resolved"} primary={primary} />
         <dl>
@@ -127,8 +145,10 @@ export function ManagePage({ name }: { name: string }) {
           <dd>{h.record.expiresAt ? date(h.record.expiresAt) : "—"}</dd>
           <dt>{translate("Resolved address")}</dt>
           <dd>
-            {forward?.status === "resolved" ? (
+            {!forward ? translate("Address status unavailable") : forward.status === "resolved" ? (
               <CopyValue value={forward.address.toString()} label={translate("Copy resolved address")} />
+            ) : forward?.status === "untrusted_resolver" ? (
+              <span role="alert">{translate("Unverified resolver: address records may be controlled by a third party")}</span>
             ) : active ? (
               translate("Not set")
             ) : (
@@ -191,7 +211,7 @@ export function ManagePage({ name }: { name: string }) {
               value={years}
               onChange={(e) => setYears(Number(e.target.value))}
             >
-              {[1, 2, 3, 4, 5].map((y) => (
+              {(quote?.launch ? [1] : [1, 2, 3, 4, 5]).map((y) => (
                 <option key={y} value={y}>
                   {y} {y === 1 ? translate("year") : translate("years")}
                 </option>
@@ -201,7 +221,7 @@ export function ManagePage({ name }: { name: string }) {
               {quote ? <FeeAmount amount={quote.fee} token={quote.feeToken.toString()} /> : quoteError ? "—" : translate("Searching…")}
             </span>
             <button
-              disabled={tx.busy || !quote || quote.duration !== BigInt(years) * YEAR || (quote.fee > 0n && (balance.balance === undefined || balance.balance < quote.fee))}
+              disabled={tx.busy || renewalTooEarly || !quote || quote.duration !== BigInt(years) * YEAR || (quote.fee > 0n && (balance.balance === undefined || balance.balance < quote.fee))}
               onClick={() =>
                 void tx.exec("Renew", async (onUpdate) => {
                   await renew(
@@ -222,6 +242,8 @@ export function ManagePage({ name }: { name: string }) {
               }
             >{translate("Confirm renewal")}</button>
           </div>
+          {quote?.launch && <p className="muted">{renewalWindowHint(quote.launch.maxRenewAhead)}</p>}
+          {renewalTooEarly && <p role="status">Renewable from {date(quote!.renewableAt!)}. Refresh the quote once this date is reached. <button className="ghost" onClick={() => refreshQuote(n => n + 1)}>{translate("Refresh")}</button></p>}
           {quote && <FeeBalance amount={quote.fee} token={quote.feeToken.toString()} read={balance} />}
               {quoteError && <p role="alert" className="err">{translate(quoteError)} <button className="ghost" onClick={() => refreshQuote(n => n + 1)}>{translate("Refresh")}</button></p>}
         </Card>
@@ -234,10 +256,16 @@ export function ManagePage({ name }: { name: string }) {
               ? translate("Use this name as the default for your account.")
               : translate("Connect the wallet for the resolved address to confirm.")}
         </p>
+        {active && h.isHolder && resolverVerified === false && <p role="status">{translate('Use "Use default resolver" first, then set your address and primary name again.')} <button className="link" onClick={() => {
+          const control = document.getElementById("use-default-resolver") as HTMLButtonElement | null;
+          const target = control && !control.disabled ? control : document.getElementById("resolver-controls");
+          target?.scrollIntoView({ behavior: "smooth", block: "center" });
+          target?.focus({ preventScroll: true });
+        }}>{translate("Go to resolver controls")}</button></p>}
         <div className="row">
-          {isTarget && !primary && (
+          {(isTarget || (active && h.isHolder && !resolverVerified)) && !primary && (
             <button
-              disabled={tx.busy}
+              disabled={tx.busy || !isTarget || resolverVerified !== true}
               onClick={() =>
                 void tx.exec("Set primary name", async (onUpdate) => {
                   await setPrimary(ctx, { name }, { onUpdate });
@@ -263,7 +291,7 @@ export function ManagePage({ name }: { name: string }) {
       {!ctx.reader.extended && <p className="muted">{translate("This registry supports core names. Profiles, transfers, editors and subnames require V4.")} <a href="#/docs/deployments">{translate("Networks and versions")}</a></p>}
       {ctx.reader.extended && <Suspense fallback={<p>{translate("Loading records…")}</p>}><Extensions ctx={ctx} holding={h} onDone={done}/></Suspense>}
       <ShareName name={name} />
-      <NameModules holding={h} onDone={done} />
+      <NameModules holding={h} onDone={done} onResolverVerified={setResolverVerified} />
       <TxLine tx={tx} />
     </>
   );

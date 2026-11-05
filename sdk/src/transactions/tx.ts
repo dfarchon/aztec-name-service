@@ -36,7 +36,7 @@ export type TxUpdate = {
 export type TxOptions = {
   onUpdate?: (u: TxUpdate) => void;
   /**
-   * Simulate before handing the call to the wallet. Off by default: wallets built on aztec.js (e.g. EmbeddedWallet)
+   * Simulate before handing the call to the wallet. Launch reveals default to true; other calls default to false. Wallets built on aztec.js (e.g. EmbeddedWallet)
    * already simulate inside `sendTx` to estimate gas, so a second simulation only adds latency. Turn it on for a
    * wallet that proves without simulating first, to surface contract errors before any proof is made.
    */

@@ -37,9 +37,11 @@ try {
   const userKey = randomKeys(), user = (await wallet.createSchnorrInitializerlessAccount(userKey.secret, userKey.salt, userKey.signingKey)).address;
   const reader = await RegistryReader.connect(node, AztecAddress.fromStringUnsafe(manifest.registry));
   const { artifacts } = await v6Artifacts(manifest.feeTokenSource, manifest.registrarKind);
-  const tokenAddress = AztecAddress.fromStringUnsafe(manifest.feeToken), tokenInstance = await node.getContract(tokenAddress); assert(tokenInstance);
-  await wallet.registerContract(tokenInstance, artifacts.token);
-  const token = await Contract.at(tokenAddress, artifacts.token, wallet);
+  const free=manifest.feeTokenSource==='none';
+  const tokenAddress = AztecAddress.fromStringUnsafe(manifest.feeToken);
+  const tokenInstance=free?undefined:await node.getContract(tokenAddress);
+  if(!free) {assert(tokenInstance);await wallet.registerContract(tokenInstance,artifacts.token);}
+  const token = free?undefined:await Contract.at(tokenAddress,artifacts.token,wallet);
   const treasury = AztecAddress.fromStringUnsafe(manifest.treasury);
   // The manifest and node have both passed local-network checks before private keys are read.
   if (!treasury.equals(admin)) {
@@ -50,9 +52,9 @@ try {
     assert(restored.equals(treasury), 'Rehearsal treasury account mismatch');
   }
   const ctx = new AnsContext(reader, { wallet, account: user, fee });
-  await ctx.ensureRegistered({ feeToken: { address: tokenAddress, artifact: artifacts.token } });
-  await token.methods.mint_to_private(user, BigInt(manifest.annualPrice) * 1000n).send({ from: admin, fee });
-  const balance = async (a: AztecAddress) => BigInt((await token.methods.balance_of_private(a).simulate({ from: a })).result as bigint);
+  await ctx.ensureRegistered(free?{}:{ feeToken: { address: tokenAddress, artifact: artifacts.token } });
+  if(token) await token.methods.mint_to_private(user, BigInt(manifest.annualPrice) * 1000n).send({ from: admin, fee });
+  const balance = async (a: AztecAddress) => token?BigInt((await token.methods.balance_of_private(a).simulate({ from: a })).result as bigint):0n;
   const check = (name: string, ok: unknown) => { assert(ok, name); console.log(`PASS ${name}`); };
   const year = 31536000n;
   const core = NameRegistryV6Contract.at(reader.registry, wallet);
@@ -75,14 +77,14 @@ try {
     check(`${name} exact registration debit and treasury credit`, before - await balance(user) === expected && await balance(treasury) - received === expected);
     check(`${name} owner`, (await getAvailability(reader, name)).record.owner.equals(user));
   };
-  const name = `v6-${Date.now().toString(36)}`;
+  const name = `v6-${Date.now().toString(36)}`.padEnd(manifest.minPublicLength??3,'a');
   await register(name, BigInt(manifest.annualPrice));
   await setAddress(ctx, { name, address: user });
   const resolved = await resolveAddress(reader, name);
   check('resolver address record', resolved.status === 'resolved' && resolved.address.equals(user));
   const before = await balance(user), received = await balance(treasury), previous = (await getAvailability(reader, name)).record;
   const expiry = previous.expiresAt;
-  if (manifest.registrarKind === 'tiered') {
+  if (manifest.registrarKind !== 'flat') {
     const holding = await inspectHolding(ctx, name);
     assert(holding.record.owner.equals(user));
     const quote = await getFeeQuote(reader, { operation: 'renew', duration: year, labelLength: holding.label.len, snapshot: holding.snapshot });
@@ -100,6 +102,6 @@ try {
     let short: string;
     do { short = `v${Math.random().toString(36).slice(2, 5).padEnd(3, '0')}`; } while (!(await getAvailability(reader, short)).available);
     await register(short, BigInt(manifest.lengthPrices!['4']));
-  } else check('flat four-character price', (await getFeeQuote(reader, { operation: 'register', duration: year, labelLength: 4 })).fee === BigInt(manifest.annualPrice));
+  } else if(manifest.registrarKind==='flat') check('flat four-character price', (await getFeeQuote(reader, { operation: 'register', duration: year, labelLength: 4 })).fee === BigInt(manifest.annualPrice));
   console.log(`ALL ${manifest.registrarKind} MANIFEST E2E CHECKS PASSED`);
 } finally { await wallet.stop(); unlock(); process.removeListener('exit', unlock); }

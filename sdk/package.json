@@ -20,8 +20,12 @@
       "default": "./dist/read.js"
     },
     "./contracts/v6": {
-      "types": "./dist/artifacts/NameRegistryV6.d.ts",
-      "default": "./dist/artifacts/NameRegistryV6.js"
+      "types": "./dist/contracts-v6.d.ts",
+      "default": "./dist/contracts-v6.js"
+    },
+    "./contracts/v7": {
+      "types": "./dist/contracts-v7.d.ts",
+      "default": "./dist/contracts-v7.js"
     }
   },
   "files": [

@@ -66,3 +66,49 @@ test("fee data outside the commitment is checked before asking the wallet for au
   await assert.rejects(submitRegistration(ctx, { ...plan, fee: 1n }),
     (e: AnsError) => e.code === "corrupt_data");
 });
+
+test('L-03 commit at quote expiry minus 90 is rejected before wallet submission', async () => {
+  const { ctx, plan, snapshot } = await fixture();
+  snapshot.timestamp = plan.quoteExpiry - 90n;
+  await assert.rejects(submitCommit(ctx, plan), (e: AnsError) => e.code === 'quote_expired');
+});
+
+test('L-03 exactly 300 seconds permits commit and remains revealable after the minimum age', async () => {
+  const { ctx, reader, plan, commit, snapshot } = await fixture();
+  const { TxHash, TxStatus } = await import('@aztec-labs/aztec.js/tx');
+  const hash = TxHash.random(); let sends = 0;
+  Object.assign(ctx, {
+    signer: {}, queue: { run: async (fn: () => unknown) => fn() }, assertWalletNetwork: async () => {},
+    registrationContract: async () => ({ methods: { commit: () => ({ send: async () => { sends++; return { txHash: hash }; } }) } }),
+  });
+  Object.assign(reader, { node: { getTxReceipt: async () => ({ status: TxStatus.CHECKPOINTED, blockNumber: 10, hasExecutionReverted: () => false }) } });
+  snapshot.timestamp = plan.quoteExpiry - 300n;
+  await submitCommit(ctx, plan);
+  assert.equal(sends, 1);
+  commit.committedAt = snapshot.timestamp;
+  snapshot.timestamp += 60n;
+  assert.equal((await checkRegistration(reader, plan)).state, 'ready_to_register');
+});
+
+test('L-03 audit boundary: an old commit made at expiry minus 90 cannot reveal 60 seconds later', async () => {
+  const { reader, plan, commit, snapshot } = await fixture();
+  commit.committedAt = plan.quoteExpiry - 90n;
+  snapshot.timestamp = commit.committedAt + 60n;
+  assert.equal((await checkRegistration(reader, plan)).state, 'quote_expired');
+});
+
+test('L-03 plan creation rejects insufficient quote lifetime and accepts exactly 300 seconds', async () => {
+  const { ctx } = await fixture();
+  await assert.rejects(prepareRegistration(ctx, { name: 'alice', duration: 31536000n, quoteValiditySeconds: 299n }), (e: AnsError) => e.code === 'quote_expired');
+  const plan = await prepareRegistration(ctx, { name: 'alice', duration: 31536000n, quoteValiditySeconds: 300n });
+  assert.equal(plan.quoteExpiry, 1300n);
+});
+
+for (const remaining of [179n, 180n, 299n]) {
+  test(`L-03 commit with ${remaining} seconds left is rejected before wallet submission`, async () => {
+    const { ctx, plan, snapshot } = await fixture();
+    snapshot.timestamp = plan.quoteExpiry - remaining;
+    await assert.rejects(submitCommit(ctx, plan), (e: AnsError) => e.code === 'quote_expired');
+    await assert.rejects(prepareRegistration(ctx, { name: 'alice', duration: 31536000n, quoteValiditySeconds: remaining }), (e: AnsError) => e.code === 'quote_expired');
+  });
+}

@@ -88,7 +88,7 @@ function RegistrationPreparation() {
           {translate('Retry fee quote')}
         </button>
       )}
-      <RegistrationFunding />
+      <RegistrationFunding free={quote?.fee === 0n} />
       <a href="#/docs/getting-started">{translate('Wallet and testnet setup')}</a>
     </Card>
   );
@@ -116,19 +116,19 @@ function PriceTiers({ quote }: { quote: FeeQuote }) {
   );
 }
 
-function RegistrationFunding() {
+function RegistrationFunding({ free = false }: { free?: boolean }) {
   return (
     <>
-      <p className="muted">
+      {!free && <p className="muted">
         {translate(
           'Registration uses the payment token shown here. Fee Juice does not pay this registration fee.',
         )}
-      </p>
+      </p>}
       {config.feePayment === 'sponsored' && (
         <p className="muted">{translate('Network fees are sponsored for this app.')}</p>
       )}
       {config.feePayment === 'fee-juice' && <p className="muted">{translate("Network fees are paid from this account's Fee Juice.")}</p>}
-      {config.network === 'testnet-v6' && (
+      {!free && config.network === 'testnet-v6' && (
         <p className="warn">
           {translate(
             'Use a test account funded in the exact payment token shown in the quote. Fee Juice and other tokens with the same symbol cannot pay registration fees.',
@@ -148,7 +148,8 @@ function NewRegistration({ initial }: { initial?: string }) {
   const [error, setError] = useState<string>();
   const [quoteRevision, retryQuote] = useState(0);
   const tx = useTx();
-  const balance = useFeeBalance(ctx, quote?.feeToken.toString());
+  const balance = useFeeBalance(ctx, quote && quote.fee > 0n ? quote.feeToken.toString() : undefined);
+  const [eligibility, setEligibility] = useState<'open'|'too_short'|'reserved'|'paused'>('open');
 
   let label: string | undefined;
   let labelError: string | undefined;
@@ -172,14 +173,19 @@ function NewRegistration({ initial }: { initial?: string }) {
     let live = true;
     setQuote(undefined);
     setError(undefined);
-    getFeeQuote(ctx.reader, {
+    setEligibility('open');
+    void (async () => {
+      const policy = await ctx.reader.getConfig();
+      const lease = policy.launch ? YEAR : BigInt(years) * YEAR;
+      if (policy.launch && live && years !== 1) setYears(1);
+      const q = await getFeeQuote(ctx.reader, {
       operation: 'register',
-      duration: BigInt(years) * YEAR,
+      duration: lease,
       labelLength,
-    })
-      .then((q) => {
-        if (live) setQuote(q);
-      })
+    });
+      const eligible = label ? await ctx.reader.eligibility(label) : 'open';
+      if(live) {setQuote(q);setEligibility(eligible);}
+    })()
       .catch((e) => {
         // Tiered registrars cannot quote until a valid name gives the length.
         if (labelLength === undefined && toAnsError(e).code === 'invalid_argument') return;
@@ -188,7 +194,7 @@ function NewRegistration({ initial }: { initial?: string }) {
     return () => {
       live = false;
     };
-  }, [ctx, years, quoteRevision, labelLength]);
+  }, [ctx, years, quoteRevision, labelLength, label]);
 
   if (!ctx || !records) return null;
   const existingPlan = label ? records.plans.find((p) => p.label === label) : undefined;
@@ -196,7 +202,7 @@ function NewRegistration({ initial }: { initial?: string }) {
 
   const start = () =>
     tx.exec(`Submit registration ${label}`, async (onUpdate) => {
-      if ((await readFeeBalance(ctx, quote!.feeToken.toString())) < quote!.fee)
+      if (quote!.fee > 0n && (await readFeeBalance(ctx, quote!.feeToken.toString())) < quote!.fee)
         throw new AnsError(
           'invalid_argument',
           'Insufficient registration fee token balance. Fund this account before starting.',
@@ -236,14 +242,15 @@ function NewRegistration({ initial }: { initial?: string }) {
       </Field>
       {labelError && <small className="err">{translate(labelError)}</small>}
       <Field label={translate('Registration period')}>
-        <select value={years} onChange={(e) => setYears(Number(e.target.value))}>
+        {quote?.launch ? <p>1 year (365 days)</p> : <select value={years} onChange={(e) => setYears(Number(e.target.value))}>
           {[1, 2, 3, 4, 5].map((y) => (
             <option key={y} value={y}>
               {y} {y === 1 ? translate('year') : translate('years')}
             </option>
           ))}
-        </select>
+        </select>}
       </Field>
+      {eligibility !== 'open' && <p role="status">{eligibility === 'paused' ? 'Public registration is paused. Renewals remain available to holders.' : eligibility === 'reserved' ? 'Reserved' : 'Not yet available'}</p>}
       {quote && (
         <>
           <p>
@@ -276,14 +283,14 @@ function NewRegistration({ initial }: { initial?: string }) {
           </details>
         </>
       )}
-      <RegistrationFunding />
+      <RegistrationFunding free={quote?.fee === 0n} />
       {!quote && error && (
         <button className="ghost" disabled={tx.busy} onClick={() => retryQuote((n) => n + 1)}>
           {translate('Retry fee quote')}
         </button>
       )}
       <p className="muted">
-        {translate('Submit a request, then pay to register after the waiting period.')}
+        {translate(quote?.fee === 0n ? 'Submit a request, then register for free after the waiting period. Network fees still apply.' : 'Submit a request, then pay to register after the waiting period.')}
       </p>
       <button
         disabled={
@@ -291,6 +298,7 @@ function NewRegistration({ initial }: { initial?: string }) {
           !!duplicate ||
           tx.busy ||
           !quote ||
+          eligibility !== 'open' ||
           (quote.fee > 0n && (balance.balance === undefined || balance.balance < quote.fee))
         }
         onClick={start}
@@ -332,7 +340,7 @@ function PlanCard({ plan }: { plan: RegistrationPlan }) {
     check?.state !== 'registered' &&
     (plan.broadcastUnknown === 'registerTx' ||
       (plan.broadcastUnknown === 'commitTx' && (!check || check.state === 'commit_missing')));
-  const balance = useFeeBalance(ctx, canFinish || canRetryCommit ? plan.feeToken : undefined);
+  const balance = useFeeBalance(ctx, plan.fee > 0n && (canFinish || canRetryCommit) ? plan.feeToken : undefined);
 
   useEffect(() => {
     if (!ctx) return;
@@ -476,7 +484,7 @@ function PlanCard({ plan }: { plan: RegistrationPlan }) {
             }
             onClick={finish}
           >
-            {translate('Pay and register')}
+            {translate(plan.fee === 0n ? 'Register for free' : 'Pay and register')}
           </button>
         </>
       )}

@@ -28,6 +28,7 @@ export const registryProtocols = {
   extended: protocol(modular.extended, 3, true),
   current: protocol(modular.current, 5, true),
   v6: protocol(modular.v6, 6, true),
+  v7: protocol(modular.v7, 7, true),
 };
 
 const byClass = new Map(Object.values(registryProtocols).map((p) => [p.classId, p]));

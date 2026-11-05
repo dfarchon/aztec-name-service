@@ -2,6 +2,8 @@ import { FavoriteButton, ShareName, PublicRecords } from "../NameExtras";
 import { translate } from "../i18n";
 import {
   type AddressResolution,
+  type LaunchEligibility,
+  type RegistryConfig,
   getAvailability,
   normalizeName,
   resolveAddress,
@@ -17,6 +19,8 @@ import { useSession } from "../session";
 
 type Result = Awaited<ReturnType<typeof getAvailability>> & {
   display: AddressResolution;
+  eligibility: LaunchEligibility;
+  feeConfig: RegistryConfig;
 };
 
 export function SearchPage({ initial }: { initial?: string }) {
@@ -57,9 +61,13 @@ export function SearchPage({ initial }: { initial?: string }) {
       const info = await getAvailability(reader, name, {
         suffix: config.nameSuffix,
       });
-      const display = await resolveAddress(reader, info.label, { snapshot: info.snapshot });
+      const [display, eligibility, feeConfig] = await Promise.all([
+        resolveAddress(reader, info.label, { snapshot: info.snapshot }),
+        info.label.parent || !info.available ? Promise.resolve('open' as const) : reader.eligibility(info.label.label, info.snapshot),
+        reader.getConfig(info.snapshot),
+      ]);
       if (g !== generation.current) return;
-      setResult({ ...info, display });
+      setResult({ ...info, available: info.available && eligibility === 'open', display, eligibility, feeConfig });
       if (window.location.hash !== `#/name/${info.label.label}`) {
         route.current = info.label.label;
         loadedRoute.current = { name: info.label.label, reader };
@@ -146,8 +154,11 @@ export function SearchPage({ initial }: { initial?: string }) {
       </div></Card>}
 
       {result && (
-        <Card title={<CopyValue value={result.label.label} label={translate("Copy name")} />} meta={<span className="status-badge">{result.migration ? translate("Migration required") : result.available ? translate("Available") : result.status === "active" ? translate("Registered · Active") : translate(result.label.parent ? "Inactive subname" : statusText[result.status])}</span>}>
-          {(result.status !== "unregistered" || !result.available) && <dl>
+        <Card title={<CopyValue value={result.label.label} label={translate("Copy name")} />} meta={<span className="status-badge">{result.eligibility === "paused" ? "Registration paused" : result.eligibility === "too_short" ? "Not yet available" : result.eligibility === "reserved" ? "Reserved" : result.migration ? translate("Migration required") : result.available ? translate("Available") : result.status === "active" ? translate("Registered · Active") : translate(result.label.parent ? "Inactive subname" : statusText[result.status])}</span>}>
+          {result.eligibility === "paused" && <p role="status">Public registration is paused. Renewals remain available to holders.</p>}
+          {result.eligibility === "too_short" && <p>Names shorter than {result.feeConfig.launch?.minPublicLength} characters are not yet available for public registration.</p>}
+          {result.available && result.feeConfig.feeToken.isZero() && <p>Registration fee: Free</p>}
+          {(result.status !== "unregistered" || (!result.available && result.eligibility === "open")) && <dl>
             {result.status !== "unregistered" && (
               <>
                 <dt>{translate("Expires")}</dt>
@@ -161,7 +172,9 @@ export function SearchPage({ initial }: { initial?: string }) {
             <dd>
               {result.display.status === "resolved"
                 ? <CopyValue value={result.display.address.toString()} label={translate("Copy resolved address")} />
-                : translate("Not set")}
+                : result.display.status === "untrusted_resolver"
+                  ? <span role="alert">{translate("Unverified resolver: address records may be controlled by a third party")}</span>
+                  : translate("Not set")}
             </dd>
             </>}
           </dl>}

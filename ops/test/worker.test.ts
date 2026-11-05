@@ -296,3 +296,17 @@ test('fee-juice monitor enforces operator watermark at its precomputed slot', as
     f.env.OPERATOR_LOW_WATERMARK = 'UNDECIDED'; assert.equal((await probe(f.env, Date.now(), fetcher)).checks.find(c => c.name === 'balance')!.ok, false);
   } finally { f.sqlite.close(); }
 });
+
+test('monitor recognizes launch registrar class with the exact registry binding', async()=>{
+  const {inspectModules}=await import('../src/modular.js');
+  const registry=`0x${'1'.padStart(64,'0')}`,registrar=2n,resolver=3n;
+  const field=(n:bigint)=>`0x${n.toString(16).padStart(64,'0')}`;
+  const rpc=async(method:string,params:unknown[])=>{
+    if(method==='getContract')return {currentContractClassId:params[0]===field(registrar)?modular.registrarLaunch.classId:modular.resolver.classId};
+    const address=params[1],slot=BigInt(params[2] as string);
+    if(address===registry){const base=BigInt(modular.v6.storage.modules);return field(slot===base?registrar:slot===base+1n?resolver:slot===base+2n?1n:1n);}
+    return field(1n);
+  };
+  const result=await inspectModules(rpc as any,registry,modular.v6.classId,10);
+  assert(result.checks.every(c=>c.ok));
+});

@@ -35,6 +35,13 @@ export function assertDuration(duration: bigint) {
   }
 }
 
+/** Launch leases are exactly 365 days for both registration and renewal. */
+export function assertPolicyDuration(config: RegistryConfig, duration: bigint) {
+  assertDuration(duration);
+  if (config.launch && duration !== SECONDS_PER_YEAR)
+    throw new AnsError("invalid_argument", "lease must be one year");
+}
+
 /** `fee_for`: pro-rata annual price, rounded up. */
 export function feeFor(annualPrice: bigint, duration: bigint): bigint {
   return (annualPrice * duration + SECONDS_PER_YEAR - 1n) / SECONDS_PER_YEAR;

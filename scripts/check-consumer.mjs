@@ -57,8 +57,10 @@ try {
     import { Resolver, parseWithBigInt, stringifyWithBigInt } from '@ans/sdk/read';
     import { connectAns } from '@ans/sdk';
     import { NameRegistryV6Contract } from '@ans/sdk/contracts/v6';
+    import { NameRegistryV7Contract } from '@ans/sdk/contracts/v7';
     assert.equal(typeof connectAns, 'function');
     assert.equal(NameRegistryV6Contract.artifact.name, 'NameRegistryV6');
+    assert.equal(NameRegistryV7Contract.artifact.name, 'NameRegistryV7');
     assert.deepEqual(parseWithBigInt(stringifyWithBigInt({ amount: 1000000n })), { amount: 1000000n });
     let reads = 0, canonical = true;
     const reader = {

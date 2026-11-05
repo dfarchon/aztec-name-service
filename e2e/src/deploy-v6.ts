@@ -5,7 +5,8 @@ import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createRequire } from 'node:module';
 import { getSchnorrInitializerlessAccountContractAddress } from '@aztec-labs/accounts/schnorr';
-import { RegistryReader, NameRegistrarContract, NameRegistrarTieredContract, NameResolverContract, readFeeTokenMetadata, trackTx } from '@ans/sdk';
+import { RegistryReader, NameRegistrarLaunchContract, NameRegistrarContract, NameRegistrarTieredContract, NameResolverContract, readFeeTokenMetadata, trackTx } from '@ans/sdk';
+import { NameRegistryV7Contract } from '../../sdk/src/artifacts/NameRegistryV7.js';
 import { NameRegistryV6Contract } from '../../sdk/src/artifacts/NameRegistryV6.js';
 import baseline from '../../sdk/test/fixtures/classids-6.0.0.json' with { type: 'json' };
 import metadata from '../../web/src/public-metadata.json' with { type: 'json' };
@@ -26,7 +27,8 @@ import { randomKeys, sponsoredFpc } from './common.js';
 import { acquireTestnetLock } from './testnet-lock.js';
 import { acceptanceChecks, runCheckpointedStep } from './testnet-checkpoint.js';
 import { V6_PROFILES, assertV6Fpc, assertV6FeeJuice, assertV6Network, dryRunNode } from './v6-network.js';
-import { REPO, ZERO, DEPLOY_STEPS, assertPrivateDir, buildManifest, configHash, deploymentPlan, makePolicy, parseOptions, finalizeConfig, parseInitKeysArgs, within, type Config, type Policy } from './deploy-v6-plan.js';
+import { REPO, ZERO, DEPLOY_STEPS, deploymentSteps, deploymentTransactionSteps, assertPrivateDir, buildManifest, configHash, deploymentPlan, makePolicy, parseOptions, finalizeConfig, parseInitKeysArgs, within, type Config, type Policy } from './deploy-v6-plan.js';
+import { loadReservedList, reservedNodes, reservedBatches, verifyReservations } from './launch-policy.js';
 import { initKeys, readKeys, readPublicKeys, type KeysFile, type PublicKeys } from './init-keys.js';
 const { assertMainnetReady, mainnetBlockers } = createRequire(import.meta.url)('../../scripts/mainnet-readiness.mjs');
 const { v6ManifestProblems } = createRequire(import.meta.url)('../../scripts/deployment-config.mjs');
@@ -53,23 +55,25 @@ export async function atomicJson(path: string, value: unknown, mode = 0o600) {
   await writeFile(`${path}.tmp`, JSON.stringify(value, null, 2) + '\n', { mode });
   await chmod(`${path}.tmp`, mode); await rename(`${path}.tmp`, path);
 }
-export async function v6Artifacts(token: Config['token'], registrar: Config['registrar']) {
-  const tokenArtifact = token === 'official' ? TokenContractArtifact : loadContractArtifact(JSON.parse(await readFile(join(REPO, 'contracts/target/test_token-Token.json'), 'utf8')));
-  const artifacts = { token: tokenArtifact, registry: NameRegistryV6Contract.artifact, resolver: NameResolverContract.artifact, registrar: registrar === 'flat' ? NameRegistrarContract.artifact : NameRegistrarTieredContract.artifact };
-  const expected = { token: token === 'official' ? metadata.tokenClassId : baseline.classIds.testToken, registry: baseline.classIds.v6, resolver: baseline.classIds.resolver, registrar: registrar === 'flat' ? baseline.classIds.registrar : baseline.classIds.registrarTiered };
+export async function v6Artifacts(token: Config['token'], registrar: Config['registrar'], registryVersion: 6 | 7 = 6) {
+  const tokenArtifact = token !== 'repo' ? TokenContractArtifact : loadContractArtifact(JSON.parse(await readFile(join(REPO, 'contracts/target/test_token-Token.json'), 'utf8')));
+  const artifacts = { token: tokenArtifact, registry: registryVersion === 7 ? NameRegistryV7Contract.artifact : NameRegistryV6Contract.artifact, resolver: NameResolverContract.artifact, registrar: registrar === 'launch' ? NameRegistrarLaunchContract.artifact : registrar === 'flat' ? NameRegistrarContract.artifact : NameRegistrarTieredContract.artifact };
+  const expected = { token: token !== 'repo' ? metadata.tokenClassId : baseline.classIds.testToken, registry: registryVersion === 7 ? baseline.classIds.v7 : baseline.classIds.v6, resolver: baseline.classIds.resolver, registrar: registrar === 'launch' ? baseline.classIds.registrarLaunch : registrar === 'flat' ? baseline.classIds.registrar : baseline.classIds.registrarTiered };
   const classIds: Record<string, string> = {};
   for (const key of Object.keys(artifacts) as (keyof typeof artifacts)[]) {
     classIds[key] = (await getContractClassFromArtifact(artifacts[key])).id.toString();
     assert.equal(classIds[key], expected[key], `Frozen ${key} class ID mismatch`);
   }
+  if(token==='none') classIds.token=ZERO;
   return { artifacts, classIds };
 }
 export async function instances(artifacts: Record<string, ContractArtifact>, p: Policy, owner: AztecAddress, salts: Record<string, string>) {
   const make = (key: string, args: unknown[]) => getContractInstanceFromInstantiationParams(artifacts[key], { constructorArgs: args, salt: Fr.fromString(salts[key]), deployer: owner });
-  const token = await make('token', [owner, p.tokenName, p.tokenSymbol, p.decimals]);
+  const tokenInstance = await make('token', [owner, p.tokenName, p.tokenSymbol, p.decimals]);
+  const token = p.token==='none' ? {...tokenInstance,address:AztecAddress.ZERO} : tokenInstance;
   const registry = await make('registry', [AztecAddress.ZERO]);
   const resolver = await make('resolver', [registry.address]);
-  const args = [registry.address, token.address, AztecAddress.fromStringUnsafe(p.treasury), BigInt(p.annualPrice), ...(p.lengthPrices ? [BigInt(p.lengthPrices['3']), BigInt(p.lengthPrices['4'])] : []), p.priceVersion];
+  const args = [registry.address, token.address, AztecAddress.fromStringUnsafe(p.treasury), BigInt(p.annualPrice), ...(p.lengthPrices ? [BigInt(p.lengthPrices['3']), BigInt(p.lengthPrices['4'])] : []), p.priceVersion, ...(p.registrar==='launch'?[p.minPublicLength,p.initialPaused,BigInt(p.maxRenewAhead??'0')]:[])];
   const registrar = await make('registrar', args);
   return { values: { token, registry, resolver, registrar }, args: { token: [owner, p.tokenName, p.tokenSymbol, p.decimals], registry: [AztecAddress.ZERO], resolver: [registry.address], registrar: args } };
 }
@@ -99,6 +103,7 @@ export async function main(argv = process.argv.slice(2), dependencies = { create
   }
   // Public key projection and confirmation are resolved before any network I/O.
   const options = parseOptions(argv);
+  if(options.registrar==='launch') options.reservedLabels=loadReservedList(JSON.parse(await readFile(options.reservedList!,'utf8')));
   if (options.network === 'mainnet') {
     if (!options.dryRun) { assertMainnetReady(); throw new Error('Mainnet blocked: registration fee-token mode undecided; token-deploying flow refused'); }
     const info = await dependencies.createNode(options.nodeUrl, { maxBatchSize: 3 }).getNodeInfo();
@@ -124,7 +129,7 @@ export async function main(argv = process.argv.slice(2), dependencies = { create
       const fpcStatus = assertV6Fpc(c.network, fpc.instance, (await getContractClassFromArtifact(fpc.artifact)).id.toString(), publishedFpc);
       console.log(`PASS SponsoredFPC ${fpc.instance.address} class ${fpc.instance.currentContractClassId} ${fpcStatus}`);
     } else assertV6FeeJuice(c.network, info);
-    const { artifacts, classIds } = await v6Artifacts(c.token, c.registrar);
+    const { artifacts, classIds } = await v6Artifacts(c.token, c.registrar, c.registryVersion);
     console.log(`PASS frozen artifact classes ${JSON.stringify(classIds)}`);
     const pricing = JSON.parse(await readFile(c.pricing, 'utf8'));
     if (pricing.annualPriceStatus === 'provisional') console.log('WARNING annualPriceStatus=provisional; using unchanged pricing');
@@ -201,8 +206,21 @@ export async function main(argv = process.argv.slice(2), dependencies = { create
         assert.equal(fields[1], prepared.values.resolver.address.toBigInt(), 'Unexpected resolver binding');
         return true;
       };
+      const launch = NameRegistrarLaunchContract.at(prepared.values.registrar.address, wallet);
+      const nodeReadReserved = async (nodeValue: bigint) => {
+        const {deriveStorageSlotInMap}=await import('@aztec-labs/stdlib/hash');
+        const slot=await deriveStorageSlotInMap(NameRegistrarLaunchContract.storage.reserved.slot,new Fr(nodeValue));
+        return (await node.getPublicStorageAt('latest',launch.address,slot)).toBigInt()===1n;
+      };
       const effect = async (name: string) => {
         if (name === 'bootstrap') return bound();
+        if (name.startsWith('seed-reserved-')) {
+          const batches=reservedBatches(await reservedNodes(p.reservedLabels??[]));
+          const batch=batches[Number(name.slice('seed-reserved-'.length))];
+          assert(batch,'Unknown reservation batch');
+          await verifyReservations(batch.filter(n=>n!==0n).map(node=>({node,reserved:true})),async node=>(await nodeReadReserved(node)));
+          return true;
+        }
         const key = name.slice('deploy-'.length) as keyof typeof prepared.values;
         const found = await node.getContract(prepared.values[key].address);
         if (!found) return false;
@@ -216,7 +234,7 @@ export async function main(argv = process.argv.slice(2), dependencies = { create
         assert(!(await effect(c.rebroadcast)), 'Rebroadcast forbidden: chain effect exists');
         delete state.transactions[c.rebroadcast]; await save();
       }
-      const firstUnfinished = DEPLOY_STEPS.find(step => !state!.done.includes(step));
+      const firstUnfinished = deploymentTransactionSteps(c).find(step => !state!.done.includes(step));
       const claim = c.feePayment === 'fee-juice' ? await readBridgeClaim(paths.state, c.network, owner.toString()) : undefined;
       const fee = () => fpc ? fpc.fee.fee : feeMethod ? { paymentMethod: feeMethod } : undefined;
       const step = async (name: string, send: () => Promise<unknown>) => {
@@ -248,13 +266,24 @@ export async function main(argv = process.argv.slice(2), dependencies = { create
         console.log(`DONE ${name}`); activeStep = '';
       };
       for (const key of ['token', 'registry', 'resolver', 'registrar'] as const) {
+        if(key==='token' && c.token==='none') continue;
         const deploy = Contract.deploy(wallet, artifacts[key], prepared.args[key], undefined, { salt: Fr.fromString(state.salts[key]), deployer: owner });
         await step(`deploy-${key}`, () => deploy.send({ from: owner, fee: fee(), wait: NO_WAIT }));
         await wallet.registerContract(prepared.values[key], artifacts[key]);
       }
-      const core = NameRegistryV6Contract.at(prepared.values.registry.address, wallet);
+      const core = (c.registryVersion === 7 ? NameRegistryV7Contract : NameRegistryV6Contract).at(prepared.values.registry.address, wallet);
+      if(p.registrar==='launch') {
+        const nodes=await reservedNodes(p.reservedLabels??[]),batches=reservedBatches(nodes);
+        for(const [i,batch] of batches.entries()) await step(`seed-reserved-${i}`,()=>launch.methods.set_reserved(batch,true).send({from:owner,fee:fee(),wait:NO_WAIT}));
+        await verifyReservations(nodes.map(node=>({node,reserved:true})),nodeReadReserved);
+        check('reserved list verified before bootstrap',true);
+        for(const name of ['seed-reserved','verify-reserved']) if(!state.done.includes(name))state.done.push(name);
+        await save();
+      }
       await step('bootstrap', () => core.methods.bootstrap(prepared.values.registrar.address, prepared.values.resolver.address).send({ from: owner, fee: fee(), wait: NO_WAIT }));
       const reader = await RegistryReader.connect(node, core.address), policy = await reader.getConfig(), modules = await reader.getModules();
+      check('registry implementation version', Number((await core.methods.implementation_version().simulate({from:owner})).result) === c.registryVersion);
+      check('registry class', reader.classId === classIds.registry);
       check('registrar binding', modules.registrar.equals(prepared.values.registrar.address));
       check('resolver binding', modules.resolver.equals(prepared.values.resolver.address));
       check('legacy zero', !(await reader.getLegacyRegistry()));
@@ -266,7 +295,12 @@ export async function main(argv = process.argv.slice(2), dependencies = { create
         check('three-character price', policy.lengthPrices?.three === BigInt(p.lengthPrices['3']));
         check('four-character price', policy.lengthPrices?.four === BigInt(p.lengthPrices['4']));
       } else check('flat policy has no tiers', !policy.lengthPrices);
-      const tokenMeta = c.token === 'official' ? await readFeeTokenMetadata(reader, prepared.values.token.address) : await (async () => {
+      if(p.registrar==='launch') {
+        check('launch minimum',policy.launch?.minPublicLength===p.minPublicLength);
+        check('launch pause',policy.launch?.paused===p.initialPaused);
+        check('launch renewal cap',policy.launch?.maxRenewAhead===BigInt(p.maxRenewAhead??'0'));
+      }
+      const tokenMeta = c.token==='none' ? {symbol:'FREE',decimals:18} : c.token === 'official' ? await readFeeTokenMetadata(reader, prepared.values.token.address) : await (async () => {
         const snap = await reader.snapshot();
         const instance = await node.getContract(prepared.values.token.address);
         assert.equal(instance?.currentContractClassId.toString(), classIds.token, 'Repository token class mismatch');

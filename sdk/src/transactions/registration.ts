@@ -3,11 +3,11 @@ import { Fr } from '@aztec-labs/aztec.js/fields';
 
 import type { RegistryReader } from '../client/reader.js';
 import { getName } from '../client/resolve.js';
-import { MAX_COMMIT_AGE, MIN_COMMIT_AGE } from '../core/constants.js';
+import { MAX_COMMIT_AGE, MIN_COMMIT_AGE, REVEAL_MARGIN, COMMIT_QUOTE_MARGIN } from '../core/constants.js';
 import { AnsError } from '../core/errors.js';
 import { nodeOf, registerCommitment } from '../core/hash.js';
 import { assertRegistrableLabel, labelFromCanonical, type NormalizeOptions } from '../core/label.js';
-import { assertDuration, chargeFor, isRegistrable, nameStatus } from '../core/lifecycle.js';
+import { assertDuration, assertPolicyDuration, chargeFor, isRegistrable, nameStatus } from '../core/lifecycle.js';
 import { parseWithBigInt, stringifyWithBigInt } from '../core/seal.js';
 import type { Snapshot } from '../core/types.js';
 import type { AnsContext } from '../wallet/context.js';
@@ -56,6 +56,17 @@ export type RegistrationPlan = {
 export const serializePlan = (p: RegistrationPlan) => stringifyWithBigInt(p);
 export const deserializePlan = (s: string) => parseWithBigInt<RegistrationPlan>(s);
 
+/** Re-read live launch policy without persisting it in a registration plan. */
+async function assertPublicRegistration(reader: RegistryReader, name: string, duration: bigint, snapshot?: Snapshot) {
+  const config = await reader.getConfig(snapshot);
+  assertPolicyDuration(config, duration);
+  if (!config.launch) return;
+  const eligibility = await reader.eligibility(name, snapshot);
+  if (eligibility === 'paused') throw new AnsError('registration_paused', 'registration paused');
+  if (eligibility === 'too_short') throw new AnsError('name_not_available_yet', 'name not yet available');
+  if (eligibility === 'reserved') throw new AnsError('name_reserved', 'name reserved');
+}
+
 export async function prepareRegistration(
   ctx: AnsContext,
   args: {
@@ -89,6 +100,9 @@ export async function prepareRegistration(
     snapshot: info.snapshot,
   });
   assertAcceptedQuote(quote, args.acceptedQuote);
+  if (info.snapshot.timestamp + COMMIT_QUOTE_MARGIN > quote.quoteExpiry)
+    throw new AnsError('quote_expired', 'registration quote needs at least 300 seconds before commit');
+  await assertPublicRegistration(ctx.reader, info.label.label, args.duration, info.snapshot);
   const expectedGeneration = info.nextExpectedGeneration;
   const secret = Fr.random().toBigInt();
   const commitment = await registerCommitment({
@@ -201,11 +215,14 @@ export async function submitCommitOutcome(ctx: AnsContext, plan: RegistrationPla
   assertPlanFor(ctx, plan);
   await validatePlan(ctx.reader, plan);
   const snapshot = await ctx.reader.snapshot();
-  if (snapshot.timestamp + 60n > plan.quoteExpiry)
-    throw new AnsError('quote_expired', 'registration quote has expired');
+  if (snapshot.timestamp + COMMIT_QUOTE_MARGIN > plan.quoteExpiry)
+    throw new AnsError('quote_expired', 'registration quote needs at least 300 seconds before commit');
   const tx = await runTxOutcome(
     ctx,
-    async () => (await ctx.registrationContract(plan.registrar)).methods.commit(plan.commitment),
+    async () => {
+      await assertPublicRegistration(ctx.reader, plan.label, plan.duration);
+      return (await ctx.registrationContract(plan.registrar)).methods.commit(plan.commitment);
+    },
     {
       ...opts,
       onUpdate: (u) => {
@@ -239,7 +256,7 @@ export type RegistrationCheck =
 export async function checkRegistration(
   reader: RegistryReader,
   plan: RegistrationPlan,
-  marginSeconds = 60n,
+  marginSeconds = REVEAL_MARGIN,
 ): Promise<RegistrationCheck> {
   await validatePlan(reader, plan);
   const snapshot = await reader.snapshot('checkpointed');
@@ -324,13 +341,15 @@ export async function submitRegistrationOutcome(ctx: AnsContext, plan: Registrat
   if (plan.fee !== chargeFor(config, plan.duration, label.len))
     throw new AnsError('corrupt_data', 'plan fee does not match registry fee');
 
+  await assertPublicRegistration(ctx.reader, plan.label, plan.duration, check.snapshot);
   const authWitness = await buildFeeAuthorization(ctx, {
     ...terms,
     fee: plan.fee,
     feeNonce: plan.feeNonce,
   });
-  const call = async () =>
-    (await ctx.registrationContract(plan.registrar)).methods.register(
+  const call = async () => {
+    await assertPublicRegistration(ctx.reader, plan.label, plan.duration);
+    return (await ctx.registrationContract(plan.registrar)).methods.register(
       label.bytes,
       label.len,
       plan.expectedGeneration,
@@ -340,8 +359,10 @@ export async function submitRegistrationOutcome(ctx: AnsContext, plan: Registrat
       plan.feeNonce,
       plan.secret,
     );
+  };
   const tx = await runTxOutcome(ctx, call, {
     ...opts,
+    preflight: opts?.preflight ?? !!config.launch,
     authWitnesses: authWitness ? [authWitness] : undefined,
   });
   return { plan: { ...plan, registerTx: tx.txHash }, tx };

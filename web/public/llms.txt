@@ -26,3 +26,5 @@ This site connects to the public Sepolia testnet. The connected registry and cla
 
 Use RegistryReader for wallet-free reads and AnsContext for wallet writes. Check reader.extended before V4 APIs.
 Use resolvePrimary instead of trusting a reverse record alone. Multi-chain records do not transfer assets.
+
+NameRegistrarLaunch is a supported optional module, not an announcement of a public deployment. Public labels must meet its live minimum length (default 7), be unreserved and unpaused. It issues and renews exactly 365 days. Free mode has zero token and prices: no token transfer, balance read or AuthWit; network fees still need Fee Juice or sponsorship. Short names: Not yet available. Reserved names: Reserved. Pause affects only public registration; holders can renew and the live registry administrator can mint directly to recipients with a separate commit-reveal domain. maxRenewAhead is seconds: 0 disables the horizon; otherwise renewal requires current expiry <= chain time + horizon. Switching registrar invalidates old plans. Read config.launch and eligibility(name, snapshot) via @ans/sdk/read.

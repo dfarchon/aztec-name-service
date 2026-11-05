@@ -291,9 +291,9 @@ test('mainnet profile matches independent mjs and Fee Juice mismatches refuse', 
   assert.throws(() => assertV6FeeJuice('testnet-v6', { ...feeInfo, l1ContractAddresses: { ...feeInfo.l1ContractAddresses, feeJuicePortalAddress: treasury } }), /feeJuicePortal/);
   assert.throws(() => assertV6FeeJuice('testnet-v6', { ...feeInfo, l1ContractAddresses: { ...feeInfo.l1ContractAddresses, feeAssetHandlerAddress: treasury } }), /feeAssetHandler/);
 });
-test('sponsored testnet confirmation is byte-identical to original fixture', () => {
+test('sponsored testnet confirmation pins the original identity and explicit registry version', () => {
   const c = parseArgs([...testnet, '--dry-run']);
-  assert.equal(confirmation(c), `testnet-v6:6.0.0:11155111:679261766:0x1f435a7f2da358caf887a470faeee7d5d5f4efba:registrar=tiered:priceVersion=1:token=official:treasury=${treasury}`);
+  assert.equal(confirmation(c), `testnet-v6:6.0.0:11155111:679261766:0x1f435a7f2da358caf887a470faeee7d5d5f4efba:registryVersion=6:registrar=tiered:priceVersion=1:token=official:treasury=${treasury}`);
 });
 test('sponsored manifest deep-equals existing deployed output', async () => {
   const current = JSON.parse(await readFile(join(REPO, 'deployments/testnet-v6.json'), 'utf8'));

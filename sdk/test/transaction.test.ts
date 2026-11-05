@@ -51,6 +51,7 @@ for (const [kind, classInstance] of [
       account, signer: {}, queue: { run: (f: () => Promise<unknown>) => f() },
       assertWalletNetwork: async () => {}, ensureRegistered: async () => {},
       reader: {
+        deployment: { protocolVersion: kind === 'registry' ? 2 : 3 },
         modular: kind !== 'registry', node: nodeWithReceipt([TxStatus.CHECKPOINTED]),
         snapshot: async () => snapshot, getConfig: async () => config,
         getName: async () => ({ owner: account, generation, revision, expiresAt: 1000n }),

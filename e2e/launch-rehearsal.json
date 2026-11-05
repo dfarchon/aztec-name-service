@@ -1,0 +1,21 @@
+{
+  "schema": "ans-v7-launch-rehearsal/1",
+  "network": "testnet-v6",
+  "registryVersion": 7,
+  "registrarKind": "launch",
+  "minPublicLength": 7,
+  "maxRenewAhead": "31536000",
+  "reservedLabels": ["reservedlaunch"],
+  "name": "v7rehearsal",
+  "mintName": "adm",
+  "quoteWindowsSeconds": [60, 120, 180, 240, 300],
+  "registrationFeeJuice": "3.96",
+  "l1Address": "0x3C1727e4824ff358972721A9ca54c1867d2a9492",
+  "balanceAccounts": [
+    "0x14afc3f6f3e5f03654ac17b921b486427703633b2b587d0cb86f835ed593dac0",
+    "0x218a9b388c06e6a51dee234d2ceee6d6af6db32292f72ade4d066005dd90529c",
+    "0x1947d05065082b4d1aa0fcf94312238a50bf3456892d8acf8a5072f7b897ec46"
+  ],
+  "balanceSource": "public deployment-v6-nofpc-rehearsal.json from 20261103 and public register-report.json from 20261104; balances do not fund new accounts automatically",
+  "resolverProbe": "holder-chosen custom NameResolver; evil_resolver_test is TXE-only and is not published"
+}

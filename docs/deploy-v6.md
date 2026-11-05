@@ -117,3 +117,81 @@ Mainnet identity is pinned to Aztec 6.0.0, L1 chain 1, rollup version 2070860440
 Web builds require `VITE_NETWORK` and `VITE_FEE_PAYMENT` on public networks. Embedded public sponsored mode requires an explicitly configured FPC; only proof-disabled chain 31337 may derive one. Fee-juice mode never registers an FPC. Before register, renew, records or primary writes, the shared wallet queue verifies identity and checks public Fee Juice against current minimum fees × default node gas limits. The bilingual error includes account and balance. The monitor keeps its existing check names; in fee-juice mode sponsorship is N/A, and an undecided operator balance is N/A. Once an operator is chosen, configure its precomputed map slot and watermark; `check:deployment` verifies the slot with the 6.0.0 stdlib.
 
 公网网页构建必须设置 `VITE_NETWORK`、`VITE_FEE_PAYMENT`。嵌入钱包的公网 sponsored 模式必须显式配置 FPC；只有关闭证明的 chain 31337 可以推导。fee-juice 模式不注册 FPC。注册、续费、记录及 primary 写入前，共享钱包队列先核对网络，再检查公开 Fee Juice 是否达到当前最低单价 × 节点默认 gas 限额。中英文错误包含账户地址与余额。监控保持历史检查名称；fee-juice 模式 sponsor 为 N/A，未确定 operator 时 balance 也为 N/A。确定 operator 后配置预计算 map slot 和低水位，`check:deployment` 用 6.0.0 stdlib 验证 slot。
+
+## Launch Registrar
+
+`NameRegistrarLaunch` 是 V6/V7 可选的收费模块，当前测试网清单不变，也不表示主网已部署。公开注册默认至少 7 个字符，管理员可在 3–31 内调整；短名显示 “Not yet available”，保留名显示 “Reserved”。保留表按 node 存储，32 个 node 一批，零值跳过；仓库 `deployments/reserved-labels.json` 为 v1 分类名单，共 195 项且全部至少 7 个字符；加载器校验合法性和跨分类重复，排序后的规范哈希随部署策略固定，分类和变更流程见 `deployments/reserved-labels.md`。
+
+每次注册和续期固定 365 天。`max_renew_ahead` 单位为秒，构造时须在 0–315360000（10 年）内：0（本地/测试网脚本默认值）不限制提前续期，可重复续期；非零时只有当前到期时间 `<= 链上时间 + max_renew_ahead` 才能续期。主网配置 `maxRenewAhead = 31536000`，到期前 1 年内可续期。管理员和 treasury 为占位地址 `0x2419a5bafa9cd88d6a625c21b96f16f79bf6e279253b1993609a3edc169f8c68`（离线生成，从未部署），带 `adminPlaceholder: true`；正式启动前必须替换为多签并通过 readiness。暂停只阻止公开注册，持有人续期和管理员铸造继续开放，以免宽限期内丢失名字。
+
+免费实例要求 Token 地址和三档年费均为 0，不转 Token、不创建 AuthWit、不读私有 Token 余额；网络费仍由 Fee Juice 或代付承担。付费实例使用同一代码、不可变 Token/treasury 和 3/4/5+ 年费，长度、保留、暂停规则同样生效。管理员权限每次读取 Registry 的当前 administrator，提名者接受两步移交后立即生效，旧管理员失权。
+
+管理员可通过独立域的 commit-reveal 直接为接收方注册合法短名或保留名；至少等待 60 秒，最多 24 小时，固定一年，付费实例中也免注册费。管理员仍受标签字符和禁止 `--` / `0x` 的新注册规则约束。切换实例前，运维脚本合并规范名单和完整 ReservedChanged 事件发现的 node，复制策略、核对存储及不可变续期上限；price_version 必须递增，任何不一致阻止切换。原持有、generation 和记录不迁移，旧实例的注册计划失效，重新报价。
+
+## Launch Registrar (English)
+
+`NameRegistrarLaunch` is an optional V6/V7 module. It does not change the current testnet manifest or announce a mainnet deployment. Public registration defaults to at least 7 characters; the live administrator can choose 3–31. Short names show “Not yet available”; reserved names show “Reserved”. Reservations use node keys, batches of 32 and zero padding. `deployments/reserved-labels.json` contains the categorized v1 list of 195 labels, all at least 7 characters. The loader rejects illegal labels and duplicates before hashing the sorted flat list; categories and change procedure are in `deployments/reserved-labels.md`.
+
+Each registration and renewal is exactly 365 days. `max_renew_ahead` is seconds, bounded at construction to 0–315360000 (10 years): 0 (the local/testnet script default) allows repeated renewal without a horizon; otherwise current expiry must be at most chain time plus the horizon. Mainnet sets `maxRenewAhead = 31536000`: renewal opens 1 year before expiry. Admin and treasury use placeholder address `0x2419a5bafa9cd88d6a625c21b96f16f79bf6e279253b1993609a3edc169f8c68` (offline-generated, never deployed), with `adminPlaceholder: true`; replace with a multisig and pass readiness before launch. Pause blocks only public registration; holder renewal and administrator mint stay available, protecting holders during the grace period.
+
+Free mode requires a zero token and all three prices zero: no token transfer, AuthWit or private token balance read. Fee Juice or sponsorship still pays network fees. Paid mode uses the same code with immutable token, treasury and 3/4/5+ prices; all public policy gates still apply. Authority is read from the Registry on every operation, so the nominee gains authority only after accepting the two-step handoff and the old administrator immediately loses it.
+
+Administrator mint uses a separate commit-reveal domain, waits 60 seconds to 24 hours, writes the recipient directly, and grants one year without registration fees even in paid mode. Label rules, including no `--` or `0x`, still apply. Before switching instances, operator tooling combines the canonical list with every node discovered in the complete ReservedChanged history, copies policy and verifies storage parity and the immutable renewal cap. Price version must increase; any mismatch prevents the switch. Holdings, generations and records do not migrate. Old registration plans become invalid and need a fresh quote.
+
+### Local launch preview / 本地预览
+
+```sh
+npm run deploy:v6 -- --network local --node-url http://127.0.0.1:8082 --registrar launch --token none --price-version 1 --min-public-length 7 --initial-paused true --max-renew-ahead 0 --state-dir /tmp/ans-launch-preview --dry-run
+```
+
+This read-only local preview sends no transaction. Deployment seeding verifies the reserved list before bootstrap and leaves the requested pause state unchanged; unpause is an explicit administrator action. `e2e/src/launch-admin.ts` offers a read-only CLI preview. `runLaunchAdmin` and `switchLaunchRegistrar` require an injected `AnsContext` and explicit `{ broadcast: true }` to mutate; they never load keys. Keep an admin mint process alive through commit maturation: its secret stays in application memory, and interrupting it requires a new mint commitment. No website admin console or public SDK admin API is added.
+
+该本地预览只读，不发送交易。部署在 bootstrap 前核对保留名单，保持指定暂停状态，解除暂停必须由管理员显式操作。`launch-admin.ts` CLI 只输出预览；`runLaunchAdmin`、`switchLaunchRegistrar` 必须注入 `AnsContext` 且显式指定 `{ broadcast: true }` 才写入，不加载密钥。管理员铸造的 secret 只在应用内存中，需保持进程等待 commit 成熟；中断后需新建铸造承诺。没有新增网站管理台或公开 SDK 管理便捷接口。
+
+## V7 resolver and revision rules / V7 解析器与修订号
+
+主网使用新部署的 V7（`protocol: 7`，清单仍为 `ans-deployment-v6/1`）；当前测试网继续使用冻结的 V6，V2–V5 仅为旧网络存档，不迁移到 Aztec 6。V7 接收转移时将解析器重置为当时的默认解析器，并发出 ResolverChanged；旧 generation 的地址、资料、编辑者、主名字确认及子域不能复用。解析器只能在当前持有人选择或默认策略绑定的 generation 内写入，仍需校验当前持有人或编辑者身份。SDK/网站另外校验解析器类和 Registry 归属。
+
+V7 的 `NameRecord.revision` 用于持有人操作；`Holding.recordRevision` 用于地址和资料写入。编辑者写入不会使续期、移除编辑者、换解析器或接收转移的持有人修订号过时。持有人换解析器会清除地址并推进记录修订号，使待执行的旧编辑操作失效。V3–V6 仍共用名字修订号。`get_record_revision(node, generation)` / `getRecordRevision(node, generation, snapshot)` 返回当前代记录修订号（u32 / number）。
+
+解析器未经验证时，`resolveAddress` 返回 `untrusted_resolver`，不返回可信付款地址；`resolvePrimary` 返回 `stale`，reason 为 `untrusted_resolver`。`inspectResolver` 返回公开地址、verified、isDefault 及可选原因 zero / unknown_class / other_registry；网络错误继续抛出。V6 的 `acceptTransfer` 默认拒绝未经验证的继承解析器；显式 `acceptUnverifiedResolver: true` 才可接收；V6 的旧解析器还可通过共享修订号干扰重置，无法保证买方可靠恢复，测试网名字不应被视为有价值的资产。V7 返回 `resolverReset: true`。更换解析器不要求原解析器可信，但目标解析器必须通过校验。
+
+SDK 创建计划及发送 commit 前要求报价至少剩余 300 链上秒：60 秒最小承诺年龄 + 60 秒 reveal 余量 + 180 秒证明、包含交易与检查点延迟余量。`COMMIT_QUOTE_MARGIN = 300n`，`REVEAL_MARGIN = 60n`；不足时在请求钱包前返回 `quote_expired`，仍需为实际证明和上链时间留出充足时间。恢复计划继续使用原有加密存储与回执证据规则。
+
+Mainnet targets a fresh V7 (`protocol: 7`, retaining schema `ans-deployment-v6/1`). The current testnet stays on frozen V6; V2–V5 remain archives on the old rollup, with no migration to Aztec 6. Acceptance on V7 resets the resolver to the current default and emits ResolverChanged. Old-generation addresses, profiles, editors, primary consent and descendants cannot revive. A resolver can write only in the generation bound by that holder or default policy, and the supplied actor must be the current holder or editor. The SDK and web also verify its class and Registry binding.
+
+V7 separates holder `NameRecord.revision` from editor `Holding.recordRevision`: editor writes cannot stale holder renewal, editor removal, resolver replacement or transfer acceptance. Resolver replacement clears the address and advances record revision, invalidating pending editor writes. V3–V6 retain a shared revision. `get_record_revision(node, generation)` / `getRecordRevision(node, generation, snapshot)` returns the generation's record revision as u32 / number.
+
+An unverified resolver produces `resolveAddress.status = 'untrusted_resolver'` and `resolvePrimary.status = 'stale'` with reason `untrusted_resolver`. `inspectResolver` returns public address, verified, isDefault and optional zero / unknown_class / other_registry reason; transport errors still throw. V6 `acceptTransfer` refuses an unverified inherited resolver unless `acceptUnverifiedResolver: true` is explicit; the inherited resolver can also block recovery by pumping the shared revision. V6 testnet names must not be treated as holding value. V7 reports `resolverReset: true`. Reset checks the target resolver without requiring trust in the inherited one.
+
+Before creating a plan or sending commit, the SDK requires 300 chain seconds of quote lifetime: 60 minimum commit age + 60 reveal margin + 180 proving, inclusion and checkpoint slack. `COMMIT_QUOTE_MARGIN = 300n`; `REVEAL_MARGIN = 60n`. Insufficient lifetime returns `quote_expired` before wallet submission. Allow adequate time for actual proving/inclusion; encrypted recovery and receipt-evidence rules still apply.
+
+### Version selection and offline placeholder / 版本选择和离线占位账户
+
+`--registry-version 6|7` defaults to 6 for local/testnet and 7 for mainnet. Testnet requires 6; mainnet requires 7. The confirmation includes registryVersion; V7 checkpoint policy hashes bind that version. Readback checks both class ID and implementation_version. The mainnet broadcaster remains blocked by the existing readiness and fee-token decisions.
+
+`--registry-version 6|7` 在本地/测试网默认 6、主网默认 7；测试网只允许 6，主网只允许 7。确认串包含 registryVersion，V7 检查点策略哈希绑定版本；部署后同时核对类 ID 与 implementation_version。原有主网 readiness 和收费资产条件仍阻止主网广播。
+
+The supervisor runs the following offline command outside the executor sandbox. It creates a new private directory and exclusively writes a 0600 file, prints only address/directory and makes no deployment or transaction. The mainnet placeholder uses the 6.0.0 Schnorr account helper; its owner/treasury/salts field conventions match existing key files, but it is not a local/testnet initializerless deployment checkpoint. Preserve it offline and replace both admin and treasury before launch; never paste secret material into a report.
+
+主管在执行沙箱外运行下列离线命令。脚本创建新 0700 目录，以独占方式写入 0600 文件，只输出公开地址和目录，不部署、不发送交易。占位账户使用 6.0.0 Schnorr helper；owner/treasury/salts 沿用既有字段，但不是本地/测试网 initializerless 部署检查点。离线保存，正式启动前替换 admin 和 treasury，不将秘密粘贴进报告。
+
+```sh
+node --import tsx e2e/src/generate-placeholder-admin.ts
+```
+
+The template uses placeholder admin/treasury `0x2419a5bafa9cd88d6a625c21b96f16f79bf6e279253b1993609a3edc169f8c68` (offline-generated, never deployed), with `adminPlaceholder: true`; replace with a multisig before launch. Readiness rejects a copied placeholder. It also requires protocol 7 and exactly 31536000 seconds for launch renewals. Replacing the placeholder is supervisor work; implementation does not authorize publication or a public transaction.
+
+模板使用占位 admin/treasury `0x2419a5bafa9cd88d6a625c21b96f16f79bf6e279253b1993609a3edc169f8c68`（离线生成，从未部署），带 `adminPlaceholder: true`；正式启动前必须替换为多签。readiness 仍拒绝带标记的占位管理员，并要求 protocol 7、launch 续期上限恰好 31536000 秒。替换占位地址由主管负责；实现工作不授权发布或公网交易。
+
+`setPrimary(ctx, { name, acceptUnverifiedResolver? }, opts?)` 默认拒绝未验证解析器（`invalid_argument`），显式 `true` 可确认风险；此选择不绕过网络错误、有效期或正向地址校验，也不会使 `resolvePrimary` 返回可信结果。仅 `resolveAddress` 和 `resolvePrimary` 校验解析器信任；原始 `RegistryReader.getAddress` / `@ans/sdk/read` 返回链上公开记录，调用方需自行检查信任。
+
+`setPrimary(ctx, { name, acceptUnverifiedResolver? }, opts?)` refuses an unverified resolver with `invalid_argument` unless explicitly opted in with `true`. The override preserves transport, active-lease and forward-address checks and cannot make `resolvePrimary` report trust. Only `resolveAddress` and `resolvePrimary` validate resolver trust; raw `RegistryReader.getAddress` / `@ans/sdk/read` returns public chain records for callers to validate.
+
+L-02 仍待主网上线前处理：管理员更换默认解析器立即生效，V7 的注册、重发和接收转移均采用当前默认值。管理员被攻破会影响未来接收方；采用多签或时间锁管理是待办事项，监控继续关注 `configure_modules`。
+
+L-02 remains open before mainnet: administrator changes to the default resolver take effect immediately, and V7 registrations, reissues and accepted transfers use that current default. Administrator compromise therefore affects future recipients. Multisig or timelock administration remains pending; monitoring continues to watch `configure_modules`.
+
+`AddressChangedV3.revision` 在 V3–V6 表示共用的名字修订号，在 V7 表示当前代的记录修订号。索引器必须按协议版本解释，不应将 V7 事件计数器当作持有人修订号。
+
+`AddressChangedV3.revision` is the shared name revision on V3–V6 and the generation's record revision on V7. Indexers must select the meaning by protocol version and keep the V7 holder revision separate.

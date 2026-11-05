@@ -1,3 +1,4 @@
+export { NameRegistrarLaunchContract } from './artifacts/NameRegistrarLaunch.js';
 export { NameRegistrarContract } from './artifacts/NameRegistrar.js';
 export { NameRegistrarTieredContract } from './artifacts/NameRegistrarTiered.js';
 export { NameResolverContract } from './artifacts/NameResolver.js';

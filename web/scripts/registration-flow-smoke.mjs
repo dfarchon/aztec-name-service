@@ -160,10 +160,10 @@ try {
 
   await wait(() =>
     [...document.querySelectorAll('button')].some(
-      (b) => b.textContent.trim() === 'Pay and register' && !b.disabled,
+      (b) => b.textContent.trim() === 'Register for free' && !b.disabled,
     ),
   );
-  await click('Pay and register');
+  await click('Register for free');
   await wait(
     () =>
       document.body.innerText.includes('Registered') &&
@@ -189,7 +189,7 @@ try {
   await connectFixture();
   await wait(() =>
     [...document.querySelectorAll('button')].some(
-      (b) => b.textContent.trim() === 'Pay and register' && !b.disabled,
+      (b) => b.textContent.trim() === 'Register for free' && !b.disabled,
     ),
   );
   assert.equal(
@@ -209,7 +209,7 @@ try {
   await page.evaluate(() => {
     window.registrationFixture.failSend = true;
   });
-  await click('Pay and register');
+  await click('Register for free');
   await wait(
     () =>
       window.registrationFixture.session.getSession().records.plans[0].broadcastUnknown ===
@@ -219,7 +219,7 @@ try {
   assert.equal(
     await page.evaluate(() =>
       [...document.querySelectorAll('button')].some(
-        (b) => b.textContent.trim() === 'Pay and register',
+        (b) => b.textContent.trim() === 'Register for free',
       ),
     ),
     false,
@@ -268,7 +268,7 @@ try {
   });
   await wait(() =>
     [...document.querySelectorAll('button')].some(
-      (b) => b.textContent.trim() === 'Pay and register' && !b.disabled,
+      (b) => b.textContent.trim() === 'Register for free' && !b.disabled,
     ),
   );
   pass(

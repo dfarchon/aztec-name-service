@@ -20,6 +20,10 @@ export const MIN_LABEL_LEN = 3;
 export const MAX_LABEL_LEN = 31;
 
 export const MIN_COMMIT_AGE = 60n;
+/** Default remaining quote lifetime required before reveal, in chain seconds. */
+export const REVEAL_MARGIN = 60n;
+/** Commit age + reveal margin + 180 seconds for proving, inclusion and checkpoint lag; checked before creating or sending a plan. */
+export const COMMIT_QUOTE_MARGIN = MIN_COMMIT_AGE + REVEAL_MARGIN + 180n;
 export const MAX_COMMIT_AGE = 86_400n;
 export const GRACE_PERIOD = 30n * 86_400n;
 export const MIN_DURATION = 365n * 86_400n;

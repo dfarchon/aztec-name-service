@@ -36,7 +36,7 @@ async function writeAddress(
 ) {
   const h = await inspectHolding(ctx, name);
   assertHoldingAccess(h, 'editor');
-  const { generation, revision } = h.record;
+  const { generation } = h.record;
   return {
     tx: await runTx(
       ctx,
@@ -44,7 +44,7 @@ async function writeAddress(
         (await ctx.addressContract(h.node, generation, h.snapshot)).methods.set_address(
           h.node,
           generation,
-          revision,
+          h.recordRevision,
           !address.isZero(),
           address,
         ),
@@ -71,12 +71,15 @@ export async function renew(
     throw new AnsError('invalid_argument', 'subname leases are controlled by their parent owner');
   const quote = await getFeeQuote(ctx.reader, {
     operation: 'renew',
+    expiresAt: h.record.expiresAt,
     duration: args.duration,
     labelLength: h.label.len,
     maxFee: args.maxFee,
     validForSeconds: args.quoteValiditySeconds ?? 3600n,
     snapshot: h.snapshot,
   });
+  if (quote.renewableAt !== undefined && h.snapshot.timestamp < quote.renewableAt)
+    throw new AnsError('renewal_too_early', `renewable from chain timestamp ${quote.renewableAt}`);
   assertAcceptedQuote(quote, args.acceptedQuote);
   const feeNonce = newFeeNonce();
   const authWitness = await buildFeeAuthorization(ctx, { ...quote, feeNonce });
@@ -84,7 +87,7 @@ export async function renew(
   const call = async () => {
     const target = await ctx.registrationTarget(quote.registrar?.toString());
     // Tiered registrars derive the node, and so the price tier, from the label.
-    return target.kind === 'registrarTiered'
+    return (target.kind === 'registrarTiered' || target.kind === 'registrarLaunch')
       ? target.contract.methods.renew(h.label.bytes, h.label.len, generation, revision, args.duration, quote.maxFee, quote.quoteExpiry, feeNonce)
       : target.contract.methods.renew(h.node, generation, revision, args.duration, quote.maxFee, quote.quoteExpiry, feeNonce);
   };
