@@ -8,6 +8,7 @@ const rpc = parseRpcConfig(env, network.network);
 
 export const config = {
   ...network,
+  allowRehearsalSuccessor: env.VITE_ALLOW_V8_REHEARSAL_SUCCESSOR === "true",
   ...rpc,
   nodeUrl: rpc.endpoints[0],
   registry: env.VITE_REGISTRY

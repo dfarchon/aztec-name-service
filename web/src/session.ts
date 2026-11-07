@@ -135,7 +135,7 @@ export function boot(): Promise<void> {
     const started = Date.now();
     const revision = connectionRevision;
     try {
-      const reader = await RegistryReader.connect(state.node, config.registry);
+      const reader = await RegistryReader.connect(state.node, config.registry, { allowRehearsalSuccessor: config.allowRehearsalSuccessor });
       if (identityMismatch({ chainId: config.expectedChainId, rollupVersion: config.expectedRollupVersion },
         verifiedReader?.deployment, reader.deployment)) {
         throw new AnsError('wrong_deployment', 'Network identity changed');
