@@ -2,6 +2,7 @@ import { readFileSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
 import { spawnSync } from 'node:child_process';
+import { fileURLToPath } from 'node:url';
 
 // Use the repository's exact compiler without changing the user's global Aztec version.
 const version = '6.0.0';
@@ -15,9 +16,15 @@ try {
   throw new Error(`ANS requires Aztec ${version} at ${root}; install it with aztec-up install ${version}. ${error.message}`);
 }
 // AZTEC_VERSIONED keeps the wrapper from re-selecting a toolchain through aztec-up.
+const env = { ...process.env, AZTEC_VERSIONED: '1' };
+if (process.argv[2] === 'test') {
+  // The 6.0.0 shell launcher starts TXE without a host argument. Scope the policy to tests.
+  const preload = fileURLToPath(new URL('./txe-loopback.cjs', import.meta.url));
+  env.NODE_OPTIONS = `${env.NODE_OPTIONS ?? ''} --require=${JSON.stringify(preload)}`.trim();
+}
 const result = spawnSync(join(root, 'bin/aztec'), process.argv.slice(2), {
   stdio: 'inherit',
-  env: { ...process.env, AZTEC_VERSIONED: '1' },
+  env,
 });
 if (result.error) throw result.error;
 process.exit(result.status ?? 1);
