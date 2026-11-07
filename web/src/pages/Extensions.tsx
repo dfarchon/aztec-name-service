@@ -12,7 +12,7 @@ export function Extensions({ ctx, holding: h, onDone }: { ctx: AnsContext; holdi
   const [child,setChild] = useState(''), [childOwner,setChildOwner] = useState(''), [days,setDays] = useState(30), [replace,setReplace] = useState(false), [transferConfirmed,setTransferConfirmed] = useState(false), [revokeConfirmed,setRevokeConfirmed] = useState(false);
   const [resolver,setResolverInfo] = useState<Awaited<ReturnType<typeof ctx.reader.inspectResolver>>>();
   const [resolverError,setResolverError] = useState(''), [acceptUnverified,setAcceptUnverified] = useState(false), [needsReset,setNeedsReset] = useState(false);
-  const resetsResolver = ctx.reader.deployment.protocolVersion === 7;
+  const resetsResolver = ctx.reader.deployment.protocolVersion >= 7;
   const name=h.label.label;
   useEffect(() => {
     let live = true; setResolverInfo(undefined); setResolverError(''); setAcceptUnverified(false);
