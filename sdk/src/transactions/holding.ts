@@ -41,7 +41,7 @@ export async function inspectHolding(
     label,
     node,
     record,
-    recordRevision: ctx.reader.deployment.protocolVersion === 7
+    recordRevision: ctx.reader.deployment.protocolVersion >= 7
       ? await ctx.reader.getRecordRevision(node, record.generation, snapshot)
       : record.revision,
     status: nameStatus(record, snapshot.timestamp),

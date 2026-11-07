@@ -3,6 +3,7 @@ import { BlockNumber, Fr } from '@aztec-labs/aztec.js/fields';
 import type { AztecNode } from '@aztec-labs/aztec.js/node';
 import { DomainSeparator } from '@aztec-labs/constants';
 
+import { isV8Class, readCoreUpgrade, type UpgradeProfile } from './core-upgrade.js';
 import modular from '../artifacts/modular-metadata.json' with { type: 'json' };
 import { PACKED_LEN } from '../core/constants.js';
 import { registryProtocol, registryProtocols } from '../core/registry-protocol.js';
@@ -66,33 +67,33 @@ export class RegistryReader {
     readonly node: AztecNode,
     readonly deployment: Deployment,
     classId = registryProtocols.legacy.classId,
+    readonly upgradeProfile: UpgradeProfile = {},
   ) {
     this.modular = registryProtocol(classId).modular;
     this.currentClass = classId;
   }
 
   /**
-   * Pins the deployment: reads chain id and rollup version from the node and, unless disabled, checks that the
+   * Pins the deployment: reads chain id and rollup version from the node and checks that the
    * contract at `registry` runs exactly the class this SDK was built for.
    */
   static async connect(
     node: AztecNode,
     registry: AztecAddress,
-    opts: { verifyClass?: boolean } = {},
+    opts: { verifyClass?: boolean; allowRehearsalSuccessor?: boolean } = {},
   ) {
     try {
+      if (opts.verifyClass === false) throw new AnsError('invalid_argument', 'contract class verification cannot be disabled');
       const [infoResult, instanceResult] = await Promise.allSettled([
         Promise.resolve().then(() => node.getNodeInfo()),
-        opts.verifyClass === false
-          ? undefined
-          : Promise.resolve().then(() => node.getContract(registry)),
+        Promise.resolve().then(() => node.getContract(registry)),
       ]);
       if (infoResult.status === 'rejected') throw infoResult.reason;
       if (instanceResult.status === 'rejected') throw instanceResult.reason;
       const info = infoResult.value,
         instance = instanceResult.value;
       let classId = registryProtocols.legacy.classId;
-      if (opts.verifyClass !== false) {
+      {
         if (!instance) throw new AnsError('wrong_deployment', `no contract at ${registry}`);
         classId = instance.currentContractClassId.toString();
         const protocol = registryProtocol(classId);
@@ -100,7 +101,7 @@ export class RegistryReader {
         if (original && registryProtocol(original).version !== protocol.version)
           throw new AnsError('wrong_deployment', 'registry implementation is incompatible with its original storage');
       }
-      return new RegistryReader(
+      const reader = new RegistryReader(
         node,
         {
           chainId: BigInt(info.l1ChainId),
@@ -109,7 +110,10 @@ export class RegistryReader {
           protocolVersion: registryProtocol(classId).version,
         },
         classId,
+        { allowRehearsalSuccessor: opts.allowRehearsalSuccessor },
       );
+      if (isV8Class(classId)) await reader.snapshot();
+      return reader;
     } catch (e) {
       throw toAnsError(e);
     }
@@ -120,17 +124,20 @@ export class RegistryReader {
   }
 
   async snapshot(finality: Finality = 'proposed'): Promise<Snapshot> {
-    const [data] = await Promise.all([
-      this.guard(() => this.node.getBlockData(finality)),
-      this.modular ? this.assertCurrentClass() : undefined,
-    ]);
-    if (!data) throw new AnsError('network', `node has no ${finality} block`);
-    return {
-      blockNumber: Number(data.header.globalVariables.blockNumber),
-      blockHash: data.blockHash.toString(),
-      timestamp: BigInt(data.header.globalVariables.timestamp),
-      finality,
-    };
+    // Bounded retry for a reorg of N; advancing the latest head is not a failure.
+    for (let attempt = 0; attempt < 3; attempt++) {
+      const data = await this.guard(() => this.node.getBlockData(finality));
+      if (!data) throw new AnsError('network', `node has no ${finality} block`);
+      const snap: Snapshot = {
+        blockNumber: Number(data.header.globalVariables.blockNumber),
+        blockHash: data.blockHash.toString(),
+        timestamp: BigInt(data.header.globalVariables.timestamp),
+        finality,
+      };
+      if (this.modular) await this.assertCurrentClass(snap);
+      if (await this.isCanonical(snap)) return snap;
+    }
+    throw new AnsError('network', 'could not obtain a canonical registry snapshot after three attempts');
   }
 
   /** True when the block a snapshot was taken from is still part of the chain (no reorg since). */
@@ -143,7 +150,7 @@ export class RegistryReader {
     if (!this.modular && this.configCache) return this.configCache;
     const s = snap ?? (await this.snapshot());
     if (this.modular) {
-      await this.assertCurrentClass();
+      await this.assertCurrentClass(s);
       const { registrar } = await this.getModules(s);
       const kind = await this.assertModule(registrar, 'registrar', s);
       const tiered = kind === 'registrarTiered' || kind === 'registrarLaunch';
@@ -333,7 +340,7 @@ export class RegistryReader {
 
   /** V7 separates editor revisions from holder revisions. Older protocols share the name revision. */
   async getRecordRevision(node: bigint, generation: number, snap: Snapshot): Promise<number> {
-    if (registryProtocol(this.currentClass).version !== 7) return (await this.getName(node, snap)).revision;
+    if (registryProtocol(this.currentClass).version < 7) return (await this.getName(node, snap)).revision;
     const [revision] = await this.readMap(this.slots.record_revisions.slot, await recordKey(node, generation), 1, snap);
     if (revision > 0xffffffffn) throw new AnsError('corrupt_data', 'record revision exceeds u32');
     return Number(revision);
@@ -387,16 +394,29 @@ export class RegistryReader {
   }
 
   /** Recheck before new snapshots/writes; an unrecognized upgrade is never read using a guessed layout. */
-  async assertCurrentClass() {
-    const instance = await this.guard(() => this.node.getContract(this.registry));
+  async assertCurrentClass(snap?: Snapshot) {
+    if (isV8Class(this.currentClass)) {
+      const state = await this.getCoreUpgradeState(snap);
+      this.currentClass = state.currentClass;
+      return this.currentClass;
+    }
+    const instance = await this.guard(() => this.node.getContract(this.registry, snap ? BlockNumber(snap.blockNumber) : undefined));
     const id = instance?.currentContractClassId.toString();
     if (!id || registryProtocol(id).version !== this.deployment.protocolVersion)
-      throw new AnsError(
-        'wrong_deployment',
-        'registry upgraded to an unsupported class; update the SDK',
-      );
+      throw new AnsError('wrong_deployment', 'registry upgraded to an unsupported class; update the SDK');
     this.currentClass = id;
     return id;
+  }
+
+  async getCoreUpgradeState(snap?: Snapshot) {
+    if (!isV8Class(this.currentClass)) throw new AnsError('unsupported', 'core upgrades require an independent V8 registry');
+    let s = snap;
+    if (!s) {
+      const data = await this.guard(() => this.node.getBlockData('proposed'));
+      if (!data) throw new AnsError('network', 'node has no proposed block');
+      s = { blockNumber: Number(data.header.globalVariables.blockNumber), blockHash: String(data.blockHash), timestamp: BigInt(data.header.globalVariables.timestamp), finality: 'proposed' };
+    }
+    return this.guard(() => readCoreUpgrade(this.node, this.registry, s!, this.upgradeProfile));
   }
 
   /** Reserved status at one snapshot; other registrar kinds have no launch reservations. */
@@ -421,7 +441,7 @@ export class RegistryReader {
 
   /** Verifies a module's class and registry binding; returns which supported implementation it is. */
   async assertModule(address: AztecAddress, kind: 'registrar' | 'resolver', snap: Snapshot) {
-    const instance = await this.guard(() => this.node.getContract(address));
+    const instance = await this.guard(() => this.node.getContract(address, BlockNumber(snap.blockNumber)));
     const classId = instance?.currentContractClassId.toString();
     const impl = (kind === 'registrar' ? (['registrar', 'registrarTiered', 'registrarLaunch'] as const) : (['resolver'] as const)).find(
       (k) => modular[k].classId === classId,

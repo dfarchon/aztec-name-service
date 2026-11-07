@@ -1,4 +1,6 @@
 import { AztecAddress } from '@aztec-labs/aztec.js/addresses';
+import { NameRegistryV8Contract } from '../artifacts/NameRegistryV8.js';
+import { NameRegistryV8RehearsalContract } from '../artifacts/NameRegistryV8Rehearsal.js';
 import { NameRegistryV7Contract } from '../artifacts/NameRegistryV7.js';
 import { NameRegistryV6Contract } from '../artifacts/NameRegistryV6.js';
 import { registryProtocols } from '../core/registry-protocol.js';
@@ -56,7 +58,11 @@ async function configurationSnapshot(ctx: AnsContext) {
 export async function configureModules(ctx: AnsContext, args: {registrar: AztecAddress; resolver: AztecAddress}, opts?: TxOptions) {
   const snapshot = await configurationSnapshot(ctx);
   const [modules] = await Promise.all([ctx.reader.getModules(snapshot), ctx.reader.assertModule(args.registrar, 'registrar', snapshot), ctx.reader.assertModule(args.resolver, 'resolver', snapshot)]);
-  const contract=ctx.reader.classId === registryProtocols.v7.classId
+  const contract=ctx.reader.classId === registryProtocols.v8.classId
+    ? NameRegistryV8Contract.at(ctx.reader.registry, ctx.wallet)
+    : ctx.reader.classId === registryProtocols.v8Rehearsal.classId
+    ? NameRegistryV8RehearsalContract.at(ctx.reader.registry, ctx.wallet)
+    : ctx.reader.classId === registryProtocols.v7.classId
     ? NameRegistryV7Contract.at(ctx.reader.registry, ctx.wallet)
     : ctx.reader.classId === registryProtocols.v6.classId
     ? NameRegistryV6Contract.at(ctx.reader.registry, ctx.wallet)
@@ -67,8 +73,8 @@ export async function configureModules(ctx: AnsContext, args: {registrar: AztecA
 export async function setAdministrator(ctx: AnsContext, administrator: AztecAddress, opts?: TxOptions) {
   if (administrator.isZero()) throw new AnsError('invalid_argument', 'administrator must not be zero');
   await configurationSnapshot(ctx);
-  if ([registryProtocols.v6.classId, registryProtocols.v7.classId].includes(ctx.reader.classId))
-    throw new AnsError('unsupported', 'V6/V7 administration requires nomination and acceptance via the matching bindings');
+  if ([registryProtocols.v6.classId, registryProtocols.v7.classId, registryProtocols.v8.classId, registryProtocols.v8Rehearsal.classId].includes(ctx.reader.classId))
+    throw new AnsError('unsupported', 'V6/V7/V8 administration requires nomination and acceptance via the matching bindings');
   const contract=NameRegistryV5Contract.at(ctx.reader.registry, ctx.wallet);
   return {tx: await runTx(ctx, contract.methods.set_administrator(administrator), opts)};
 }

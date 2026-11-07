@@ -182,3 +182,17 @@ test('a module selection failure before send emits no unknown broadcast and can 
   await runTx(f.ctx, () => f.interaction);
   assert.equal(f.calls.sends, 1);
 });
+
+test('fee token class lookup uses the supplied snapshot rather than latest', async () => {
+  const { FEE_TOKEN_CLASS_ID } = await import('../src/client/fee-token.js');
+  const address = AztecAddress.fromBigIntUnsafe(987n), blocks: unknown[] = [];
+  const snapshot = { blockNumber: 10, blockHash: 'canonical-N', timestamp: 1000n, finality: 'proposed' as const };
+  const reader = { node: {
+    getContract: async (_address: AztecAddress, block: unknown) => { blocks.push(block); return { currentContractClassId: block === 10 ? FEE_TOKEN_CLASS_ID : Fr.ZERO.toString() }; },
+    getPublicStorageAt: async (block: unknown, _address: AztecAddress, slot: Fr) => {
+      assert.equal(block, 10); return slot.toBigInt() === 10n ? new Fr(18n) : new Fr(BigInt('0x544f4b'));
+    },
+  } } as any;
+  const result = await readFeeTokenMetadata(reader, address, snapshot);
+  assert.equal(result.decimals, 18); assert.equal(result.symbol, 'TOK'); assert.deepEqual(blocks, [10]);
+});

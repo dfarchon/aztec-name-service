@@ -219,3 +219,16 @@ test('5.2.1 archive registry identities are rejected by the 6.0.0 SDK', async ()
   for (const key of ['registry', 'extended', 'current', 'upgradeTest'] as const)
     assert.throws(() => registryProtocol(archive.modular[key].classId), /does not match/);
 });
+
+test('module class and binding stay at N even when the latest module class differs', async () => {
+  const c = chain(), lookup = c.node.getContract;
+  const resolver = addr(3), blocks: unknown[] = [];
+  c.node.getContract = async (address: AztecAddress, block?: unknown) => {
+    if (!address.equals(resolver)) return lookup(address, block);
+    blocks.push(block);
+    return { currentContractClassId: block === 10 ? metadata.resolver.classId : Fr.ZERO.toString() };
+  };
+  const reader = await RegistryReader.connect(c.node, c.registry);
+  assert.equal(await reader.assertModule(resolver, 'resolver', snap), 'resolver');
+  assert.deepEqual(blocks, [10]);
+});

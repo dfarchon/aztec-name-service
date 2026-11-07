@@ -66,7 +66,7 @@ export async function acceptTransfer(ctx: AnsContext, args: { name: NameRef; acc
     offer.expiresAt <= h.snapshot.timestamp
   )
     throw new AnsError('invalid_argument', 'no active transfer offer for this account');
-  const resolverReset = ctx.reader.deployment.protocolVersion === 7;
+  const resolverReset = ctx.reader.deployment.protocolVersion >= 7;
   const resolver = resolverReset ? undefined : await ctx.reader.inspectResolver(h.node, h.record.generation, h.snapshot);
   if (resolver && !resolver.verified && args.acceptUnverifiedResolver !== true)
     throw new AnsError('invalid_argument', 'inherited resolver is unverified; explicitly accept the risk and reset to the default resolver after acceptance');
