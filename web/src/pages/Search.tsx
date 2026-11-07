@@ -25,6 +25,7 @@ type Result = Awaited<ReturnType<typeof getAvailability>> & {
 
 export function SearchPage({ initial }: { initial?: string }) {
   const { reader, status } = useSession();
+  const unavailable = !reader && (status === "offline" || status === "misconfigured");
   const [input, setInput] = useState(initial ?? "");
   const [result, setResult] = useState<Result>();
   const [error, setError] = useState<{ message: string; retry?: RpcRetryInfo }>();
@@ -38,6 +39,13 @@ export function SearchPage({ initial }: { initial?: string }) {
     [],
   );
   const [loading, setLoading] = useState(false);
+  useEffect(() => {
+    if (reader) return;
+    generation.current++;
+    loadedRoute.current = undefined;
+    setResult(undefined);
+    setLoading(false);
+  }, [reader]);
 
   // Normalization is local and instant; the query only runs on explicit request.
   const preview = useMemo(() => {
@@ -141,11 +149,13 @@ export function SearchPage({ initial }: { initial?: string }) {
           ) : (
             preview.label !== input.trim() && <small>{translate("Search for:")} {preview.label}</small>
           ))}
-        {!reader && <small>{status === "offline" ? translate("Node unavailable. Reconnect and retry.") : status === "misconfigured" ? translate("Network configuration error") : translate("Connecting to network…")}</small>}
+        {!reader && !unavailable && <small>{translate("Connecting to network…")}</small>}
         </div>
       </Card>
 
-      {error && <Card tone="err"><div role="alert" data-query-error>
+      {unavailable ? <Card tone="err"><div role="alert" data-query-unavailable>
+        <p>{status === "misconfigured" ? translate("Network configuration error") : translate("Node unavailable. Reconnect and retry.")}</p>
+      </div></Card> : error && <Card tone="err"><div role="alert" data-query-error>
         <p>{error.retry?.temporary
           ? translate(error.retry.timeout ? "The node temporarily timed out. Automatically retried {count} times. Please try again shortly." : "The node is temporarily unavailable. Automatically retried {count} times. Please try again shortly.", { count: error.retry.retryCount })
           : translate(error.message)}</p>
@@ -153,7 +163,7 @@ export function SearchPage({ initial }: { initial?: string }) {
         <button disabled={!reader || loading || !preview || "error" in preview} onClick={() => void query()}>{translate("Retry")}</button>
       </div></Card>}
 
-      {result && (
+      {reader && result && (
         <Card title={<CopyValue value={result.label.label} label={translate("Copy name")} />} meta={<span className="status-badge">{result.eligibility === "paused" ? "Registration paused" : result.eligibility === "too_short" ? "Not yet available" : result.eligibility === "reserved" ? "Reserved" : result.migration ? translate("Migration required") : result.available ? translate("Available") : result.status === "active" ? translate("Registered · Active") : translate(result.label.parent ? "Inactive subname" : statusText[result.status])}</span>}>
           {result.eligibility === "paused" && <p role="status">Public registration is paused. Renewals remain available to holders.</p>}
           {result.eligibility === "too_short" && <p>Names shorter than {result.feeConfig.launch?.minPublicLength} characters are not yet available for public registration.</p>}

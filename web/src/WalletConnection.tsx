@@ -165,7 +165,7 @@ export function WalletConnection() {
           <select
             aria-label={translate("Wallet account")}
             value={s.ctx?.account.toString() ?? ""}
-            disabled={busy || s.pendingTxs > 0}
+            disabled={!canConnect || busy || s.pendingTxs > 0}
             onChange={async (e) => {
               const a = s.accounts.find(
                 (a) => a.address.toString() === e.target.value,
@@ -203,7 +203,7 @@ export function WalletConnection() {
           </button>
           {!pending &&
             providers.map((p) => (
-              <button disabled={busy} key={p.id} onClick={() => void begin(p)}>
+              <button disabled={!canConnect || busy} key={p.id} onClick={() => void begin(p)}>
                 {p.name}
               </button>
             ))}
@@ -218,7 +218,7 @@ export function WalletConnection() {
           <p className="muted">{translate("To make sure you are connecting to your real wallet, check that these symbols match the ones shown in the wallet pop-up.")}</p>
           <strong>{pending.emoji}</strong>
           <div className="row">
-            <button disabled={busy} onClick={() => void confirm()}>{translate("Confirm and connect")}</button>
+            <button disabled={!canConnect || busy} onClick={() => void confirm()}>{translate("Confirm and connect")}</button>
             <button
               disabled={busy}
               onClick={() => {

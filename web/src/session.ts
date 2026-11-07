@@ -15,10 +15,11 @@ import type { EmbeddedWallet } from '@aztec-labs/wallets/embedded';
 import { useSyncExternalStore } from 'react';
 
 import { config } from './config';
-import { canDeriveSponsor } from './network-config';
+import { canDeriveSponsor, identityMismatch } from './network-config';
+import { createSessionNode, liveWritesAllowed, type ConnectionStatus } from './connection';
+export { liveWritesAllowed } from './connection';
 import metadata from './public-metadata.json';
 import { retryDelay } from './usability';
-import { createWebNode } from './rpc';
 import { deriveKeys, RecordStore } from './vault';
 
 export { choosingAccount } from './account-state';
@@ -43,7 +44,7 @@ export type AccountRecords = {
 };
 const emptyRecords = (): AccountRecords => ({ plans: [], txs: [], names: [] });
 
-type Status = 'booting' | 'misconfigured' | 'offline' | 'locked' | 'unlocking' | 'ready';
+type Status = ConnectionStatus;
 
 export type SessionState = {
   status: Status;
@@ -63,7 +64,7 @@ export type SessionState = {
 let state: SessionState = {
   status: 'booting',
   pendingTxs: 0,
-  node: createWebNode(config.nodeUrl),
+  node: createSessionNode(config.nodeUrl, connectionUnavailable),
   accounts: [],
 };
 const listeners = new Set<() => void>();
@@ -98,44 +99,65 @@ let connecting: Promise<void> | undefined;
 let connectionTimer: ReturnType<typeof setTimeout> | undefined;
 let failures = 0;
 let watching = false;
+let verifiedReader: RegistryReader | undefined;
+let suspendedContext: { ctx: AnsContext; epoch: number } | undefined;
+let connectionRevision = 0;
+
+function requireLiveNetwork() {
+  if (!liveWritesAllowed(state.status) || !state.reader)
+    throw new Error('Network not ready. Reconnect and retry.');
+}
+
+/** Withdraw live capabilities when the transport returns a read failure; saved hashes remain intact. */
+function connectionUnavailable(error: unknown) {
+  connectionRevision++;
+  failures++;
+  if (state.ctx) suspendedContext = { ctx: state.ctx, epoch: sessionEpoch };
+  const err = toAnsError(error);
+  set({ reader: undefined, ctx: undefined,
+    status: err.code === 'wrong_deployment' || state.status === 'misconfigured' ? 'misconfigured' : 'offline',
+    error: err.message,
+    connection: { latencyMs: state.connection?.latencyMs ?? 0, checkedAt: Date.now(), failures },
+  });
+  if (connectionTimer) clearTimeout(connectionTimer);
+  if (watching && !connecting && state.status !== 'misconfigured')
+    connectionTimer = setTimeout(() => void boot(), retryDelay(failures));
+}
 
 export function boot(): Promise<void> {
   if (connecting) return connecting;
   if (connectionTimer) clearTimeout(connectionTimer);
   connecting = (async () => {
     if (!config.registry) {
-      set({ status: 'misconfigured', error: 'Registry is not configured' });
+      connectionUnavailable(new AnsError('wrong_deployment', 'Registry is not configured'));
       return;
     }
     const started = Date.now();
+    const revision = connectionRevision;
     try {
       const reader = await RegistryReader.connect(state.node, config.registry);
-      const old = state.reader?.deployment;
-      if (
-        (config.expectedChainId && String(reader.deployment.chainId) !== config.expectedChainId) ||
-        (config.expectedRollupVersion &&
-          String(reader.deployment.rollupVersion) !== config.expectedRollupVersion) ||
-        (old &&
-          (old.chainId !== reader.deployment.chainId ||
-            old.rollupVersion !== reader.deployment.rollupVersion))
-      ) {
+      if (identityMismatch({ chainId: config.expectedChainId, rollupVersion: config.expectedRollupVersion },
+        verifiedReader?.deployment, reader.deployment)) {
         throw new AnsError('wrong_deployment', 'Network identity changed');
       }
+      // A concurrent final read failure supersedes an older successful health check.
+      if (revision !== connectionRevision) return;
       failures = 0;
+      verifiedReader ??= reader;
+      const ctx = state.ctx ?? (suspendedContext?.epoch === sessionEpoch ? suspendedContext.ctx : undefined);
+      suspendedContext = undefined;
       set({
-        reader: state.reader ?? reader,
+        reader: verifiedReader,
+        ctx,
         status: state.wallet ? 'ready' : state.status === 'unlocking' ? 'unlocking' : 'locked',
-        error: state.status === 'offline' || state.status === 'booting' ? undefined : state.error,
+        error: ['offline', 'booting', 'misconfigured'].includes(state.status) ? undefined : state.error,
         connection: { checkedAt: Date.now(), latencyMs: Date.now() - started, failures },
       });
     } catch (e) {
-      failures++;
-      const err = toAnsError(e);
-      set({
-        status: err.code === 'wrong_deployment' ? 'misconfigured' : 'offline',
-        error: err.message,
-        connection: { checkedAt: Date.now(), latencyMs: Date.now() - started, failures },
-      });
+      // The transport observer may already have withdrawn capabilities for this failed check.
+      if (revision === connectionRevision || toAnsError(e).code === 'wrong_deployment')
+        connectionUnavailable(e);
+      set({ connection: { checkedAt: Date.now(), latencyMs: Date.now() - started, failures } });
     }
   })().finally(() => {
     connecting = undefined;
@@ -183,11 +205,12 @@ async function acquireTabLock(): Promise<void> {
 
 export async function unlock(passphrase: string) {
   if (!config.developmentWallet) throw new Error('Developer wallet is disabled');
-  if (!state.reader) return;
+  requireLiveNetwork();
   set({ status: 'unlocking', error: undefined });
   let closeUnownedStores: (() => Promise<void>) | undefined;
   try {
     const info = await state.node.getNodeInfo();
+    requireLiveNetwork();
     if (info.realProofs && !config.proverEnabled)
     {
       // Operator hint stays in the console; users see a plain message.
@@ -240,6 +263,7 @@ export async function unlock(passphrase: string) {
     embeddedWallet = wallet;
     closeUnownedStores = undefined; // The wallet now owns both stores; lock() closes them on any later failure.
     if (sponsor) {
+      requireLiveNetwork();
       const { SponsoredFeePaymentMethod } = await import('@aztec-labs/aztec.js/fee');
       await wallet.registerContract(sponsor.instance, sponsor.artifact);
       paymentMethod = new SponsoredFeePaymentMethod(sponsor.instance.address);
@@ -249,6 +273,7 @@ export async function unlock(passphrase: string) {
       alias: a.alias,
       address: a.item,
     }));
+    requireLiveNetwork();
     set({ wallet, walletMode: 'embedded', accounts, status: 'ready' });
     if (accounts.length === 1) await selectAccount(accounts[0].address);
   } catch (e) {
@@ -260,12 +285,13 @@ export async function unlock(passphrase: string) {
         : e instanceof Error
           ? e.message
           : String(e);
-    set({ status: 'locked', error: msg });
+    set({ error: msg });
   }
 }
 
 export async function lock() {
   sessionEpoch++;
+  suspendedContext = undefined;
   unsubscribeProvider?.();
   unsubscribeProvider = undefined;
   const provider = externalProvider;
@@ -278,7 +304,7 @@ export async function lock() {
   recordsKey = undefined;
   paymentMethod = undefined;
   set({
-    status: failures ? 'offline' : state.reader ? 'locked' : 'booting',
+    status: state.status === 'misconfigured' ? 'misconfigured' : failures ? 'offline' : state.reader ? 'locked' : 'booting',
     wallet: undefined,
     walletMode: undefined,
     accounts: [],
@@ -289,6 +315,7 @@ export async function lock() {
 }
 
 export async function selectAccount(address: AztecAddress) {
+  requireLiveNetwork();
   const epoch = ++sessionEpoch;
   set({ ctx: undefined, records: undefined, selectingAccount: address });
   try {
@@ -298,12 +325,20 @@ export async function selectAccount(address: AztecAddress) {
     const feeJuice = config.feePayment === 'fee-juice' ? await import('./fee-juice') : undefined;
     const ctx = new AnsContext(reader, {
       wallet: feeJuice ? feeJuice.feeJuiceWallet(wallet, state.node) : wallet,
-      beforeSend: feeJuice ? (account) => feeJuice.assertFeeJuice(reader.node, account) : undefined,
+      // The SDK invokes this inside the shared wallet queue, including for already queued writes.
+      beforeSend: async (account) => {
+        requireLiveNetwork();
+        if (feeJuice) await feeJuice.assertFeeJuice(reader.node, account);
+        requireLiveNetwork();
+      },
       account: address,
       fee: paymentMethod ? { paymentMethod } : undefined,
     });
     // Fee reads belong to registration/renewal. A temporary quote failure must not block account management.
-    await ctx.queue.run(() => ctx.ensureRegistered());
+    await ctx.queue.run(() => {
+      requireLiveNetwork();
+      return ctx.ensureRegistered();
+    });
     const store = new RecordStore(
       recordsKey,
       `ans:v2:${reader.deployment.chainId}:${reader.registry}:${address}`,
@@ -312,6 +347,7 @@ export async function selectAccount(address: AztecAddress) {
     await saveQueue.catch(() => {});
     const records = await store.load();
     if (epoch !== sessionEpoch) return;
+    requireLiveNetwork();
     recordStore = store;
     set({ ctx, records });
   } finally {
@@ -320,6 +356,7 @@ export async function selectAccount(address: AztecAddress) {
 }
 
 export async function createAccount(alias: string, imported?: AccountKeys) {
+  requireLiveNetwork();
   const wallet = embeddedWallet;
   if (!wallet || state.walletMode !== 'embedded') return;
   const keys = imported ?? {
@@ -476,9 +513,13 @@ const walletStep = async <T>(step: string, run: () => Promise<T>): Promise<T> =>
 };
 
 export async function connectExternal(wallet: Wallet, provider: WalletProvider) {
-  await lock();
-  if (!state.reader) throw new Error('Node or registry is not ready.');
+  if (!state.reader) {
+    await provider.disconnect().catch(() => {});
+    throw new Error('Node or registry is not ready.');
+  }
   try {
+    await lock();
+    requireLiveNetwork();
     await acquireTabLock();
     recordsKey = await deviceRecordsKey();
     const accounts = (await walletStep('read accounts', () => wallet.getAccounts())).map((a) => ({
@@ -494,9 +535,11 @@ export async function connectExternal(wallet: Wallet, provider: WalletProvider) 
       const fpc = await state.node.getContract(config.sponsoredFpc);
       if (!fpc) throw new Error('Configured fee sponsorship contract is unavailable.');
       await verifySponsoredFpc(fpc);
+      requireLiveNetwork();
       await walletStep('register fee sponsor', () => wallet.registerContract(fpc, SponsoredFPCContractArtifact));
       paymentMethod = new SponsoredFeePaymentMethod(fpc.address);
     }
+    requireLiveNetwork();
     externalProvider = provider;
     unsubscribeProvider = provider.onDisconnect(() => {
       void lock();
@@ -547,7 +590,9 @@ export function txRecorder(label: string) {
 
 /** Preserve receipt hashes and transport uncertainty while the encrypted write completes. */
 export function rememberRegistrationProgress(ctx: AnsContext, plan: RegistrationPlan) {
-  if (ctx !== state.ctx || !state.records) return;
+  const current = ctx === state.ctx ||
+    (ctx === suspendedContext?.ctx && suspendedContext.epoch === sessionEpoch);
+  if (!current || !state.records) return;
   // Do not publish a new secret before storage succeeds; only update already persisted plans here.
   set({
     records: {
