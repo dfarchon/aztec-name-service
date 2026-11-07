@@ -23,7 +23,8 @@ try {
       2,
     ),
   );
-} catch {
-  console.error(PUBLIC_PAUSE);
+} catch (error) {
+  // This CLI only validates fixed preview inputs; it never handles credentials or RPC errors.
+  console.error(error instanceof Error ? error.message : 'Invalid preview input');
   process.exitCode = 1;
 }

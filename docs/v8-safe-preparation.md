@@ -1,6 +1,6 @@
 # V8 safe preparation operator
 
-Run `node --import tsx e2e/src/v8-safe-operator-cli.ts` from the repository. It defaults to a plan preview. `--dry-run` is the only accepted argument. Execution, force, configuration and key-path arguments fail before any file or credential access. Environment settings cannot activate execution. This entry point does not create accounts, import wallets, access money files, connect to RPC, sign or send.
+Run `node --import tsx e2e/src/v8-safe-operator-cli.ts` from the repository. It defaults to a plan preview. `--dry-run` is the only accepted argument. Execution, force, configuration and key-path arguments fail before credential access (repository JSON imports load before argument validation). Environment settings cannot activate execution. This entry point does not create accounts, import wallets, access money files, connect to RPC, sign or send.
 
 Public execution is unconditionally paused. A future implementation requires a new owner credential-risk disposition and budget approval, plus an independently reviewed signer boundary. This CLI and the mock durability engine are not live-ready.
 
