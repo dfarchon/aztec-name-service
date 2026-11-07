@@ -1,4 +1,4 @@
-# Reserved labels: content policy v2 / 保留名单：内容策略 v2
+# Reserved labels: content policy v3 / 保留名单：内容策略 v3
 
 `reserved-labels.json` uses `ans-reserved-labels/1`. Categories are public review information; enforcement uses the union of their node keys. Every label is 7–31 ASCII characters, lowercase letters/digits/hyphens only, with no edge hyphen, `--`, `0x` prefix or dot. Short names are already closed to public registration and are excluded here. Categories and the flattened list must have no duplicates.
 
@@ -9,6 +9,10 @@
 | ans | ANS and dfarchon identity, administration and service labels / ANS、dfarchon 身份及管理、服务名称 |
 | system | Administrative, support, security and impersonation-sensitive words / 管理、客服、安全及易被冒用的身份词 |
 | ecosystem | Major chain, exchange, wallet and infrastructure identities / 主要链、交易所、钱包及基础设施身份 |
+| corporate | Technology companies and explicitly sourced products / 科技企业及有明确来源的产品 |
+| ai | AI companies and explicitly sourced assistants / AI企业及有明确来源的助手产品 |
+| payments | Payment company identity compounds / 支付企业身份组合词 |
+| consumer | Consumer brands and identity compounds / 消费品牌及身份组合词 |
 
 The existing loader accepts lowercase category names (`^[a-z][a-z0-9-]*$`), including `noir`, without a schema change. The deployment loader rejects malformed files and duplicates before hashing. The canonical SHA-256 input is `JSON.stringify(sortedFlatLabels)`; category order does not affect it. Legacy arrays remain supported with the same validation. Reservation bits are seeded and verified before bootstrap. Administrator mint and renewal retain their existing authorization and bypass public reservations.
 
@@ -107,10 +111,70 @@ The following map names the source entry behind every addition. Normalization an
 
 ### Canonical data and seeding budget / 规范数据与写入预算
 
-Canonical SHA-256: `b6d4e77d1cdc119abfec4f0060fd7235463e8ed7d85ce5e8b3e07c8bea42b147`. The pinned `mainnet.template.json` uses this hash; this is a template update, not a chain change. The regression fixture pins the prior 195-label hash and checks each original category and label.
+Historical v2 SHA-256: `b6d4e77d1cdc119abfec4f0060fd7235463e8ed7d85ce5e8b3e07c8bea42b147`. The v2 fixture retains this hash; this is a template update, not a chain change. The regression fixture pins the prior 195-label hash and checks each original category and label.
 
 规范 SHA-256 如上，`mainnet.template.json` 固定此哈希；仅更新模板，不改变链上状态。回归夹具固定原195项哈希并逐一检查原分类及标签。
 
 At 32 nodes per seed transaction, the full list needs `ceil(276/32) = 9` batches, previously `ceil(195/32) = 7`: two additional transactions (+28.6% by batch count). The last batch has 20 labels and 12 zero-padding slots. If a seed batch costs C, the planning change is 7C → 9C (+2C); no linear per-label gas claim is made. Using the rehearsal's unmeasured 1.98 FJ per-call allocation solely as a budget proxy gives 13.86 → 17.82 FJ (+3.96 FJ). This is not a simulation, real fee quote, measured seed cost, or guaranteed bound. Deployment, failed transactions, account setup and funding need their own allowances. The existing one-label rehearsal remains a fixture; see [rehearsal planning](../docs/launch-rehearsal.md).
 
 每批32个 node，完整名单需要9批，原来7批，增加2笔交易（批次数增加28.6%）；末批20项，补12个零值。若每批成本为 C，预算从7C增至9C，增加2C，不推断逐标签 gas 线性关系。仅用演练中未实测的每次调用1.98 FJ作为预算占位，保留写入分配从13.86增至17.82 FJ，增加3.96 FJ；这不是模拟、实时费用报价、实测写入成本或保证上界。部署、失败交易、账户准备及资金另计。单标签演练仍为夹具。
+
+
+## Content policy v3 / 内容策略 v3
+
+Official pages listed below were checked on 2026-11-07 (Asia/Taipei). The loader was independently inspected: the four lowercase categories are accepted under unchanged schema `ans-reserved-labels/1`. All 276 v2 labels and their original category arrays remain exact; 49 bounded additions give 325 labels. The v1 fixture and all prior exclusions remain. No duplicate candidates or uncertain product-parent relationships were accepted.
+
+下列官方页面已于 2026-11-07（Asia/Taipei）核对；已独立检查加载器，四个小写分类适用原 schema。v2 的276项及原分类数组原样保留，新增49项，共325项；v1夹具及此前排除项继续保留。本次没有重复候选或关系不确定的产品入选。
+
+These sources establish brand identity and the stated product relationships. Support/official compounds are **our anti-impersonation policy**, not evidence that a company uses that exact label or provides that service. Reservation asserts no endorsement, ownership, partnership, contact channel or trademark right. “Legal label” means syntax validation only, not legal review. Public minimum length stays 7; no short bare brands, broad generic roots or look-alike spellings are added. `mcdonalds` explicitly omits the brand's apostrophe for ASCII normalization. Bare `windows`, `android`, `stripe` and `visa` are not added. Mastercard was omitted because its official pages could not be retrieved; other unresearched brands remain outside this bounded set.
+
+来源仅核对品牌身份及列明的产品关系。support/official 组合词是**本项目的防冒用策略**，不证明企业使用该标签或提供该服务；保留不表示背书、所有权、合作、联系渠道或商标权。“合法标签”仅指语法校验，不是法律审查。公开最短长度保持7，不新增短裸品牌、宽泛通用词或近似拼写；`mcdonalds` 明确采用省略撇号的 ASCII 形式。裸词 windows、android、stripe、visa 不新增。Mastercard 官方页面无法获取，因此未纳入；其他未研究品牌不在本次范围。
+
+| Category / 分类 | Retained v2 / 保留 | Added / 新增 | Total / 合计 |
+| --- | ---: | ---: | ---: |
+| aztec | 72 | 0 | 72 |
+| ans | 24 | 0 | 24 |
+| system | 57 | 0 | 57 |
+| ecosystem | 103 | 0 | 103 |
+| noir | 20 | 0 | 20 |
+| corporate | 0 | 27 | 27 |
+| ai | 0 | 7 | 7 |
+| payments | 0 | 6 | 6 |
+| consumer | 0 | 9 | 9 |
+| Total / 总计 | 276 | 49 | 325 |
+
+### Official source mapping / 官方来源对应
+
+Every new label is mapped below; product names in the identity column are explicitly present in the official pages listed. / 下表覆盖全部新增标签，身份列的产品关系均来自列明的官方页面。
+
+| Source / 来源 | Identity / 身份 | Category / 分类 | Labels / 标签 |
+| --- | --- | --- | --- |
+| [C1](https://www.apple.com/wallet/) | Apple, Apple Wallet, Apple Pay | corporate | `apple-support`, `apple-official`, `apple-wallet`, `apple-pay` |
+| [C2](https://about.google/products/) | Google, Google Wallet, YouTube, Android | corporate | `google-support`, `google-official`, `google-wallet`, `youtube`, `youtube-support`, `android-support` |
+| [C3](https://www.microsoft.com/en-us/about) | Microsoft | corporate | `microsoft`, `microsoft-support` |
+| [C4](https://www.microsoft.com/en-us/windows/) | Microsoft Windows | corporate | `microsoft-windows`, `windows-support` |
+| [C5](https://www.aboutamazon.com/what-we-do) | Amazon, Amazon Web Services, Prime Video | corporate | `amazon-support`, `amazon-official`, `amazon-web-services`, `prime-video` |
+| [C6](https://about.meta.com/technologies/) | Meta | corporate | `meta-support`, `meta-official` |
+| [C7](https://www.nvidia.com/en-us/about-nvidia/) | NVIDIA | corporate | `nvidia-support`, `nvidia-official` |
+| [C8](https://www.samsung.com/us/about-us/our-business/) | Samsung | corporate | `samsung`, `samsung-support` |
+| [C9](https://www.sony.com/en/SonyInfo/CorporateInfo/) | Sony, PlayStation | corporate | `sony-support`, `playstation`, `playstation-support` |
+| [C10](https://openai.com/) | OpenAI, ChatGPT | ai | `openai-support`, `openai-official`, `chatgpt`, `chatgpt-support` |
+| [C11](https://www.anthropic.com/company) | Anthropic, Claude | ai | `anthropic`, `anthropic-support`, `claude-support` |
+| [C12](https://www.paypal.com/us/webapps/mpp/about) | PayPal | payments | `paypal-support`, `paypal-official` |
+| [C13](https://stripe.com/about) | Stripe | payments | `stripe-support`, `stripe-official` |
+| [C14](https://www.visa.com/about-visa.html) | Visa | payments | `visa-support`, `visa-official` |
+| [C15](https://about.nike.com/) | Nike | consumer | `nike-official` |
+| [C16](https://www.coca-colacompany.com/brands) | Coca-Cola | consumer | `coca-cola`, `coca-cola-official` |
+| [C17](https://www.starbucks.com/about-us/) | Starbucks | consumer | `starbucks`, `starbucks-official` |
+| [C18](https://corporate.mcdonalds.com/) | McDonald’s | consumer | `mcdonalds`, `mcdonalds-official` |
+| [C19](https://corporate.walmart.com/about) | Walmart | consumer | `walmart`, `walmart-support` |
+
+### Current hash and planning / 当前哈希与预算
+
+Canonical SHA-256: `743b1b4c3ab4762cb2d12662765406fdf91971845a5ec6137b1f7444223657fa`. Only `reservedListHash` changes in the mainnet template; `minPublicLength` remains 7. The immutable v2 fixture pins `b6d4e77d1cdc119abfec4f0060fd7235463e8ed7d85ce5e8b3e07c8bea42b147` and exact category arrays; the v1 fixture remains unchanged.
+
+规范哈希如上；主网模板仅修改 reservedListHash，minPublicLength 保持7。不可变 v2夹具固定旧哈希及原分类数组，v1夹具不变。
+
+Batch size remains 32: v2 `ceil(276/32)=9`, v3 `ceil(325/32)=11`, two extra transactions (+22.2%). The final batch has 5 labels and 27 zero slots. For cost C per batch, 9C → 11C (+2C). The provisional, unmeasured 1.98 FJ allowance gives seed budgets 17.82 → 21.78 FJ (+3.96). Full-list rehearsal planning totals are 55.58 → 59.54 FJ, with recommended allowances 84 → 90 FJ. The one-label fixture remains 39.74 FJ / recommended 60. These are planning allowances, not measured fees, simulations, quotes or guaranteed bounds. Failed transactions, account setup, deployment and funding need their own allowances; no FJ-to-ETH conversion is made. See [rehearsal planning](../docs/launch-rehearsal.md).
+
+每批仍为32：v2需9批，v3需11批，增加2笔（22.2%）；末批5项，补27个零。每批成本为C时从9C到11C。未实测的每批1.98 FJ占位给出写入预算17.82→21.78 FJ，增加3.96；完整名单演练总占位55.58→59.54 FJ，建议84→90 FJ。单标签夹具仍为39.74 FJ、建议60。这些不是实测费用、模拟、报价或保证上界；失败交易、账户准备、部署和资金另计，不将FJ换算为ETH。

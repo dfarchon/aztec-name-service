@@ -287,6 +287,63 @@
       "ultrahonk",
       "zk-email",
       "zkproofport"
+    ],
+    "corporate": [
+      "apple-support",
+      "apple-official",
+      "apple-wallet",
+      "apple-pay",
+      "google-support",
+      "google-official",
+      "google-wallet",
+      "youtube",
+      "youtube-support",
+      "android-support",
+      "microsoft",
+      "microsoft-support",
+      "microsoft-windows",
+      "windows-support",
+      "amazon-support",
+      "amazon-official",
+      "amazon-web-services",
+      "prime-video",
+      "meta-support",
+      "meta-official",
+      "nvidia-support",
+      "nvidia-official",
+      "samsung",
+      "samsung-support",
+      "sony-support",
+      "playstation",
+      "playstation-support"
+    ],
+    "ai": [
+      "openai-support",
+      "openai-official",
+      "chatgpt",
+      "chatgpt-support",
+      "anthropic",
+      "anthropic-support",
+      "claude-support"
+    ],
+    "payments": [
+      "paypal-support",
+      "paypal-official",
+      "stripe-support",
+      "stripe-official",
+      "visa-support",
+      "visa-official"
+    ],
+    "consumer": [
+      "nike-official",
+      "coca-cola",
+      "coca-cola-official",
+      "starbucks",
+      "starbucks-official",
+      "mcdonalds",
+      "mcdonalds-official",
+      "walmart",
+      "walmart-support"
     ]
   }
 }

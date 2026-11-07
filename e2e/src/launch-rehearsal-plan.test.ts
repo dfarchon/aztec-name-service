@@ -53,7 +53,7 @@ test('quote experiment distinguishes SDK refusal, real checkpoint latency and re
 });
 
 test('reservation budget scales by seed batch for the full v2 policy without changing the rehearsal fixture', () => {
-  const labels = loadReservedList(JSON.parse(readFileSync(new URL('../../deployments/reserved-labels.json', import.meta.url), 'utf8')));
+  const labels = loadReservedList(JSON.parse(readFileSync(new URL('./fixtures/reserved-labels-v2.json', import.meta.url), 'utf8')));
   const oldLabels = loadReservedList(JSON.parse(readFileSync(new URL('./fixtures/reserved-labels-v1.json', import.meta.url), 'utf8')));
   const fixture = rehearsalPlan(config, '/example/planning-only');
   const before = rehearsalPlan({ ...config, reservedLabels: oldLabels }, fixture.stateDir);
@@ -62,6 +62,26 @@ test('reservation budget scales by seed batch for the full v2 policy without cha
   assert.equal(before.reservedSeedBatches, 7);
   assert.equal(after.reservedSeedBatches, 9);
   assert.equal(after.steps.find(s => s.step === 'seed-reserved')!.feeJuice, 17.82);
+  assert.equal(Number((after.totalFeeJuice - before.totalFeeJuice).toFixed(2)), 3.96);
+  assert.deepEqual(after.steps.map(s => s.step), before.steps.map(s => s.step));
+});
+
+test('v3 full-list planning adds two provisional seed allowances while preserving the default', () => {
+  const labels = loadReservedList(JSON.parse(readFileSync(new URL('../../deployments/reserved-labels.json', import.meta.url), 'utf8')));
+  const oldLabels = loadReservedList(JSON.parse(readFileSync(new URL('./fixtures/reserved-labels-v2.json', import.meta.url), 'utf8')));
+  const fixture = rehearsalPlan(config, '/example/planning-only');
+  const before = rehearsalPlan({ ...config, reservedLabels: oldLabels }, fixture.stateDir);
+  const after = rehearsalPlan({ ...config, reservedLabels: labels }, fixture.stateDir);
+  assert.equal(fixture.reservedSeedBatches, 1);
+  assert.equal(fixture.totalFeeJuice, 39.74);
+  assert.equal(fixture.recommendedFeeJuice, 60);
+  assert.equal(before.reservedSeedBatches, 9);
+  assert.equal(before.totalFeeJuice, 55.58);
+  assert.equal(before.recommendedFeeJuice, 84);
+  assert.equal(after.reservedSeedBatches, 11);
+  assert.equal(after.steps.find(s => s.step === 'seed-reserved')!.feeJuice, 21.78);
+  assert.equal(after.totalFeeJuice, 59.54);
+  assert.equal(after.recommendedFeeJuice, 90);
   assert.equal(Number((after.totalFeeJuice - before.totalFeeJuice).toFixed(2)), 3.96);
   assert.deepEqual(after.steps.map(s => s.step), before.steps.map(s => s.step));
 });
