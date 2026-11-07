@@ -43,6 +43,8 @@ for (const [key, file] of Object.entries({
   current: 'name_registry_v5-NameRegistryV5.json',
   v6: 'name_registry_v6-NameRegistryV6.json',
   v7: 'name_registry_v7-NameRegistryV7.json',
+  v8: 'name_registry_v8-NameRegistryV8.json',
+  v8Rehearsal: 'name_registry_v8_rehearsal-NameRegistryV8Rehearsal.json',
   registrar: 'name_registrar-NameRegistrar.json',
   registrarLaunch: 'name_registrar_launch-NameRegistrarLaunch.json',
   registrarTiered: 'name_registrar_tiered-NameRegistrarTiered.json', resolver: 'name_resolver-NameResolver.json',
@@ -64,6 +66,7 @@ await validateV5Layout(modular.current.storage);
 const v6 = loadContractArtifact(JSON.parse(await readFile(new URL('../src/artifacts/name_registry_v6-NameRegistryV6.json', import.meta.url), 'utf8')));
 await validateV6Layout(Object.fromEntries(Object.entries(v6.storageLayout).map(([key, value]) => [key, value.slot.toString()])));
 await validateV7Layout(modular.v7.storage);
+await import('../../scripts/check-v8-compatibility.mjs');
 console.log('Validated V3/V4/V5/V6 frozen layouts and V7 append-only layout');
 for (const [key, slot] of Object.entries(modular.registry.storage)) if (modular.extended.storage[key] !== slot) throw new Error(`V4 moved V3 slot ${key}`);
 await writeFile(new URL('../src/artifacts/modular-metadata.json', import.meta.url), JSON.stringify(modular, null, 2) + '\n');

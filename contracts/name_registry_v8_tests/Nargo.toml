@@ -1,0 +1,10 @@
+[package]
+name = "name_registry_v8_tests"
+type = "lib"
+authors = [""]
+[dependencies]
+aztec = { git = "https://github.com/aztec-labs-eng/aztec-nr", tag = "v6.0.0", directory = "aztec" }
+name_registry_v8 = { path = "../name_registry_v8" }
+ans_common = { path = "../ans_common" }
+v4_test_module = { path = "../v4_test_module" }
+evil_resolver_test = { path = "../evil_resolver_test" }
