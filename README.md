@@ -64,7 +64,7 @@ Aztec 上类似 ENS 的名字注册与解析服务：Noir 合约、TypeScript SD
 npm ci
 npm run check    # 构建 SDK，检查所有 workspace 类型
 npm test         # SDK、web、e2e、ops 单元测试及定价、包体积、部署配置检查
-npm run build    # SDK + 网站生产构建
+VITE_NETWORK=local VITE_FEE_PAYMENT=sponsored npm run build    # SDK + 本地配置构建
 npm run dev      # 构建 SDK 并启动网站开发服务
 ```
 
@@ -100,6 +100,10 @@ npm run test:extensions
 ```
 
 本地网络关闭证明，结果不代表真实证明或公共测试网可用。网站本地运行时，复制 `web/.env.example` 为 `web/.env` 并填入 `VITE_REGISTRY`。浏览器检查使用 `npm run smoke:* -w @ans/web`，需先构建 SDK 并启动开发服务（`BASE=<vite 地址>`）。
+
+RPC 配置只接受一个 `VITE_NODE_URL`。DEV 未设置 `VITE_NETWORK` 时使用 `local`，仅本地配置在省略 URL 时默认 `http://localhost:8080`（空字符串无效），链 ID 固定为 31337，rollup 版本可选；公共网络必须显式选择 `testnet-v6` 或 `mainnet`、设置收费方式，并填写与所选网络匹配的链 ID 和 rollup 版本。公共生产构建始终要求 HTTPS；显式选择公共网络的 DEV 回环地址可以使用 HTTP 测试夹具。配置错误会阻止构建，不会推断或回退到公共网络。RPC 读取调用返回传输失败（包括不重试的 `noRetry` 调用）或身份不匹配时，网站撤回实时读取器与写操作上下文；恢复前重新校验身份和已知合约类，保留已保存的交易哈希。
+
+RPC configuration accepts one `VITE_NODE_URL`. DEV defaults to `local` when `VITE_NETWORK` is absent. Only local defaults to `http://localhost:8080` when the URL is omitted (an empty string is invalid), with chain ID 31337 and an optional rollup pin. Public profiles require explicit `testnet-v6` or `mainnet`, a fee mode, and chain/rollup pins matching the selected network. Public production builds always require HTTPS; explicitly selected public DEV profiles may use HTTP loopback fixtures. Invalid configuration fails the build, with no public profile inference or network fallback. A read transport failure returned by the transport (including a single failed `noRetry` call) or an identity mismatch withdraws the live reader and write context. Recovery rechecks identity and known contract classes while retaining saved transaction hashes.
 
 ## 公共测试网
 

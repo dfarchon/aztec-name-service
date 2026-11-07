@@ -23,5 +23,8 @@ jobs:
       - run: npm run check
       - run: npm test
       - run: npm run build
+        env:
+          VITE_NETWORK: local
+          VITE_FEE_PAYMENT: sponsored
       - run: npm run pack:sdk
       - run: npm run test:consumer
