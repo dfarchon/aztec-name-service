@@ -47,7 +47,7 @@ function canonical(value: unknown): string {
   if (Array.isArray(value)) return `[${value.map(canonical).join(',')}]`;
   if (value !== null && typeof value === 'object')
     return `{${Object.entries(value)
-      .sort(([a], [b]) => a.localeCompare(b))
+      .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))
       .map(([k, v]) => `${JSON.stringify(k)}:${canonical(v)}`)
       .join(',')}}`;
   assert(
@@ -214,6 +214,7 @@ export type Checkpoint = {
   phase: Phase;
   hash?: string;
   outcome?: string;
+  receiptAttempt?: boolean;
 };
 function validateTransition(entries: Checkpoint[], entry: Checkpoint) {
   const prior = entries.at(-1);
@@ -229,16 +230,22 @@ function validateTransition(entries: Checkpoint[], entry: Checkpoint) {
   assert(prior && prior.step === entry.step, 'step transition mismatch');
   const allowed: Record<Phase, Phase[]> = {
     intent: ['hashed', 'halted'],
-    hashed: ['broadcasting', 'tracking', 'confirmed'],
-    broadcasting: ['tracking', 'confirmed'],
-    tracking: ['tracking', 'confirmed'],
-    confirmed: ['halted'],
+    hashed: ['broadcasting', 'tracking', 'confirmed', 'halted'],
+    broadcasting: ['tracking', 'confirmed', 'halted'],
+    tracking: ['tracking', 'confirmed', 'halted'],
+    confirmed: ['confirmed', 'halted'],
     halted: [],
   };
   assert(allowed[prior.phase].includes(entry.phase), 'invalid checkpoint FSM transition');
+  if (prior.phase === 'confirmed' && entry.phase === 'confirmed')
+    assert(
+      entry.receiptAttempt === true && entry.outcome === 'receipt-requested',
+      'confirmed reservation required',
+    );
+  if (entry.receiptAttempt !== undefined) assert.equal(typeof entry.receiptAttempt, 'boolean');
   if (prior.hash) assert.equal(entry.hash, prior.hash, 'saved hash immutable');
   if (entry.phase !== 'halted')
-    assert(entry.hash && hashPattern.test(entry.hash), 'mock hash required');
+    assert(entry.hash && hashPattern.test(entry.hash), 'transaction hash required');
 }
 /** Private existing directory only. Immutable journal entries, exclusive lock, fsync file and directory. */
 export class MockJournal {
@@ -253,7 +260,12 @@ export class MockJournal {
     return this.entries.some((entry) => entry.step === step);
   }
   trackAttempts(step: string) {
-    return this.entries.filter((entry) => entry.step === step && entry.phase === 'tracking').length;
+    return this.entries.filter(
+      (entry) =>
+        entry.step === step &&
+        (entry.receiptAttempt === true ||
+          (entry.receiptAttempt === undefined && entry.phase === 'tracking')),
+    ).length;
   }
   static async acquire(directory: string, binding: Binding) {
     validateBinding(binding);
@@ -372,9 +384,14 @@ export class MockJournal {
   latest() {
     return structuredClone(this.entries.at(-1));
   }
-  async append(step: string, phase: Phase, hash?: string, outcome?: string) {
+  async append(
+    step: string,
+    phase: Phase,
+    hash?: string,
+    outcome?: string,
+    receiptAttempt?: boolean,
+  ) {
     assert(!this.poisoned, 'journal fsync failure: close and inspect, no broadcast');
-    this.poisoned = true;
     const entry: Checkpoint = {
       sequence: this.entries.length,
       binding: digest(this.binding),
@@ -383,8 +400,10 @@ export class MockJournal {
       phase,
       ...(hash ? { hash } : {}),
       ...(outcome ? { outcome } : {}),
+      ...(receiptAttempt === undefined ? {} : { receiptAttempt }),
     };
     validateTransition(this.entries, entry);
+    this.poisoned = true;
     const file = await open(
       join(this.directory, `${String(entry.sequence).padStart(6, '0')}.json`),
       constants.O_CREAT | constants.O_EXCL | constants.O_WRONLY | constants.O_NOFOLLOW,
