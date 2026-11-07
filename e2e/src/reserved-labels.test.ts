@@ -3,9 +3,11 @@ import { readFileSync } from 'node:fs';
 import { test } from 'node:test';
 import { loadReservedList, canonicalReservedLabels, reservedListHash, reservedBatches } from './launch-policy.js';
 const list = JSON.parse(readFileSync(new URL('../../deployments/reserved-labels.json', import.meta.url), 'utf8'));
+const baselineV2 = JSON.parse(readFileSync(new URL('./fixtures/reserved-labels-v2.json', import.meta.url), 'utf8'));
 const baseline = JSON.parse(readFileSync(new URL('./fixtures/reserved-labels-v1.json', import.meta.url), 'utf8'));
 const object = (categories: unknown, minLength = 7) => ({ schema: 'ans-reserved-labels/1', minLength, categories });
 test('reserved content policy v2 pins 276 legal labels and its canonical hash independently of category order', () => {
+  const list = baselineV2;
   const labels = loadReservedList(list);
   assert.equal(labels.length, 276);
   assert.equal(list.schema, 'ans-reserved-labels/1');
@@ -17,6 +19,7 @@ test('reserved content policy v2 pins 276 legal labels and its canonical hash in
   assert.equal(reservedListHash([]), '4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945');
 });
 test('content policy v2 retains every original v1 label in its original category', () => {
+  const list = baselineV2;
   const oldLabels = loadReservedList(baseline);
   assert.equal(oldLabels.length, 195);
   assert.equal(reservedListHash(baseline), 'd3b5a6f138526e410311b4577f41bdcab0d24186405f4c51841f2906551028aa');
@@ -30,6 +33,7 @@ test('content policy v2 retains every original v1 label in its original category
   assert.equal([...labels].filter(label => !oldLabels.includes(label)).length, 81);
 });
 test('full content policy v2 plans nine seed transactions and pads only the last batch', async () => {
+  const list = baselineV2;
   const { deploymentTransactionSteps } = await import('./deploy-v6-plan.js');
   const labels = loadReservedList(list);
   const steps = deploymentTransactionSteps({ registrar: 'launch', token: 'none', reservedLabels: labels });
@@ -67,4 +71,43 @@ test('lowercase noir category accepts all new S3 labels and preserves category b
   assert(list.categories.aztec.includes('dark-forest-aztec'));
   assert(!loadReservedList(list).includes('nyx-money'));
   assert(!loadReservedList(list).includes('train-bridge'));
+});
+
+test('v3 retains exact v2 categories and adds 49 canonical source-mapped corporate identities', () => {
+  const labels = loadReservedList(list);
+  const previous = loadReservedList(baselineV2);
+  assert.equal(list.minLength, 7);
+  assert.equal(labels.length, 325);
+  assert.equal(new Set(labels).size, 325);
+  assert.equal(reservedListHash(list), '743b1b4c3ab4762cb2d12662765406fdf91971845a5ec6137b1f7444223657fa');
+  for (const [category, values] of Object.entries(baselineV2.categories)) {
+    assert.deepEqual(list.categories[category], values, category);
+  }
+  const expected = {
+    corporate: ['apple-support', 'apple-official', 'apple-wallet', 'apple-pay', 'google-support', 'google-official', 'google-wallet', 'youtube', 'youtube-support', 'android-support', 'microsoft', 'microsoft-support', 'microsoft-windows', 'windows-support', 'amazon-support', 'amazon-official', 'amazon-web-services', 'prime-video', 'meta-support', 'meta-official', 'nvidia-support', 'nvidia-official', 'samsung', 'samsung-support', 'sony-support', 'playstation', 'playstation-support'],
+    ai: ['openai-support', 'openai-official', 'chatgpt', 'chatgpt-support', 'anthropic', 'anthropic-support', 'claude-support'],
+    payments: ['paypal-support', 'paypal-official', 'stripe-support', 'stripe-official', 'visa-support', 'visa-official'],
+    consumer: ['nike-official', 'coca-cola', 'coca-cola-official', 'starbucks', 'starbucks-official', 'mcdonalds', 'mcdonalds-official', 'walmart', 'walmart-support'],
+  };
+  assert.deepEqual(Object.keys(list.categories), [...Object.keys(baselineV2.categories), ...Object.keys(expected)]);
+  for (const [category, values] of Object.entries(expected)) assert.deepEqual(list.categories[category], values);
+  const added = labels.filter(label => !previous.includes(label));
+  assert.equal(added.length, 49);
+  assert.deepEqual(loadReservedList(object(expected)), added);
+  assert.equal(reservedListHash(object(Object.fromEntries(Object.entries(list.categories).reverse()))), reservedListHash(list));
+  for (const excluded of ['apple', 'google', 'amazon', 'meta', 'nvidia', 'sony', 'openai', 'claude', 'paypal', 'stripe', 'visa', 'nike', 'aws', 'windows', 'android', 'mastercard']) assert(!added.includes(excluded), excluded);
+});
+test('full v3 deployment plans eleven batches with 27 final zero slots', async () => {
+  const { deploymentTransactionSteps } = await import('./deploy-v6-plan.js');
+  const labels = loadReservedList(list);
+  const steps = deploymentTransactionSteps({ registrar: 'launch', token: 'none', reservedLabels: labels });
+  assert.deepEqual(steps.filter(step => step.startsWith('seed-reserved-')), Array.from({ length: 11 }, (_, i) => `seed-reserved-${i}`));
+  const nodes = labels.map((_, i) => BigInt(i + 1));
+  const batches = reservedBatches(nodes);
+  assert.equal(batches.length, 11);
+  assert(batches.every(batch => batch.length === 32));
+  assert.deepEqual(batches.flat().filter(node => node !== 0n), nodes);
+  assert.equal(batches[10].filter(node => node === 0n).length, 27);
+  const template = JSON.parse(readFileSync(new URL('../../deployments/mainnet.template.json', import.meta.url), 'utf8'));
+  assert.equal(template.minPublicLength, 7);
 });
