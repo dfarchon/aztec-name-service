@@ -32,6 +32,17 @@ export type Article = {
 };
 export const articles: Article[] = [
   {
+    id: 'core-upgrades-v8',
+    group: 'developer',
+    title: 'Independent V8 core upgrades',
+    body: [
+      'V8 is a fresh independent registry awaiting review. Existing V6 has no upgrade entry and old names are not migrated. Mainnet remains blocked; local proof-disabled tests establish no real-proof readiness.',
+      'A trusted single administrator may approve exact registered releases and revocable directed edges. Family/sequence labels are attestations, not semantic compatibility proofs; malicious code remains within administrator trust. Placeholder administrators remain blocked. Module configuration remains immediate.',
+      'Core execution waits 86400 application seconds, then 86400 protocol seconds. Cancellation after execution is strictly before activation and can only retain the running source class. At or after activation, rollback requires the full ordinary delays and preserves business writes.',
+      'SDK and monitoring pin raw application/protocol reads to one canonical block N. Public simulation is a next-block prediction. Unknown classes/edges or mismatches fail closed. Wallet identity and current artifacts refresh inside the shared queue; private proving needs a conservative activation margin.',
+    ],
+  },
+  {
     id: 'getting-started',
     group: 'guide',
     title: 'Register your first name',
@@ -181,6 +192,8 @@ if (result.status === 'resolved') {
 ];
 
 export const summaries: Record<string, string> = {
+  'core-upgrades-v8':
+    'Exact-class approvals, fixed delays, strict cancellation and compatible rollback for an independent V8 registry.',
   tokens:
     'The current payment token, private balance requirements and the role of network fee credit.',
   glossary:
@@ -226,6 +239,12 @@ export const groups: { id: Article['group']; title: string; description: string 
   },
 ];
 const headings: Record<string, string[]> = {
+  'core-upgrades-v8': [
+    'Independent deployment boundary',
+    'Administrator trust and approvals',
+    'Delays, cancellation and rollback',
+    'Pinned reads and wallet execution',
+  ],
   tokens: ['The token you need', 'AZTEC, test tokens and Fee Juice', 'Getting test tokens'],
   glossary: [
     'Names',

@@ -30,3 +30,13 @@ The shipped configuration intentionally keeps its one-label `reservedlaunch` pro
 Content policy v3 retains v2's exact 276 labels and adds 49 (325 total, unchanged schema and minimum 7). Full-list planning uses eleven batches of 32, versus v2's nine (+2, +22.2%), with 5 labels and 27 padding slots in the final batch. At the provisional unmeasured 1.98 FJ per batch, seed allowance is 21.78 FJ versus 17.82 (+3.96). Total allowances are 59.54 FJ / recommended 90 versus v2 55.58 / 84. The default one-label fixture remains 39.74 / 60. These are not measured fees, quotes or guaranteed bounds; account setup, funding and failures remain additional. This data update changes no configuration or sender behavior and authorizes no chain action.
 
 v3内容策略保留v2全部276项及分类，新增49项，共325项，schema及最短长度7不变。完整名单按每批32需11批，比v2的9批增加2批（22.2%），末批5项补27个零。每批1.98 FJ仍为未实测占位，写入预算17.82→21.78 FJ，总预算55.58→59.54 FJ、建议84→90；单标签夹具仍为39.74、建议60。这不是实测费用、报价或保证上界，账户、资金和失败另计；此次不修改演练配置或发送行为，也不授权链上操作。
+
+## 独立 V8 演练准备 / Independent V8 preparation
+
+V7 演练配置与既有部署保持不变。新的 `e2e/v8-rehearsal.json` 和 `deployments/future-v8.template.json` 仅准备独立 V8/Launch/Resolver、新账户与仓库外私有 checkpoint；参见 [核心升级边界](core-upgrade-v8.md)。全量 325 个标签及固定 hash 不变。不得将 V7 的小型保留样本或历史费用分配直接当成 V8 公网预算。
+
+Existing V7 rehearsal configuration and deployments remain unchanged. The new V8 profiles prepare a separate suite and accounts, preserving the full 325 reservations. Both class publications and all governance operations require measured estimates after independent reviews; historical V7 allocations are not bounds. Public execution and site publication remain prohibited this round.
+
+等待时保存 stage、原始快照区块/哈希、nonce、固定 from/to、提案/协议 ready 时间和已知交易哈希，然后退出并打印 Asia/Taipei 最早恢复时间。恢复时重新校验网络、实时批准及 canonical 快照；已知哈希只追踪，广播不明停止，不自动重发。严格取消只在激活前保留运行类；激活后完整延迟回滚且保留业务写入。
+
+Save stage, pinned block/hash, nonce, exact from/to, ready/activation times and known hashes before exiting a wait. Resume revalidates identity, canonical state and live approvals. Track known hashes only; stop ambiguous broadcasts. Cancellation cannot act at or after activation; compatible rollback takes the full delays and preserves writes. Bridge recovery remains bounded and checkpointed, with no duplicate SSH bridge. Mainnet remains blocked pending fresh real-proof evidence and operational readiness.
