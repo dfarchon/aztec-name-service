@@ -4,6 +4,7 @@ import type { AztecNode } from '@aztec-labs/aztec.js/node';
 import { TxHash, TxStatus } from '@aztec-labs/aztec.js/tx';
 
 import { AnsError, toAnsError } from '../core/errors.js';
+import { isV8Class } from '../client/core-upgrade.js';
 import type { AnsContext } from '../wallet/context.js';
 
 /**
@@ -123,6 +124,7 @@ export async function runTxOutcome(
     emit({ state: 'awaiting_wallet' });
     emit({ state: 'proving' });
     try {
+      if (isV8Class(ctx.reader.classId)) await ctx.assertSendReady();
       await opts.beforeBroadcast?.();
     } catch (cause) {
       throw toAnsError(cause);

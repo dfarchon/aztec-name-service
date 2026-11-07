@@ -9,3 +9,5 @@ export { parseWithBigInt, stringifyWithBigInt } from './core/seal.js';
 export type * from './core/types.js';
 export type { NameStatus } from './core/lifecycle.js';
 export type { TxState } from './transactions/tx.js';
+
+export * from './client/core-upgrade.js';

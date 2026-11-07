@@ -15,5 +15,9 @@
     "typescript": "5.9.3",
     "tsx": "4.23.15",
     "@types/node": "24.10.7"
+  },
+  "dependencies": {
+    "@ans/sdk": "0.7.0",
+    "@aztec-labs/aztec.js": "6.0.0"
   }
 }

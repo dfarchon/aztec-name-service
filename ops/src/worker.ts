@@ -1,3 +1,5 @@
+import { inspectCoreUpgrade } from './core-upgrade.js';
+import coreMetadata from '../../sdk/src/artifacts/modular-metadata.json';
 import metadata from "../../web/src/public-metadata.json";
 import registryMetadata from "../../sdk/src/artifacts/read-metadata.json";
 import { inspectModules, modularClass, type ModulesState } from "./modular";
@@ -10,6 +12,7 @@ export interface MonitorEnv {
   FPC_LOW_WATERMARK: string; BLOCK_STALE_SECONDS: string;
   FEE_PAYMENT?: 'sponsored' | 'fee-juice'; NETWORK_LABEL?: string;
   OPERATOR?: string; OPERATOR_BALANCE_SLOT?: string; OPERATOR_LOW_WATERMARK?: string;
+  ALLOW_V8_REHEARSAL_SUCCESSOR?: 'true';
   ALERT_WEBHOOK?: string;
 }
 export interface Env extends MonitorEnv {
@@ -71,12 +74,15 @@ async function runProbe(env: MonitorEnv, at: number, fetcher: typeof fetch) {
       const operator = env.OPERATOR && env.OPERATOR !== "UNDECIDED" ? env.OPERATOR : undefined;
       const fpcMetadataOk = env.SPONSORED_FPC === metadata.fpcAddress;
       const settled = await Promise.allSettled([
-        rpc<{ currentContractClassId: string } | null>(env, "getContract", [env.REGISTRY], fetcher),
-        userPays ? Promise.resolve(null) : rpc<{ currentContractClassId: string } | null>(env, "getContract", [env.SPONSORED_FPC], fetcher),
+        rpc<{ currentContractClassId: string } | null>(env, "getContract", [env.REGISTRY, block], fetcher),
+        userPays ? Promise.resolve(null) : rpc<{ currentContractClassId: string } | null>(env, "getContract", [env.SPONSORED_FPC, block], fetcher),
         userPays && !operator ? Promise.resolve("0") : rpc<string>(env, "getPublicStorageAt", [block, metadata.feeJuice, userPays ? env.OPERATOR_BALANCE_SLOT : metadata.fpcBalanceSlot], fetcher),
       ]);
       const reg = settled[0], fpc = settled[1], balance = settled[2];
       checks.push({ name: "registry", ok: reg.status === "fulfilled" && !!reg.value && (reg.value.currentContractClassId === registryMetadata.classId || modularClass(reg.value.currentContractClassId)), detail: "6.0.0 contract class" });
+      if (reg.status === "fulfilled" && reg.value && [coreMetadata.v8.classId, coreMetadata.v8Rehearsal.classId].includes(reg.value.currentContractClassId)) {
+        checks.push(await inspectCoreUpgrade((method, params) => rpc(env, method, params, fetcher), env.REGISTRY, block, env.ALLOW_V8_REHEARSAL_SUCCESSOR === 'true'));
+      }
       if (reg.status === "fulfilled" && reg.value && modularClass(reg.value.currentContractClassId)) {
         try {
           const inspected = await inspectModules((method, params) => rpc(env, method, params, fetcher), env.REGISTRY, reg.value.currentContractClassId, block);

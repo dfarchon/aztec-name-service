@@ -26,6 +26,10 @@
     "./contracts/v7": {
       "types": "./dist/contracts-v7.d.ts",
       "default": "./dist/contracts-v7.js"
+    },
+    "./contracts/v8": {
+      "types": "./dist/contracts-v8.d.ts",
+      "default": "./dist/contracts-v8.js"
     }
   },
   "files": [
