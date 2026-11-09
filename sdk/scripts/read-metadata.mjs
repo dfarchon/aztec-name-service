@@ -42,7 +42,9 @@ for (const [key, file] of Object.entries({
   extended: 'name_registry_v4-NameRegistryV4.json',
   current: 'name_registry_v5-NameRegistryV5.json',
   v6: 'name_registry_v6-NameRegistryV6.json',
+  v7: 'name_registry_v7-NameRegistryV7.json',
   registrar: 'name_registrar-NameRegistrar.json',
+  registrarLaunch: 'name_registrar_launch-NameRegistrarLaunch.json',
   registrarTiered: 'name_registrar_tiered-NameRegistrarTiered.json', resolver: 'name_resolver-NameResolver.json',
   upgradeTest: 'registry_upgrade_test-RegistryUpgradeTest.json',
 })) {
@@ -51,8 +53,9 @@ for (const [key, file] of Object.entries({
     storage: Object.fromEntries(Object.entries(artifact.storageLayout).map(([k,v]) => [k,v.slot.toString()])) };
 }
 for (const key of ['registry', 'config']) if (modular.registrarTiered.storage[key] !== modular.registrar.storage[key]) throw new Error(`Tiered registrar moved slot ${key}`);
+for (const key of ['registry', 'config', 'length_prices']) if (modular.registrarLaunch.storage[key] !== modular.registrarTiered.storage[key]) throw new Error(`Launch registrar moved slot ${key}`);
 if (JSON.stringify(modular.registry.storage) !== JSON.stringify(modular.upgradeTest.storage)) throw new Error('Upgrade rehearsal storage layout differs from V3');
-const { validateV3Layout, validateV4Layout, validateV5Layout, validateV6Layout } = await import('./validate-layout.mjs');
+const { validateV3Layout, validateV4Layout, validateV5Layout, validateV6Layout, validateV7Layout } = await import('./validate-layout.mjs');
 await validateV3Layout(modular.registry.storage);
 await validateV3Layout(modular.extended.storage, "name_registry_v4");
 await validateV4Layout(modular.extended.storage);
@@ -60,6 +63,7 @@ await validateV5Layout(modular.current.storage);
 // V6 has its own class and frozen layout; V5 identity remains separate.
 const v6 = loadContractArtifact(JSON.parse(await readFile(new URL('../src/artifacts/name_registry_v6-NameRegistryV6.json', import.meta.url), 'utf8')));
 await validateV6Layout(Object.fromEntries(Object.entries(v6.storageLayout).map(([key, value]) => [key, value.slot.toString()])));
-console.log('Validated V3/V4/V5/V6 frozen storage layouts');
+await validateV7Layout(modular.v7.storage);
+console.log('Validated V3/V4/V5/V6 frozen layouts and V7 append-only layout');
 for (const [key, slot] of Object.entries(modular.registry.storage)) if (modular.extended.storage[key] !== slot) throw new Error(`V4 moved V3 slot ${key}`);
 await writeFile(new URL('../src/artifacts/modular-metadata.json', import.meta.url), JSON.stringify(modular, null, 2) + '\n');

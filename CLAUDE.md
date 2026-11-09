@@ -78,3 +78,5 @@ contracts → artifacts (committed) → sdk → web, e2e, ops (monitor), example
 - `npm run check:deployment` keeps `ops/wrangler*.jsonc` vars in sync with the deployment manifest.
 - When an on-chain module change needs new SDK support, publish the site and monitor first, then switch on chain. The live site's SDK must already recognize the new class.
 - `.gitignore` keeps `docs/acceptance/`, `docs/history/`, `docs/archive/`, `docs/reviews/`, `docs/plans/` and dated docs files local; undated public guides remain trackable. Record each public change with its transaction hashes and an honest verification boundary.
+
+The optional `name_registrar_launch` / `NameRegistrarLaunch` module supports fixed-year free or paid leases, live minimum/reservation/pause policy, a constructor renewal horizon (seconds, 0 = no cap), and live Registry administrator minting. Read policy through `RegistryReader`; use e2e launch admin tooling for administrator actions. Reserved-list parity must pass before a module switch. This module does not change testnet-v6.json or authorize public deployment.

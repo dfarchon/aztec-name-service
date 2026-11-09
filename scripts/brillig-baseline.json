@@ -1,10 +1,10 @@
 {
   "toolchain": "6.0.0",
   "aztecNr": "v6.0.0",
-  "total": 290,
+  "total": 307,
   "byKind": {
-    "covered": 288,
-    "subgraph": 2
+    "covered": 304,
+    "subgraph": 3
   },
   "entries": [
     {
@@ -114,7 +114,7 @@
       "kind": "covered",
       "primary": "aztec-nr@v6.0.0/aztec/src/context/private_context.nr:561:38",
       "category": "upstream",
-      "count": 60,
+      "count": 61,
       "ansFrames": [],
       "review": false,
       "separateSubgraph": false
@@ -1548,7 +1548,7 @@
       "kind": "covered",
       "primary": "aztec-nr@v6.0.0/aztec/src/nullifier/utils.nr:18:52",
       "category": "upstream",
-      "count": 65,
+      "count": 69,
       "ansFrames": [],
       "review": false,
       "separateSubgraph": false
@@ -1558,7 +1558,7 @@
       "kind": "covered",
       "primary": "aztec-nr@v6.0.0/aztec/src/oracle/get_contract_instance.nr:18:29",
       "category": "upstream",
-      "count": 65,
+      "count": 69,
       "ansFrames": [],
       "review": false,
       "separateSubgraph": false
@@ -1814,6 +1814,191 @@
       ],
       "review": true,
       "separateSubgraph": true
+    },
+    {
+      "fingerprint": "covered | aztec-nr@v6.0.0/aztec/src/context/returns_hash.nr:30:33 | NameRegistrarLaunch::commit",
+      "kind": "covered",
+      "primary": "aztec-nr@v6.0.0/aztec/src/context/returns_hash.nr:30:33",
+      "category": "ans-business",
+      "count": 1,
+      "ansFrames": [
+        {
+          "function": "NameRegistrarLaunch::commit",
+          "file": "contracts/name_registrar_launch/src/main.nr",
+          "line": 56,
+          "col": 9
+        }
+      ],
+      "review": true,
+      "separateSubgraph": false
+    },
+    {
+      "fingerprint": "covered | aztec-nr@v6.0.0/aztec/src/context/returns_hash.nr:30:33 | NameRegistrarLaunch::register > NameRegistrarLaunch::charge_fee",
+      "kind": "covered",
+      "primary": "aztec-nr@v6.0.0/aztec/src/context/returns_hash.nr:30:33",
+      "category": "ans-business",
+      "count": 1,
+      "ansFrames": [
+        {
+          "function": "NameRegistrarLaunch::register",
+          "file": "contracts/name_registrar_launch/src/main.nr",
+          "line": 71,
+          "col": 9
+        },
+        {
+          "function": "NameRegistrarLaunch::charge_fee",
+          "file": "contracts/name_registrar_launch/src/main.nr",
+          "line": 97,
+          "col": 13
+        }
+      ],
+      "review": true,
+      "separateSubgraph": false
+    },
+    {
+      "fingerprint": "covered | aztec-nr@v6.0.0/aztec/src/context/returns_hash.nr:30:33 | NameRegistrarLaunch::renew > NameRegistrarLaunch::charge_fee",
+      "kind": "covered",
+      "primary": "aztec-nr@v6.0.0/aztec/src/context/returns_hash.nr:30:33",
+      "category": "ans-business",
+      "count": 1,
+      "ansFrames": [
+        {
+          "function": "NameRegistrarLaunch::renew",
+          "file": "contracts/name_registrar_launch/src/main.nr",
+          "line": 83,
+          "col": 9
+        },
+        {
+          "function": "NameRegistrarLaunch::charge_fee",
+          "file": "contracts/name_registrar_launch/src/main.nr",
+          "line": 97,
+          "col": 13
+        }
+      ],
+      "review": true,
+      "separateSubgraph": false
+    },
+    {
+      "fingerprint": "covered | aztec-nr@v6.0.0/aztec/src/history/storage.nr:26:28 | NameRegistrarLaunch::admin_register",
+      "kind": "covered",
+      "primary": "aztec-nr@v6.0.0/aztec/src/history/storage.nr:26:28",
+      "category": "ans-business",
+      "count": 1,
+      "ansFrames": [
+        {
+          "function": "NameRegistrarLaunch::admin_register",
+          "file": "contracts/name_registrar_launch/src/main.nr",
+          "line": 130,
+          "col": 22
+        }
+      ],
+      "review": true,
+      "separateSubgraph": false
+    },
+    {
+      "fingerprint": "covered | aztec-nr@v6.0.0/aztec/src/history/storage.nr:26:28 | NameRegistrarLaunch::commit",
+      "kind": "covered",
+      "primary": "aztec-nr@v6.0.0/aztec/src/history/storage.nr:26:28",
+      "category": "ans-business",
+      "count": 1,
+      "ansFrames": [
+        {
+          "function": "NameRegistrarLaunch::commit",
+          "file": "contracts/name_registrar_launch/src/main.nr",
+          "line": 56,
+          "col": 38
+        }
+      ],
+      "review": true,
+      "separateSubgraph": false
+    },
+    {
+      "fingerprint": "covered | aztec-nr@v6.0.0/aztec/src/history/storage.nr:26:28 | NameRegistrarLaunch::register",
+      "kind": "covered",
+      "primary": "aztec-nr@v6.0.0/aztec/src/history/storage.nr:26:28",
+      "category": "ans-business",
+      "count": 1,
+      "ansFrames": [
+        {
+          "function": "NameRegistrarLaunch::register",
+          "file": "contracts/name_registrar_launch/src/main.nr",
+          "line": 62,
+          "col": 24
+        }
+      ],
+      "review": true,
+      "separateSubgraph": false
+    },
+    {
+      "fingerprint": "covered | aztec-nr@v6.0.0/aztec/src/history/storage.nr:26:28 | NameRegistrarLaunch::renew",
+      "kind": "covered",
+      "primary": "aztec-nr@v6.0.0/aztec/src/history/storage.nr:26:28",
+      "category": "ans-business",
+      "count": 1,
+      "ansFrames": [
+        {
+          "function": "NameRegistrarLaunch::renew",
+          "file": "contracts/name_registrar_launch/src/main.nr",
+          "line": 83,
+          "col": 34
+        }
+      ],
+      "review": true,
+      "separateSubgraph": false
+    },
+    {
+      "fingerprint": "subgraph | aztec-nr@v6.0.0/aztec/src/context/private_context.nr:1189:13 | NameRegistrarLaunch::commit",
+      "kind": "subgraph",
+      "primary": "aztec-nr@v6.0.0/aztec/src/context/private_context.nr:1189:13",
+      "category": "ans-business",
+      "count": 1,
+      "ansFrames": [
+        {
+          "function": "NameRegistrarLaunch::commit",
+          "file": "contracts/name_registrar_launch/src/main.nr",
+          "line": 56,
+          "col": 9
+        }
+      ],
+      "review": true,
+      "separateSubgraph": true
     }
-  ]
+  ],
+  "extensions": {
+    "name_registry_v7": [
+      {
+        "fingerprint": "covered | aztec-nr@v6.0.0/aztec/src/context/private_context.nr:561:38 | ",
+        "kind": "covered",
+        "primary": "aztec-nr@v6.0.0/aztec/src/context/private_context.nr:561:38",
+        "category": "upstream",
+        "count": 11,
+        "ansFrames": [],
+        "review": false,
+        "separateSubgraph": false,
+        "reviewNote": "V7 private entry wrappers only; initialized-instance/nullifier requests and revertible side effects are validated by protocol/kernel constraints. No ANS-primary diagnostic."
+      },
+      {
+        "fingerprint": "covered | aztec-nr@v6.0.0/aztec/src/nullifier/utils.nr:18:52 | ",
+        "kind": "covered",
+        "primary": "aztec-nr@v6.0.0/aztec/src/nullifier/utils.nr:18:52",
+        "category": "upstream",
+        "count": 11,
+        "ansFrames": [],
+        "review": false,
+        "separateSubgraph": false,
+        "reviewNote": "V7 private entry wrappers only; initialized-instance/nullifier requests and revertible side effects are validated by protocol/kernel constraints. No ANS-primary diagnostic."
+      },
+      {
+        "fingerprint": "covered | aztec-nr@v6.0.0/aztec/src/oracle/get_contract_instance.nr:18:29 | ",
+        "kind": "covered",
+        "primary": "aztec-nr@v6.0.0/aztec/src/oracle/get_contract_instance.nr:18:29",
+        "category": "upstream",
+        "count": 11,
+        "ansFrames": [],
+        "review": false,
+        "separateSubgraph": false,
+        "reviewNote": "V7 private entry wrappers only; initialized-instance/nullifier requests and revertible side effects are validated by protocol/kernel constraints. No ANS-primary diagnostic."
+      }
+    ]
+  }
 }

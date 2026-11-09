@@ -21,6 +21,7 @@ import type {
   Deployment,
   Finality,
   NameRecord,
+  LaunchEligibility,
   PrimaryRecord,
   PublishedLabel,
   RegistryConfig,
@@ -40,6 +41,13 @@ import {
  * Wallet-free public reads straight from node storage. Every read takes a snapshot so one resolution never mixes
  * blocks. Layouts follow the packed `types.nr` structs; concurrent reads are batched by the node client.
  */
+export type ResolverInspection = {
+  address: AztecAddress;
+  verified: boolean;
+  isDefault: boolean;
+  reason?: 'zero' | 'unknown_class' | 'other_registry';
+};
+
 export class RegistryReader {
   private configCache?: RegistryConfig;
   readonly modular: boolean;
@@ -137,7 +145,10 @@ export class RegistryReader {
     if (this.modular) {
       await this.assertCurrentClass();
       const { registrar } = await this.getModules(s);
-      const tiered = (await this.assertModule(registrar, 'registrar', s)) === 'registrarTiered';
+      const kind = await this.assertModule(registrar, 'registrar', s);
+      const tiered = kind === 'registrarTiered' || kind === 'registrarLaunch';
+      const policy = kind === 'registrarLaunch' ? await this.readFields(BigInt(modular.registrarLaunch.storage.policy), 2, s, registrar) : undefined;
+      const cap = policy ? (await this.readFields(BigInt(modular.registrarLaunch.storage.max_renew_ahead), 1, s, registrar))[0] : undefined;
       const [[feeToken, treasury, annualPrice, priceVersion], tiers] = await Promise.all([
         this.readFields(BigInt(modular.registrar.storage.config), 4, s, registrar),
         tiered
@@ -150,6 +161,7 @@ export class RegistryReader {
         annualPrice,
         priceVersion: Number(priceVersion),
         registrar,
+        ...(policy ? { launch: { minPublicLength: Number(policy[0]), paused: policy[1] !== 0n, maxRenewAhead: cap! } } : {}),
         ...(tiers ? { lengthPrices: { three: tiers[0], four: tiers[1] } } : {}),
       };
     }
@@ -304,6 +316,7 @@ export class RegistryReader {
     return unpackCommit(f);
   }
 
+  /** Raw public record; use resolveAddress/resolvePrimary or inspectResolver to validate resolver trust. */
   async getAddress(node: bigint, generation: number, snap: Snapshot): Promise<AddressRecord> {
     const key = await recordKey(node, generation);
     const [addr, meta] = await this.readMap(
@@ -316,6 +329,14 @@ export class RegistryReader {
       ...unpackAddressMeta(meta),
       addr: AztecAddress.fromBigIntUnsafe(addr),
     };
+  }
+
+  /** V7 separates editor revisions from holder revisions. Older protocols share the name revision. */
+  async getRecordRevision(node: bigint, generation: number, snap: Snapshot): Promise<number> {
+    if (registryProtocol(this.currentClass).version !== 7) return (await this.getName(node, snap)).revision;
+    const [revision] = await this.readMap(this.slots.record_revisions.slot, await recordKey(node, generation), 1, snap);
+    if (revision > 0xffffffffn) throw new AnsError('corrupt_data', 'record revision exceeds u32');
+    return Number(revision);
   }
 
   async getPrimary(address: AztecAddress, snap: Snapshot): Promise<PrimaryRecord> {
@@ -378,11 +399,31 @@ export class RegistryReader {
     return id;
   }
 
+  /** Reserved status at one snapshot; other registrar kinds have no launch reservations. */
+  async isReserved(node: bigint, snap?: Snapshot): Promise<boolean> {
+    const s = snap ?? await this.snapshot();
+    const config = await this.getConfig(s);
+    if (!config.launch) return false;
+    const slot = await hashWithSeparator([BigInt(modular.registrarLaunch.storage.reserved), node], BigInt(DomainSeparator.PUBLIC_STORAGE_MAP_SLOT));
+    return (await this.readFields(slot, 1, s, config.registrar))[0] !== 0n;
+  }
+
+  /** Public launch channel only. Availability/ownership is queried separately; admin mint and renewal bypass this policy. */
+  async eligibility(name: string, snap?: Snapshot): Promise<LaunchEligibility> {
+    const label = normalizeName(name);
+    const s = snap ?? await this.snapshot();
+    const config = await this.getConfig(s);
+    if (!config.launch) return 'open';
+    if (config.launch.paused) return 'paused';
+    if (label.len < config.launch.minPublicLength) return 'too_short';
+    return await this.isReserved(await nodeOf(label), s) ? 'reserved' : 'open';
+  }
+
   /** Verifies a module's class and registry binding; returns which supported implementation it is. */
   async assertModule(address: AztecAddress, kind: 'registrar' | 'resolver', snap: Snapshot) {
     const instance = await this.guard(() => this.node.getContract(address));
     const classId = instance?.currentContractClassId.toString();
-    const impl = (kind === 'registrar' ? (['registrar', 'registrarTiered'] as const) : (['resolver'] as const)).find(
+    const impl = (kind === 'registrar' ? (['registrar', 'registrarTiered', 'registrarLaunch'] as const) : (['resolver'] as const)).find(
       (k) => modular[k].classId === classId,
     );
     if (!impl) throw new AnsError('wrong_deployment', `unsupported ${kind} class`);
@@ -415,16 +456,32 @@ export class RegistryReader {
     };
   }
 
+  private async resolverAddress(node: bigint, generation: number, snap: Snapshot) {
+    const [address] = await this.readMap(this.slots.resolvers.slot, await recordKey(node, generation), 1, snap);
+    return AztecAddress.fromBigIntUnsafe(address);
+  }
+
+  /** Inspect an inherited resolver without hiding transport failures. Class and registry binding are both required. */
+  async inspectResolver(node: bigint, generation: number, snap?: Snapshot): Promise<ResolverInspection> {
+    if (!this.modular) return { address: this.registry, verified: true, isDefault: true };
+    const s = snap ?? await this.snapshot();
+    const [address, modules] = await Promise.all([this.resolverAddress(node, generation, s), this.getModules(s)]);
+    const isDefault = address.equals(modules.resolver);
+    if (address.isZero()) return { address, verified: false, isDefault, reason: 'zero' };
+    try {
+      await this.assertModule(address, 'resolver', s);
+      return { address, verified: true, isDefault };
+    } catch (error) {
+      if (!(error instanceof AnsError) || error.code !== 'wrong_deployment') throw error;
+      return { address, verified: false, isDefault,
+        reason: error.message === 'resolver belongs to another registry' ? 'other_registry' : 'unknown_class' };
+    }
+  }
+
   async getResolver(node: bigint, generation: number, snap?: Snapshot) {
     if (!this.modular) return this.registry;
-    const s = snap ?? (await this.snapshot());
-    const [address] = await this.readMap(
-      this.slots.resolvers.slot,
-      await recordKey(node, generation),
-      1,
-      s,
-    );
-    const resolver = AztecAddress.fromBigIntUnsafe(address);
+    const s = snap ?? await this.snapshot();
+    const resolver = await this.resolverAddress(node, generation, s);
     await this.assertModule(resolver, 'resolver', s);
     return resolver;
   }

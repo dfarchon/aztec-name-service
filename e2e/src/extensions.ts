@@ -3,11 +3,11 @@ import { AztecAddress } from '@aztec-labs/aztec.js/addresses';
 import { acceptTransfer, getAvailability, inspectHolding, issueSubname, listOwnedNames, normalizeName, offerTransfer, resolveAddress, resolveChainAddress, resolvePrimary, revokeSubname, renew, setAddress, setChainAddress, setManager, setPrimary, setTextRecord, type AnsContext } from '@ans/sdk';
 
 /** Real local-chain calls, including direct contract attempts that bypass SDK authorization checks. */
-export async function exerciseExtensions(owner: AnsContext, recipient: AnsContext, warp: (seconds: number) => Promise<unknown>, check: (name: string, value: unknown) => void) {
+export async function exerciseExtensions(owner: AnsContext, recipient: AnsContext, warp: (seconds: number) => Promise<unknown>, check: (name: string, value: unknown) => void, registryLabel = 'V5') {
   const name = 'modular-name', reader = owner.reader, core = owner.extendedContract();
   const send = { from: recipient.account, fee: recipient.signer.fee };
   const reject = async (label: string, action: () => Promise<unknown>) => { await assert.rejects(action); check(label, true); };
-  check('extended name capabilities available on V5', reader.extended);
+  check(`extended name capabilities available on ${registryLabel}`, reader.extended);
   let h = await inspectHolding(owner, name);
   await reject('contract rejects unauthorized editor assignment', () => core.methods.set_manager(h.node,h.record.generation,h.record.revision,recipient.account).send(send));
   await setManager(owner,{name,manager:recipient.account});
@@ -53,6 +53,7 @@ export async function exerciseExtensions(owner: AnsContext, recipient: AnsContex
   await acceptTransfer(recipient,{name});
   const after=await inspectHolding(recipient,name);
   check('accepted transfer changes owner and advances generation',after.isHolder&&after.record.generation===before.record.generation+1&&after.record.expiresAt===before.record.expiresAt);
+  if (reader.deployment.protocolVersion === 7) check('V7 extended transfer resets the resolver to the default', (await reader.getResolver(after.node,after.record.generation,after.snapshot)).equals((await reader.getModules(after.snapshot)).resolver));
   check('transfer clears address and records',(await resolveAddress(reader,name)).status==='unset'&&Object.keys(await reader.getTextRecords(after.node,after.record.generation,after.snapshot)).length===0);
   check('transfer clears editor',(await reader.getManager(after.node,after.record.generation,after.snapshot)).isZero());
   check('transfer invalidates child leases',(await resolveAddress(reader,child.name)).status==='inactive');

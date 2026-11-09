@@ -64,6 +64,7 @@ export async function getAvailability(
 }
 
 export type AddressResolution =
+  | { status: "untrusted_resolver"; resolver: AztecAddress; node: bigint; nameStatus: NameStatus; snapshot: Snapshot }
   | {
       status: "resolved";
       address: AztecAddress;
@@ -94,6 +95,10 @@ export async function resolveAddress(
   const rec = await reader.getAddress(node, record.generation, snapshot);
   if (!rec.present)
     return { status: "unset", node, nameStatus: status, snapshot };
+  if (reader.modular) {
+    const resolver = await reader.inspectResolver(node, record.generation, snapshot);
+    if (!resolver.verified) return { status: "untrusted_resolver", resolver: resolver.address, node, nameStatus: status, snapshot };
+  }
   return {
     status: "resolved",
     address: rec.addr,
@@ -119,6 +124,7 @@ export type PrimaryResolution =
   | {
       status: "stale";
       reason:
+        | "untrusted_resolver"
         | "expired"
         | "generation_changed"
         | "forward_mismatch"
@@ -150,6 +156,8 @@ export async function resolvePrimary(
     return { status: "stale", reason: "generation_changed", snapshot };
   if (nameStatus(record, snapshot.timestamp) !== "active")
     return { status: "stale", reason: "expired", snapshot };
+  if (reader.modular && !(await reader.inspectResolver(primary.node, primary.generation, snapshot)).verified)
+    return { status: "stale", reason: "untrusted_resolver", snapshot };
   if (!forward.present || !forward.addr.equals(address)) {
     return { status: "stale", reason: "forward_mismatch", snapshot };
   }

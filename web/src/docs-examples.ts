@@ -73,3 +73,34 @@ export async function updateModules(
   const modules = await administrator.reader.getModules();
   return { tx, modules };
 }`;
+
+export const launchExample = `import type { RegistryReader } from '@ans/sdk/read';
+import { getFeeQuote } from '@ans/sdk';
+
+/** Read live public policy. This reserves nothing and does not open a wallet. */
+export async function inspectLaunch(reader: RegistryReader, name: string) {
+  const snapshot = await reader.snapshot();
+  const config = await reader.getConfig(snapshot);
+  const eligibility = await reader.eligibility(name, snapshot);
+  const quote = await getFeeQuote(reader, {
+    operation: 'register',
+    duration: 31536000n,
+    labelLength: name.length,
+    snapshot,
+  });
+  return { launch: config.launch, eligibility, quote, needsTokenAuthorization: quote.fee > 0n };
+}`;
+
+export const resolverTrustExample = `import { resolveAddress, type RegistryReader } from '@ans/sdk/read';
+import { setResolver, type AnsContext } from '@ans/sdk';
+
+export async function receivingAddress(reader: RegistryReader, name: string) {
+  const result = await resolveAddress(reader, name);
+  if (result.status === 'untrusted_resolver') throw new Error('Verify the resolver before using this address');
+  return result.status === 'resolved' ? result.address : undefined;
+}
+
+export async function restoreDefaultResolver(ctx: AnsContext, name: string) {
+  const modules = await ctx.reader.getModules();
+  return setResolver(ctx, { name, resolver: modules.resolver });
+}`;

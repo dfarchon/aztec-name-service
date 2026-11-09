@@ -15,7 +15,7 @@ export function normalizePath(path) {
   path = path.replaceAll('\\', '/');
   if (path.includes('/aztec-nr/v6.0.0/')) return `aztec-nr@v6.0.0/${path.split('/aztec-nr/v6.0.0/')[1]}`;
   if (path.includes('/contracts/')) return normalizeContractPath(path, root);
-  if (/^(?:ans_common|name_registry(?:_v[3-6])?|name_registrar(?:_tiered)?|name_resolver|test_token|registry_upgrade_test|v4_test_module)\//.test(path)) return `contracts/${path}`;
+  if (/^(?:ans_common|name_registry(?:_v[3-7])?|name_registrar(?:_tiered|_launch)?|name_resolver|test_token|registry_upgrade_test|v4_test_module|evil_resolver_test)\//.test(path)) return `contracts/${path}`;
   // Never retain machine-specific home paths, even for an unrecognized dependency.
   return path.replace(/^.*\/nargo\//, 'nargo/').replace(/^\/(?:home|Users)\/[^/]+\//, '~/');
 }
@@ -59,7 +59,13 @@ export function makeBaseline(rows, toolchain) {
 export function check(rows, baseline, toolchain) {
   const errors = [];
   const actual = makeBaseline(rows, toolchain);
-  const expected = new Map(baseline.entries.map(e => [e.fingerprint, e]));
+  // Keep the frozen baseline intact; new packages add independently reviewed multiplicities.
+  const expected = new Map();
+  for (const row of [...baseline.entries, ...Object.values(baseline.extensions ?? {}).flat()]) {
+    const old = expected.get(row.fingerprint);
+    if (old && old.category !== row.category) throw new Error('Baseline extension category mismatch');
+    expected.set(row.fingerprint, { ...row, count: (old?.count ?? 0) + row.count });
+  }
   const counts = new Map(actual.entries.map(e => [e.fingerprint, e.count]));
   const newFingerprints = actual.entries.filter(e => !expected.has(e.fingerprint));
   if (baseline.toolchain !== toolchain) errors.push('R3: baseline toolchain differs from .aztecrc');
@@ -72,7 +78,7 @@ export function check(rows, baseline, toolchain) {
     if (!old || row.count > old.count || old.category !== row.category) errors.push(`R2: 新上游诊断，需要人工确认后更新基线: ${row.fingerprint}`);
   }
   // Scheduler ruling: all three categories must retain their full fingerprint multisets.
-  for (const row of baseline.entries) {
+  for (const row of expected.values()) {
     if ((counts.get(row.fingerprint) ?? 0) < row.count) errors.push(`Baseline diagnostic missing: ${row.fingerprint}`);
   }
   const summary = { total: rows.length, ...actual.byKind,

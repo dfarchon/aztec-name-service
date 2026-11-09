@@ -12,6 +12,7 @@ function fixture(t) {
   t.after(() => rmSync(directory, { recursive: true, force: true }));
   const files = [
     'deployments/mainnet.template.json',
+    'deployments/reserved-labels.json',
     'ops/wrangler-mainnet.jsonc',
     'ops/wrangler-monitor-mainnet.jsonc',
     'deployments/aztec-pricing.json',
@@ -524,3 +525,135 @@ for (const preview of [false, true]) {
     assert.deepEqual(calls[0][2], deployment);
   });
 }
+
+test('launch manifests validate both free and paid modes without changing the testnet manifest', async () => {
+  const { v6ManifestProblems } = await import('./deployment-config.mjs');
+  const baseline = JSON.parse(
+    readFileSync(new URL('../sdk/test/fixtures/classids-6.0.0.json', import.meta.url)),
+  ).classIds;
+  const m = JSON.parse(readFileSync(new URL('../deployments/testnet-v6.json', import.meta.url)));
+  Object.assign(m, {
+    registrarKind: 'launch',
+    minPublicLength: 7,
+    initialPaused: true,
+    maxRenewAhead: '0',
+    reservedListHash: '4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945',
+    reservedVerified: true,
+  });
+  m.classIds.registrar = baseline.registrarLaunch;
+  assert.deepEqual(v6ManifestProblems(m), []);
+  const zero = '0x' + '0'.repeat(64);
+  Object.assign(m, {
+    feeToken: zero,
+    feeTokenSource: 'none',
+    feeTokenClassId: zero,
+    annualPrice: '0',
+    lengthPrices: { 3: '0', 4: '0' },
+    treasury: null,
+  });
+  m.classIds.token = zero;
+  assert.deepEqual(v6ManifestProblems(m), []);
+  for (const patch of [
+    { minPublicLength: 2 },
+    { maxRenewAhead: null },
+    { reservedListHash: null },
+    { reservedVerified: false },
+    { feeTokenSource: 'official' },
+    { annualPrice: '1' },
+  ])
+    assert(v6ManifestProblems({ ...m, ...patch }).length > 0);
+});
+
+test('mainnet launch readiness requires exactly one year and rejects all other caps', (t) => {
+  const f = fixture(t);
+  for (const [maxRenewAhead, blocked] of [
+    ['31536000', false],
+    ['0', true],
+    ['315360000', true],
+    ['315360001', true],
+    ['18446744073709551615', true],
+    ['-1', true],
+    ['1.5', true],
+    [null, true],
+  ]) {
+    writeFileSync(
+      new URL('deployments/mainnet.json', f.root),
+      JSON.stringify({ registrarKind: 'launch', maxRenewAhead }),
+    );
+    assert.equal(mainnetBlockers(f.root).includes('maxRenewAhead'), blocked, String(maxRenewAhead));
+  }
+});
+
+test('V7 mainnet template pins the reserved hash and a flagged placeholder administrator', (t) => {
+  const { root, update } = fixture(t);
+  assert.deepEqual(mainnetTemplateProblems(root), []);
+  const template = JSON.parse(
+    readFileSync(new URL('deployments/mainnet.template.json', root), 'utf8'),
+  );
+  assert.match(template.admin, /^0x[0-9a-f]{64}$/);
+  assert.equal(template.treasury, template.admin);
+  assert.equal(template.protocol, 7);
+  assert.equal(template.registryVersion, 7);
+  assert.equal(template.adminPlaceholder, true);
+  assert.equal(template.maxRenewAhead, '31536000');
+  writeFileSync(new URL('deployments/mainnet.json', root), JSON.stringify(template));
+  assert(mainnetBlockers(root).includes('admin placeholder'));
+  update('deployments/mainnet.template.json', (m) => {
+    m.protocol = 6;
+    m.maxRenewAhead = '0';
+    m.reservedListHash = '0'.repeat(64);
+  });
+  const errors = mainnetTemplateProblems(root);
+  for (const text of ['identity', 'maxRenewAhead', 'reservedListHash'])
+    assert(errors.some((error) => error.includes(text)));
+});
+test('readiness rejects V6 mainnet and every launch renewal horizon other than one year', (t) => {
+  const { root } = fixture(t);
+  writeFileSync(
+    new URL('deployments/mainnet.json', root),
+    JSON.stringify({ protocol: 6, registrarKind: 'launch', maxRenewAhead: '31536000' }),
+  );
+  assert(mainnetBlockers(root).includes('protocol 7 required'));
+  assert(!mainnetBlockers(root).includes('maxRenewAhead'));
+  assert.deepEqual(v6ManifestProblems(v6Canonical), []);
+});
+
+test('template and readiness require reserved minLength to equal deployment minPublicLength', (t) => {
+  const { root, update } = fixture(t);
+  const template = JSON.parse(
+    readFileSync(new URL('deployments/mainnet.template.json', root), 'utf8'),
+  );
+  writeFileSync(new URL('deployments/mainnet.json', root), JSON.stringify(template));
+  const issue = 'reserved minLength must equal minPublicLength';
+  assert(!mainnetBlockers(root).includes(issue));
+  for (const minLength of [3, 6, 8, null]) {
+    update('deployments/reserved-labels.json', (list) => {
+      list.minLength = minLength;
+    });
+    assert(mainnetTemplateProblems(root).includes(issue), String(minLength));
+    assert(mainnetBlockers(root).includes(issue), String(minLength));
+  }
+  update('deployments/reserved-labels.json', (list) => {
+    list.minLength = 7;
+  });
+  assert(!mainnetTemplateProblems(root).includes(issue));
+  assert(!mainnetBlockers(root).includes(issue));
+});
+
+test('mainnet rejects the published placeholder address even when its flag is false or absent', (t) => {
+  const { root } = fixture(t);
+  const admin = '0x2419a5bafa9cd88d6a625c21b96f16f79bf6e279253b1993609a3edc169f8c68';
+  for (const address of [admin, `0x${admin.slice(2).toUpperCase()}`]) {
+    for (const flag of [{}, { adminPlaceholder: false }, { adminPlaceholder: true }]) {
+      const manifest = { ...v6Canonical, network: 'mainnet', admin: address, ...flag };
+      writeFileSync(new URL('deployments/mainnet.json', root), JSON.stringify(manifest));
+      assert(mainnetBlockers(root).includes('admin placeholder'));
+      assert(v6ManifestProblems(manifest).includes('admin placeholder'));
+    }
+  }
+  writeFileSync(
+    new URL('deployments/mainnet.json', root),
+    JSON.stringify({ admin: v6Canonical.admin }),
+  );
+  assert(!mainnetBlockers(root).includes('admin placeholder'));
+});

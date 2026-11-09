@@ -58,3 +58,9 @@ export function createAztecPricingPlan(policy, active) {
     broadcastTransactions: 0,
   };
 }
+
+/** Display metadata only. A free launch still obtains its executable quote from the active Registrar. */
+export function launchDisplayPrice(policy) {
+  if(policy.launchDisplay?.mode!=='free'||policy.launchDisplay?.annualPrice!=='0') throw new Error('Invalid free launch display mode');
+  return {label:'Free',annualPrice:0n,leaseSeconds:31536000n};
+}

@@ -28,7 +28,8 @@
     "smoke:sdk": "node scripts/sdk-onboarding-smoke.mjs",
     "smoke:resolution": "node scripts/resolution-smoke.mjs",
     "test": "node --import tsx --test --test-isolation=none test/*.test.ts",
-    "smoke:retry": "node scripts/retry-smoke.mjs"
+    "smoke:retry": "node scripts/retry-smoke.mjs",
+    "smoke:launch": "node scripts/launch-smoke.mjs"
   },
   "dependencies": {
     "@ans/sdk": "0.7.0",
