@@ -32,6 +32,17 @@ export type Article = {
 };
 export const articles: Article[] = [
   {
+    id: 'core-upgrades-v8',
+    group: 'developer',
+    title: 'Independent V8 core upgrades',
+    body: [
+      'V8 is a fresh independent registry awaiting review. Existing V6 has no upgrade entry and old names are not migrated. Mainnet remains blocked; local proof-disabled tests establish no real-proof readiness.',
+      'A trusted single administrator may approve exact registered releases and revocable directed edges. Family/sequence labels are attestations, not semantic compatibility proofs; malicious code remains within administrator trust. Placeholder administrators remain blocked. Module configuration remains immediate.',
+      'Core execution waits 86400 application seconds, then 86400 protocol seconds. Cancellation after execution is strictly before activation and can only retain the running source class. At or after activation, rollback requires the full ordinary delays and preserves business writes.',
+      'SDK and monitoring pin raw application/protocol reads to one canonical block N. Public simulation is a next-block prediction. Unknown classes/edges or mismatches fail closed. Wallet identity and current artifacts refresh inside the shared queue; private proving needs a conservative activation margin.',
+    ],
+  },
+  {
     id: 'getting-started',
     group: 'guide',
     title: 'Register your first name',
@@ -181,6 +192,8 @@ if (result.status === 'resolved') {
 ];
 
 export const summaries: Record<string, string> = {
+  'core-upgrades-v8':
+    'Exact-class approvals, fixed delays, strict cancellation and compatible rollback for an independent V8 registry.',
   tokens:
     'The current payment token, private balance requirements and the role of network fee credit.',
   glossary:
@@ -226,6 +239,12 @@ export const groups: { id: Article['group']; title: string; description: string 
   },
 ];
 const headings: Record<string, string[]> = {
+  'core-upgrades-v8': [
+    'Independent deployment boundary',
+    'Administrator trust and approvals',
+    'Delays, cancellation and rollback',
+    'Pinned reads and wallet execution',
+  ],
   tokens: ['The token you need', 'AZTEC, test tokens and Fee Juice', 'Getting test tokens'],
   glossary: [
     'Names',
@@ -313,7 +332,7 @@ export function sectionsFor(article: Article): DocSection[] {
   if (article.id === 'pricing')
     sections[3].blocks.push({
       type: 'paragraph',
-      text: 'The v1 reservation file contains 195 canonical labels, all at least 7 characters, grouped into Aztec, ANS, system identities and ecosystem identities. The loader rejects invalid and duplicate labels before hashing the sorted flat list. Short public names remain closed. Mainnet admin and treasury hold a supervisor-supplied placeholder address with an adminPlaceholder marker; a placeholder must be replaced before launch.',
+      text: 'The v3 content-policy reservation file (schema ans-reserved-labels/1) contains 325 canonical labels, retaining all original v2 276 and adding 49, all at least 7 characters, grouped into Aztec, ANS, system, ecosystem, Noir, corporate, AI, payments and consumer identities. The loader rejects invalid and duplicate labels before hashing the sorted flat list. Support/official compounds are our anti-impersonation policy, not claims of an official company service. Reservation does not imply endorsement, ownership, partnership or trademark rights; Noir ecosystem inclusion does not establish deployment on Aztec. Short public names remain closed. Mainnet admin and treasury hold a placeholder address with an adminPlaceholder marker; a placeholder must be replaced before launch.',
     });
   if (article.id === 'getting-started') {
     sections[0].blocks.push({
@@ -763,7 +782,7 @@ export function sectionsFor(article: Article): DocSection[] {
         items: [
           'The current administrator calls configureModules to select Registrar and default Resolver, effective after confirmation. V5 uses setAdministrator for direct handover. V6/V7 require nominate_administrator and accept_administrator through their matching bindings; the SDK setAdministrator helper rejects both.',
           'Payment changes preserve name records but invalidate obsolete quotes and unconsumed plans. A new default Resolver applies to subsequent names; existing names retain their selected Resolver.',
-          'The mainnet template targets protocol 7, retaining schema ans-deployment-v6/1, minPublicLength 7, the v1 reserved hash and maxRenewAhead 31536000. Readiness rejects the adminPlaceholder marker, protocol 6 on mainnet and any other launch renewal horizon. No mainnet deployment is implied.',
+          'The mainnet template targets protocol 7, retaining schema ans-deployment-v6/1, minPublicLength 7, the v3 content-policy reserved hash (list schema ans-reserved-labels/1) and maxRenewAhead 31536000. Readiness rejects the adminPlaceholder marker, protocol 6 on mainnet and any other launch renewal horizon. No mainnet deployment is implied.',
           'A new implementation has a new contract address. The current V6 deployment starts fresh with legacy set to zero; names on the old rollup are not migrated, reserved or snapshotted.',
           'For historical deployments with an explicitly configured legacy registry, holders may migrate root names during their lease or 30-day grace period, preserving owner, expiry and default address. Configure editors, profiles and subnames on the destination and confirm reverse consent again. These legacy migration rules do not apply to the fresh V6 testnet.',
           'A website release does not change the active contract class.',

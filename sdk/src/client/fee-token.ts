@@ -15,10 +15,8 @@ export async function readFeeTokenMetadata(
   snapshot?: Snapshot,
 ): Promise<FeeTokenMetadata> {
   try {
-    const [instance, snap] = await Promise.all([
-      reader.node.getContract(address),
-      snapshot ?? reader.snapshot(),
-    ]);
+    const snap = snapshot ?? await reader.snapshot();
+    const instance = await reader.node.getContract(address, BlockNumber(snap.blockNumber));
     if (instance?.currentContractClassId.toString() !== FEE_TOKEN_CLASS_ID)
       throw new AnsError('unsupported', 'fee asset is not the supported standard Token');
     const [precision, packedSymbol] = await Promise.all(

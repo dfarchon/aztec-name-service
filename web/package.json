@@ -29,7 +29,9 @@
     "smoke:resolution": "node scripts/resolution-smoke.mjs",
     "test": "node --import tsx --test --test-isolation=none test/*.test.ts",
     "smoke:retry": "node scripts/retry-smoke.mjs",
-    "smoke:launch": "node scripts/launch-smoke.mjs"
+    "smoke:launch": "node scripts/launch-smoke.mjs",
+    "smoke:rpc": "node scripts/rpc-outage-smoke.mjs",
+    "smoke:upgrade": "node scripts/core-upgrade-smoke.mjs"
   },
   "dependencies": {
     "@ans/sdk": "0.7.0",

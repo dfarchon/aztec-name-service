@@ -3,7 +3,7 @@ import { type TxUpdate } from "@ans/sdk";
 import { type ReactNode, useEffect, useRef, useState } from "react";
 
 import { errorMessage, txStateText } from "./format";
-import { getSession, txRecorder } from "./session";
+import { getSession, liveWritesAllowed, txRecorder } from "./session";
 
 export function Card({
   title,
@@ -67,7 +67,7 @@ export function useTx() {
     run: (onUpdate: (u: TxUpdate) => void) => Promise<T>,
   ): Promise<T | undefined> => {
     if (running.current) return;
-    if (["offline", "misconfigured", "booting"].includes(getSession().status)) {
+    if (!liveWritesAllowed(getSession().status)) {
       setError("Network not ready. Reconnect and retry.");
       return;
     }

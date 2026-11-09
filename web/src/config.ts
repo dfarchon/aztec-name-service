@@ -1,12 +1,16 @@
 import { AztecAddress } from "@aztec-labs/aztec.js/addresses";
 
-import { parseNetworkConfig } from "./network-config";
+import { parseNetworkConfig, parseRpcConfig } from "./network-config";
 
 const env = import.meta.env;
+const network = parseNetworkConfig(env);
+const rpc = parseRpcConfig(env, network.network);
 
 export const config = {
-  ...parseNetworkConfig(env),
-  nodeUrl: (env.VITE_NODE_URL as string | undefined) || "http://localhost:8080",
+  ...network,
+  allowRehearsalSuccessor: env.VITE_ALLOW_V8_REHEARSAL_SUCCESSOR === "true",
+  ...rpc,
+  nodeUrl: rpc.endpoints[0],
   registry: env.VITE_REGISTRY
     ? AztecAddress.fromStringUnsafe(env.VITE_REGISTRY as string)
     : undefined,
@@ -17,8 +21,6 @@ export const config = {
     .filter(Boolean),
   developmentWallet: env.DEV && env.VITE_DEVELOPMENT_WALLET === "true",
   proverEnabled: env.VITE_PROVER_ENABLED === "true",
-  expectedChainId: env.VITE_CHAIN_ID as string | undefined,
-  expectedRollupVersion: env.VITE_ROLLUP_VERSION as string | undefined,
   release: (env.VITE_RELEASE as string | undefined) || "local",
   sponsoredFpc: env.VITE_SPONSORED_FPC
     ? AztecAddress.fromStringUnsafe(env.VITE_SPONSORED_FPC as string)

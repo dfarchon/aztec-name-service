@@ -1,2 +1,2 @@
 [workspace]
-members = ["name_registry", "test_token", "ans_common", "name_registry_v3", "name_registrar", "name_resolver", "registry_upgrade_test", "name_registry_v4", "v4_test_module", "name_registry_v5", "name_registry_v6", "name_registrar_tiered", "name_registrar_launch", "name_registry_v7", "evil_resolver_test"]
+members = ["name_registry", "test_token", "ans_common", "name_registry_v3", "name_registrar", "name_resolver", "registry_upgrade_test", "name_registry_v4", "v4_test_module", "name_registry_v5", "name_registry_v6", "name_registrar_tiered", "name_registrar_launch", "name_registry_v7", "evil_resolver_test", "name_registry_v8", "name_registry_v8_rehearsal", "name_registry_v8_tests"]

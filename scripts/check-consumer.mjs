@@ -91,7 +91,7 @@ try {
     await checkConsumerBrowser(cwd);
   }
   const audit = JSON.parse(
-    execFileSync('npm', ['audit', '--omit=dev', '--audit-level=high', '--json'], {
+    execFileSync('npm', ['audit', '--audit-level=high', '--json'], {
       cwd,
       encoding: 'utf8',
     }),

@@ -4,6 +4,10 @@ import type { InteractionFeeOptions } from '@aztec-labs/aztec.js/contracts';
 import type { Wallet } from '@aztec-labs/aztec.js/wallet';
 
 import { NameRegistryContract } from '../artifacts/NameRegistry.js';
+import { NameRegistryV8Contract } from '../artifacts/NameRegistryV8.js';
+import { NameRegistryV8RehearsalContract } from '../artifacts/NameRegistryV8Rehearsal.js';
+import { isV8Class, assertUpgradeInclusionMargin } from '../client/core-upgrade.js';
+import { BlockNumber } from '@aztec-labs/aztec.js/fields';
 import { NameRegistryV7Contract } from '../artifacts/NameRegistryV7.js';
 import { NameRegistryV6Contract } from '../artifacts/NameRegistryV6.js';
 import { NameRegistryV5Contract } from '../artifacts/NameRegistryV5.js';
@@ -41,6 +45,8 @@ const registryArtifacts = new Map<string, ContractArtifact>([
   [registryProtocols.current.classId, NameRegistryV5Contract.artifact],
   [registryProtocols.v6.classId, NameRegistryV6Contract.artifact],
   [registryProtocols.v7.classId, NameRegistryV7Contract.artifact],
+  [registryProtocols.v8.classId, NameRegistryV8Contract.artifact],
+  [registryProtocols.v8Rehearsal.classId, NameRegistryV8RehearsalContract.artifact],
 ]);
 
 /** Reader + signer. Write operations and wallet-local utilities go through here. */
@@ -69,12 +75,25 @@ export class AnsContext {
     return assertWalletNetwork(this.wallet, this.reader.deployment);
   }
 
+  /** Call inside the queue after host validation/preflight, before marking a possible broadcast. */
+  async assertSendReady() {
+    await this.assertWalletNetwork();
+    if (isV8Class(this.reader.classId)) {
+      const state = await this.reader.getCoreUpgradeState();
+      assertUpgradeInclusionMargin(state);
+      if (state.currentClass !== this.reader.classId)
+        throw new AnsError('wrong_deployment', 'core class changed after artifact registration; retry with refreshed artifacts');
+    }
+  }
+
   /** Same wallet and deployment, different account (e.g. the game account next to the name holder). */
   as(account: AztecAddress, fee = this.signer.fee): AnsContext {
     return new AnsContext(this.reader, { ...this.signer, account, fee });
   }
 
   extendedContract() {
+    if (this.reader.classId === registryProtocols.v8.classId) return NameRegistryV8Contract.at(this.reader.registry, this.wallet);
+    if (this.reader.classId === registryProtocols.v8Rehearsal.classId) return NameRegistryV8RehearsalContract.at(this.reader.registry, this.wallet);
     if (!this.reader.extended)
       throw new AnsError('invalid_argument', 'this feature requires registry V4');
     if (this.reader.classId === registryProtocols.v7.classId)
@@ -87,6 +106,8 @@ export class AnsContext {
   }
 
   contract() {
+    if (this.reader.classId === registryProtocols.v8.classId) return NameRegistryV8Contract.at(this.reader.registry, this.wallet);
+    if (this.reader.classId === registryProtocols.v8Rehearsal.classId) return NameRegistryV8RehearsalContract.at(this.reader.registry, this.wallet);
     if (this.reader.classId === registryProtocols.v7.classId)
       return NameRegistryV7Contract.at(this.reader.registry, this.wallet);
     if (this.reader.classId === registryProtocols.v6.classId)
@@ -163,7 +184,15 @@ export class AnsContext {
     const artifact = registryArtifacts.get(classId);
     if (!artifact)
       throw new AnsError('wrong_deployment', 'registry class has no supported wallet artifact');
-    await this.registerArtifact(this.reader.registry, artifact);
+    if (isV8Class(classId)) {
+      const state = await this.reader.getCoreUpgradeState();
+      assertUpgradeInclusionMargin(state);
+      if (state.currentClass !== classId) throw new AnsError('wrong_deployment', 'core class changed during artifact selection; retry before sending');
+      const instance = await this.reader.node.getContract(this.reader.registry, BlockNumber(state.snapshot.blockNumber));
+      if (!instance || instance.currentContractClassId.toString() !== classId) throw new AnsError('wrong_deployment', 'core artifact and snapshot differ');
+      await this.wallet.registerContract(instance, artifact);
+      if (!await this.reader.isCanonical(state.snapshot)) throw new AnsError('wrong_deployment', 'artifact snapshot reorged');
+    } else await this.registerArtifact(this.reader.registry, artifact);
     if (this.reader.modular) {
       const snap = await this.reader.snapshot();
       const modules = await this.reader.getModules(snap);

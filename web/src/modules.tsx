@@ -1,3 +1,4 @@
+import { CoreUpgradeControls } from './core-upgrade';
 import { translate } from "./i18n";
 import { useEffect, useState } from 'react';
 import type { NameRecord, RegistryReader } from '@ans/sdk/read';
@@ -24,12 +25,12 @@ export function RegistryModules() {
     return () => { live = false; };
   }, [reader, revision]);
   if (!reader?.modular) return null;
-  return <details className="card"><summary>{translate("Contract modules")}</summary>
+  return <><CoreUpgradeControls /><details className="card"><summary>{translate("Contract modules")}</summary>
     {data && <dl>{data.administrator && <><dt>{translate("Administrator")}</dt><dd><CopyValue value={data.administrator.toString()} /></dd></>}<dt>{translate("Registrar")}</dt><dd><CopyValue value={data.registrar.toString()} /></dd>
       <dt>{translate("Default resolver")}</dt><dd><CopyValue value={data.resolver.toString()} /></dd></dl>}
     {error && <p className="err">{translate(error)}</p>}
     <button className="ghost" onClick={() => refresh(n => n + 1)}>{translate("Refresh contract status")}</button>
-  </details>;
+  </details></>;
 }
 
 export function NameModules({ holding, onDone, onResolverVerified }: { holding: Holding; onDone: () => void; onResolverVerified?: (verified: boolean | undefined) => void }) {

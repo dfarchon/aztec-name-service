@@ -40,3 +40,6 @@ export * from './core/records.js';
 export * from './transactions/extensions.js';
 
 export { NameRegistryV5Contract } from './artifacts/NameRegistryV5.js';
+
+export * from './client/core-upgrade.js';
+export * from './transactions/core-upgrade.js';

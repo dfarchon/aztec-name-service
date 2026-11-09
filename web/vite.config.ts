@@ -1,9 +1,11 @@
 import { readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
+import { fileURLToPath } from 'node:url';
 
 import react from '@vitejs/plugin-react';
-import { defineConfig, type Plugin } from 'vite';
+import { defineConfig, loadEnv, type Plugin } from 'vite';
 import { nodePolyfills } from 'vite-plugin-node-polyfills';
+import { parseNetworkConfig, parseRpcConfig } from './src/network-config';
 import { initialBundleBudget } from '../examples/consumer/bundle-budget';
 
 const require = createRequire(import.meta.url);
@@ -30,7 +32,11 @@ const isolation = {
   'Cross-Origin-Embedder-Policy': 'credentialless',
 };
 
-export default defineConfig({
+export default defineConfig(({ command, mode }) => {
+  const env = { ...loadEnv(mode, fileURLToPath(new URL('.', import.meta.url)), 'VITE_'), ...process.env, DEV: command === 'serve' && mode !== 'production' };
+  // Validate during the build too: malformed public config must never produce a deployable bundle.
+  parseRpcConfig(env, parseNetworkConfig(env).network);
+  return {
   // Parallel local/testnet previews need separate optimizer caches. Different env hashes otherwise load two Fr classes.
   cacheDir: process.env.ANS_VITE_CACHE_DIR || undefined,
   worker: { format: 'es' },
@@ -72,4 +78,5 @@ export default defineConfig({
     ],
     exclude: ['@aztec-labs/bb.js', '@aztec-labs/noir-acvm_js', '@aztec-labs/noir-noirc_abi', '@aztec-labs/kv-store/sqlite-opfs'],
   },
+};
 });
