@@ -3,6 +3,7 @@ import { FunctionSelector } from "@aztec-labs/aztec.js/abi";
 import {
   type AuthWitness,
   computeInnerAuthWitHash,
+  computeInnerAuthWitHashFromAction,
 } from "@aztec-labs/aztec.js/authorization";
 import { Fr } from "@aztec-labs/aztec.js/fields";
 import { computeVarArgsHash } from "@aztec-labs/stdlib/hash";
@@ -123,17 +124,22 @@ export async function buildFeeAuthorization(
     new Fr(args.fee),
     new Fr(args.feeNonce),
   ]);
+  const caller = args.registrar ?? ctx.reader.registry;
   const innerHash = await computeInnerAuthWitHash([
-    (args.registrar ?? ctx.reader.registry).toField(),
+    caller.toField(),
     selector.toField(),
     argsHash,
   ]);
   return ctx.queue.run(async () => {
     await ctx.registerFeeToken(args.feeToken);
-    return ctx.wallet.createAuthWit(ctx.account, {
-      consumer: args.feeToken,
-      innerHash,
-    });
+    // A call intent lets the wallet show the transfer it authorizes instead of an opaque hash.
+    const { TokenContract } = await import("@aztec-labs/noir-contracts.js/Token");
+    const call = await TokenContract.at(args.feeToken, ctx.wallet)
+      .methods.transfer_in_private(ctx.account, args.treasury, args.fee, args.feeNonce)
+      .getFunctionCall();
+    if (!(await computeInnerAuthWitHashFromAction(caller, call)).equals(innerHash))
+      throw new AnsError("unsupported", "fee token call does not match the exact payment authorization");
+    return ctx.wallet.createAuthWit(ctx.account, { caller, call });
   });
 }
 

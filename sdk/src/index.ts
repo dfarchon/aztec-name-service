@@ -21,6 +21,7 @@ export * from './client/resolver.js';
 
 export * from './wallet/context.js';
 export * from './wallet/connect.js';
+export * from './wallet/capabilities.js';
 export * from './wallet/queue.js';
 export * from './wallet/fee-balance.js';
 export * from './transactions/registration-flow.js';

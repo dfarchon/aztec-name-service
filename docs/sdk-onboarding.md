@@ -31,6 +31,12 @@ npm run dev
 
 价格按名字长度分档：报价需传入名字（`flow.quote(duration, name)`，或 `getFeeQuote` 的 `labelLength`），名字改变后重新报价；分档 Registrar 收到不带长度的报价请求返回 `invalid_argument`。报价的 `labelLength` 与金额一起绑定，不能用于其他长度的名字。新注册的名字不能包含 `--`，也不能以 `0x` 开头，SDK 在请求钱包前返回 `invalid_name`；已有名字照常解析和续期。SDK 0.5.0 及更早版本不认识分档 Registrar，会返回 `wrong_deployment`，需升级到当前版本。
 
+## Aztec 6 钱包权限
+
+Aztec 6 钱包（例如 Nulo）在授权前拒绝 `getChainInfo` 以外的账户和合约调用。连接后先核对网络，再用 `wallet.requestCapabilities` 申请：读取账户、签付款授权，以及 Registry、当前 Registrar、默认 Resolver、支付 Token 和赞助合约（启用时）的注册、模拟与发送权限。只列具体地址，不申请通配符、地址簿或私有事件。名字保留自己的 Resolver，或管理员启用新的 Registrar、支付 Token 时，SDK 在使用前会先 `registerContract` 该合约；接入方应在此之前为该地址补申请权限。`connectAns` 要求钱包已完成授权。
+
+付款授权以 call intent 提交（Token 的 `transfer_in_private`，调用方为 Registry 或 Registrar），钱包可显示具体转账内容。SDK 先核对它与精确授权哈希一致，不一致时返回 `unsupported`，不会请求签名。交易 salt 由钱包为每笔交易单独生成，SDK 不设置也不复用；SDK 不写死任何标准合约地址。
+
 ## 持久化与恢复
 
 `RegistrationPlanStore.load` 必须返回同一 key 最近一次成功 `save` 的结果（写后读一致性）。存储返回旧数据可能导致注册流程重复广播交易。
@@ -52,6 +58,8 @@ SDK 保留旧部署的名字读取与管理兼容。管理员直接配置费用 
 # SDK integration and registration
 
 Install the SDK, verify the deployment and connect an authorized wallet account. Run `doctor` to check network identity, contract classes, active modules, the exact payment token and sponsorship. Run `read` without a wallet, then use the browser example for connection, balance preflight, encrypted recovery and registration.
+
+Aztec 6 wallets such as Nulo refuse account and contract calls other than `getChainInfo` until the app is granted capabilities. After checking the wallet network, call `wallet.requestCapabilities` for account reads, payment authorizations, and registration, simulation and sending on the Registry, the active Registrar, the default Resolver, the payment token and the sponsor contract when used. Name exact addresses: no wildcards, address book or private events. A name can keep its own Resolver, and an administrator can activate a new Registrar or payment token; the SDK calls `registerContract` before using such a contract, so request that address first. `connectAns` expects an already authorized wallet. Payment authorizations are sent as a call intent (the token's `transfer_in_private`, called by the Registry or Registrar), so the wallet can show the exact transfer; the SDK checks that it matches the exact authorization hash and returns `unsupported` otherwise, without asking for a signature. Wallets draw a fresh salt for every transaction; the SDK neither sets nor reuses one and pins no standard contract address.
 
 Amounts use bigint base units. Token metadata determines display precision; 1 mAZTEC is `10^18` units. Registration fees and network fees are separate. Sponsorship does not fund the registration payment.
 

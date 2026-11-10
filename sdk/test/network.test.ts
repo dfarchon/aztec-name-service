@@ -182,3 +182,26 @@ test('a module selection failure before send emits no unknown broadcast and can 
   await runTx(f.ctx, () => f.interaction);
   assert.equal(f.calls.sends, 1);
 });
+
+test('fee authorization asks the wallet for the exact transfer as a call intent bound to the registry', async () => {
+  const { computeInnerAuthWitHash, computeInnerAuthWitHashFromAction } = await import('@aztec-labs/aztec.js/authorization');
+  const { FunctionSelector } = await import('@aztec-labs/aztec.js/abi');
+  const { computeVarArgsHash } = await import('@aztec-labs/stdlib/hash');
+  const { FEE_TOKEN_CLASS_ID, TRANSFER_IN_PRIVATE_SIGNATURE } = await import('../src/index.js');
+  const f = fixture();
+  const token = AztecAddress.fromBigIntUnsafe(7n), treasury = AztecAddress.fromBigIntUnsafe(8n);
+  (f.reader.node as any).getContract = async () => ({ currentContractClassId: Fr.fromString(FEE_TOKEN_CLASS_ID) });
+  let intent: any;
+  f.wallet.createAuthWit = (async (_from: AztecAddress, i: unknown) => { intent = i; return 'witness'; }) as any;
+  const witness = await buildFeeAuthorization(f.ctx, { feeToken: token, treasury, fee: 5n, feeNonce: 9n });
+  assert.equal(witness, 'witness');
+  assert.ok(intent.caller.equals(f.registry));
+  assert.ok(intent.call.to.equals(token));
+  assert.equal(intent.call.name, 'transfer_in_private');
+  const expected = await computeInnerAuthWitHash([
+    f.registry.toField(),
+    (await FunctionSelector.fromSignature(TRANSFER_IN_PRIVATE_SIGNATURE)).toField(),
+    await computeVarArgsHash([f.account.toField(), treasury.toField(), new Fr(5n), new Fr(9n)]),
+  ]);
+  assert.ok((await computeInnerAuthWitHashFromAction(intent.caller, intent.call)).equals(expected));
+});

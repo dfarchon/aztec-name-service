@@ -123,6 +123,7 @@ element('discover').onclick = () =>
         void action(async () => {
           provider = candidate;
           const connected = await connectWallet(
+            reader,
             candidate,
             'ans-sdk-consumer',
             (symbols) =>

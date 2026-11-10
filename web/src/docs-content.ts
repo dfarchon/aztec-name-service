@@ -37,7 +37,7 @@ export const articles: Article[] = [
     title: 'Register your first name',
     body: [
       'Search for a name, connect an Aztec wallet, and review the lease and exact fee. Root labels use 3–31 ASCII letters, digits or hyphens; no leading or trailing hyphen, no "--" and no "0x" prefix.',
-      `You need a desktop browser with an Aztec wallet extension; Azguard currently offers one for Chrome (mobile wallets are not supported yet). Install it in the same browser, unlock it and select Testnet. If the wallet asks for network details, enter: node ${deployment.nodeUrl}, chain ID ${deployment.chainId} and rollup version ${deployment.rollupVersion}. The chain ID identifies Ethereum Sepolia, the public test network that Aztec Testnet settles on; the rollup version identifies the current Aztec Testnet release. Both must match exactly, otherwise ANS stops before any transaction so nothing is sent to the wrong network.`,
+      `You need a desktop browser with an Aztec 6 wallet extension, such as Nulo for Chrome or Firefox (open source, not independently audited; mobile wallets are not supported yet). Install it from the official listing linked at nulo.sh, unlock it and switch its network to Aztec Testnet; Nulo starts on Aztec mainnet. When you connect, the wallet asks to let ANS read your account, sign payment authorizations and use the ANS contracts. Approve it; if a name uses its own resolver, or the Registrar changes, the wallet asks again for that contract only. If the wallet asks for network details, enter: node ${deployment.nodeUrl}, chain ID ${deployment.chainId} and rollup version ${deployment.rollupVersion}. The chain ID identifies Ethereum Sepolia, the public test network that Aztec Testnet settles on; the rollup version identifies the current Aztec Testnet release. Both must match exactly, otherwise ANS stops before any transaction so nothing is sent to the wrong network.`,
       'Use a test account funded in the exact payment token and quote shown on Register. AZTEC is the selected pricing currency; mAZTEC is a clearly labeled 18-decimal test stand-in with no official backing. See “Which token do I need?” for the difference between AZTEC, mAZTEC, ANSF and Fee Juice. Network fees are paid by a shared sponsor contract, so you do not need Fee Juice.',
       'Registration has two transactions: first a commit (a sealed fingerprint that hides which name you want, so nobody can grab it first), then the registration after about one minute. Keep the registration plan until the second transaction is confirmed. If interrupted, open Register again and resume the saved plan.',
       'After registration, open Manage, set an Aztec address, then connect that address’s wallet to confirm its primary name. Registration alone does not set a receiving address.',
@@ -330,12 +330,8 @@ export function sectionsFor(article: Article): DocSection[] {
       type: 'links',
       items: [
         {
-          title: 'Install Azguard for Chrome',
-          href: 'https://azguardwallet.io/help/azguard-wallet/introducing',
-        },
-        {
-          title: 'Wallet network setup',
-          href: 'https://azguardwallet.io/help/wallet-setup',
+          title: 'Install Nulo for Chrome or Firefox',
+          href: 'https://nulo.sh',
         },
       ],
     });
