@@ -112,7 +112,9 @@ test('a grant without an explicit account list falls back to the wallet account 
 });
 
 test('a partial grant fails closed', async () => {
-  const noSend = fakeWallet({ grant: (m) => m.capabilities.filter((c) => c.type !== 'transaction') });
+  const noSend = fakeWallet({
+    grant: (m) => m.capabilities.filter((c) => c.type !== 'transaction') as WalletCapabilities['granted'],
+  });
   await assert.rejects(scopeAnsWallet(noSend.wallet, app).authorize([addr(1n)]), rejected);
   const noSigning = fakeWallet({
     grant: (m) =>

@@ -75,7 +75,8 @@ export function WalletConnection() {
           version: new Fr(s.reader.deployment.rollupVersion),
         },
         appId: "ans-public-names",
-        timeout: 15000,
+        // Nulo asks the user to approve the connection during discovery; keep the SDK's 60 s window.
+        timeout: 60000,
         onWalletDiscovered: (p) => {
           if (generation.current === g)
             setProviders((old) => [...old.filter((x) => x.id !== p.id), p]);

@@ -12,7 +12,8 @@ export function discoverWallets(
 ) {
   return WalletManager.configure({ extensions: { enabled: true } }).getAvailableWallets({
     appId,
-    timeout: 15000,
+    // Wallets such as Nulo ask the user to approve the connection during discovery.
+    timeout: 60000,
     onWalletDiscovered,
     chainInfo: {
       chainId: new Fr(BigInt(deployment.chainId)),
