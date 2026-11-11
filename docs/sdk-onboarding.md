@@ -31,6 +31,16 @@ npm run dev
 
 价格按名字长度分档：报价需传入名字（`flow.quote(duration, name)`，或 `getFeeQuote` 的 `labelLength`），名字改变后重新报价；分档 Registrar 收到不带长度的报价请求返回 `invalid_argument`。报价的 `labelLength` 与金额一起绑定，不能用于其他长度的名字。新注册的名字不能包含 `--`，也不能以 `0x` 开头，SDK 在请求钱包前返回 `invalid_name`；已有名字照常解析和续期。SDK 0.5.0 及更早版本不认识分档 Registrar，会返回 `wrong_deployment`，需升级到当前版本。
 
+## 名字后缀 .fog
+
+名字统一显示为 `<标签>.fog`（Fully Obfuscated Glyph）。后缀只用于展示，链上只存储和哈希标签本身，`alice.fog` 即根标签 `alice`，`team.alice.fog` 即 `alice` 的子域 `team`。用户输入用 `normalizeName(input, { suffix: NAME_SUFFIX })` 去掉末尾一个 `.fog`；展示用 `formatName(label)`。其他 SDK 调用、路由和存储一律使用规范标签：不带该选项时 `team.fog` 表示根名字 `fog` 的子域，不会被当成后缀。
+
+## Aztec 6 钱包权限
+
+Aztec 6 钱包（例如 Nulo）在授权前拒绝 `getChainInfo` 以外的账户和合约调用。连接后先核对网络，再用 `wallet.requestCapabilities` 申请：读取账户、签付款授权，以及 Registry、当前 Registrar、默认 Resolver、支付 Token 和赞助合约（启用时）的注册、模拟与发送权限。只列具体地址，不申请通配符、地址簿或私有事件。名字保留自己的 Resolver，或管理员启用新的 Registrar、支付 Token 时，SDK 在使用前会先 `registerContract` 该合约；接入方应在此之前为该地址补申请权限。`connectAns` 要求钱包已完成授权。
+
+付款授权以 call intent 提交（Token 的 `transfer_in_private`，调用方为 Registry 或 Registrar），钱包可显示具体转账内容。SDK 先核对它与精确授权哈希一致，不一致时返回 `unsupported`，不会请求签名。交易 salt 由钱包为每笔交易单独生成，SDK 不设置也不复用；SDK 不写死任何标准合约地址。
+
 ## 持久化与恢复
 
 `RegistrationPlanStore.load` 必须返回同一 key 最近一次成功 `save` 的结果（写后读一致性）。存储返回旧数据可能导致注册流程重复广播交易。
@@ -51,7 +61,11 @@ SDK 保留旧部署的名字读取与管理兼容。管理员直接配置费用 
 
 # SDK integration and registration
 
+Names display as `<label>.fog` (Fully Obfuscated Glyph). The suffix is presentation only: contracts store and hash the bare label, so `alice.fog` is the root label `alice` and `team.alice.fog` is the subname `team` under `alice`. Strip one trailing `.fog` from user input with `normalizeName(input, { suffix: NAME_SUFFIX })` and display names with `formatName(label)`. Every other SDK call, route and stored value uses the canonical label; without the option, `team.fog` means a subname of the root name `fog`, not the suffix.
+
 Install the SDK, verify the deployment and connect an authorized wallet account. Run `doctor` to check network identity, contract classes, active modules, the exact payment token and sponsorship. Run `read` without a wallet, then use the browser example for connection, balance preflight, encrypted recovery and registration.
+
+Aztec 6 wallets such as Nulo refuse account and contract calls other than `getChainInfo` until the app is granted capabilities. After checking the wallet network, call `wallet.requestCapabilities` for account reads, payment authorizations, and registration, simulation and sending on the Registry, the active Registrar, the default Resolver, the payment token and the sponsor contract when used. Name exact addresses: no wildcards, address book or private events. A name can keep its own Resolver, and an administrator can activate a new Registrar or payment token; the SDK calls `registerContract` before using such a contract, so request that address first. `connectAns` expects an already authorized wallet. Payment authorizations are sent as a call intent (the token's `transfer_in_private`, called by the Registry or Registrar), so the wallet can show the exact transfer; the SDK checks that it matches the exact authorization hash and returns `unsupported` otherwise, without asking for a signature. Wallets draw a fresh salt for every transaction; the SDK neither sets nor reuses one and pins no standard contract address.
 
 Amounts use bigint base units. Token metadata determines display precision; 1 mAZTEC is `10^18` units. Registration fees and network fees are separate. Sponsorship does not fund the registration payment.
 
@@ -65,7 +79,7 @@ Administrators configure payment and default Resolver modules directly. A confir
 
 ## Launch Registrar
 
-`NameRegistrarLaunch` 是 V6/V7 可选的收费模块，当前测试网清单不变，也不表示主网已部署。公开注册默认至少 7 个字符，管理员可在 3–31 内调整；短名显示 “Not yet available”，保留名显示 “Reserved”。保留表按 node 存储，32 个 node 一批，零值跳过；仓库 `deployments/reserved-labels.json` 为 v1 分类名单，共 195 项且全部至少 7 个字符；加载器校验合法性和跨分类重复，排序后的规范哈希随部署策略固定，分类和变更流程见 `deployments/reserved-labels.md`。
+`NameRegistrarLaunch` 是 V6/V7 可选的收费模块，当前测试网以免费模式使用它（最短 5 个字符），不表示主网已部署。公开注册默认至少 7 个字符，管理员可在 3–31 内调整；短名显示 “Not yet available”，保留名显示 “Reserved”。保留表按 node 存储，32 个 node 一批，零值跳过；仓库 `deployments/reserved-labels.json` 为 v1 分类名单，共 195 项且全部至少 7 个字符；加载器校验合法性和跨分类重复，排序后的规范哈希随部署策略固定，分类和变更流程见 `deployments/reserved-labels.md`。
 
 每次注册和续期固定 365 天。`max_renew_ahead` 单位为秒，构造时须在 0–315360000（10 年）内：0（本地/测试网脚本默认值）不限制提前续期，可重复续期；非零时只有当前到期时间 `<= 链上时间 + max_renew_ahead` 才能续期。主网配置 `maxRenewAhead = 31536000`，到期前 1 年内可续期。管理员和 treasury 为占位地址 `0x2419a5bafa9cd88d6a625c21b96f16f79bf6e279253b1993609a3edc169f8c68`（离线生成，从未部署），带 `adminPlaceholder: true`；正式启动前必须替换为多签并通过 readiness。暂停只阻止公开注册，持有人续期和管理员铸造继续开放，以免宽限期内丢失名字。
 
@@ -75,7 +89,7 @@ Administrators configure payment and default Resolver modules directly. A confir
 
 ## Launch Registrar (English)
 
-`NameRegistrarLaunch` is an optional V6/V7 module. It does not change the current testnet manifest or announce a mainnet deployment. Public registration defaults to at least 7 characters; the live administrator can choose 3–31. Short names show “Not yet available”; reserved names show “Reserved”. Reservations use node keys, batches of 32 and zero padding. `deployments/reserved-labels.json` contains the categorized v1 list of 195 labels, all at least 7 characters. The loader rejects illegal labels and duplicates before hashing the sorted flat list; categories and change procedure are in `deployments/reserved-labels.md`.
+`NameRegistrarLaunch` is an optional V6/V7 module. The current testnet runs it in free mode with a 5-character public minimum; this does not announce a mainnet deployment. Public registration defaults to at least 7 characters; the live administrator can choose 3–31. Short names show “Not yet available”; reserved names show “Reserved”. Reservations use node keys, batches of 32 and zero padding. `deployments/reserved-labels.json` contains the categorized v1 list of 195 labels, all at least 7 characters. The loader rejects illegal labels and duplicates before hashing the sorted flat list; categories and change procedure are in `deployments/reserved-labels.md`.
 
 Each registration and renewal is exactly 365 days. `max_renew_ahead` is seconds, bounded at construction to 0–315360000 (10 years): 0 (the local/testnet script default) allows repeated renewal without a horizon; otherwise current expiry must be at most chain time plus the horizon. Mainnet sets `maxRenewAhead = 31536000`: renewal opens 1 year before expiry. Admin and treasury use placeholder address `0x2419a5bafa9cd88d6a625c21b96f16f79bf6e279253b1993609a3edc169f8c68` (offline-generated, never deployed), with `adminPlaceholder: true`; replace with a multisig and pass readiness before launch. Pause blocks only public registration; holder renewal and administrator mint stay available, protecting holders during the grace period.
 

@@ -7,7 +7,7 @@ import { createRequire } from 'node:module';
 import { dirname, join, resolve } from 'node:path';
 import { assertRegistrableLabel, labelFromCanonical } from '@ans/sdk';
 import { TxStatus } from '@aztec-labs/aztec.js/tx';
-import { REPO, assertPrivateDir, within, type Manifest } from './deploy-v6-plan.js';
+import { PUBLIC_V6_MANIFESTS, REPO, assertPrivateDir, within, type Manifest } from './deploy-v6-plan.js';
 import { physicalPath } from './deploy-v6.js';
 import { manifestBinding, savePrivateJson } from './testnet-v6-e2e-state.js';
 import { V6_PROFILES, assertV6Url } from './v6-network.js';
@@ -89,9 +89,12 @@ export async function loadRehearsalManifest(path: string): Promise<Manifest> {
   const m = assertV6ManifestFile(path, { expectNetwork: 'testnet-v6' }) as Manifest;
   assert(m.feePayment === 'fee-juice' && m.sponsoredFpc === null, 'Rehearsal requires Fee Juice and no FPC');
   assert(m.feeSymbol === 'mAZTEC' && m.feeDecimals === 18, 'Rehearsal requires mAZTEC fee token');
-  const canonical = JSON.parse(await readFile(join(REPO, 'deployments/testnet-v6.json'), 'utf8')) as Manifest;
-  for (const field of ['registry', 'registrar', 'resolver', 'feeToken', 'owner'] as const)
-    assert(BigInt(m[field]) !== BigInt(canonical[field]), 'Canonical deployment addresses cannot be used for rehearsal');
+  // Both the current free deployment and the archived paid one are public; a free deployment has no token (zero).
+  for (const file of PUBLIC_V6_MANIFESTS) {
+    const known = JSON.parse(await readFile(file, 'utf8')) as Manifest;
+    for (const field of ['registry', 'registrar', 'resolver', 'feeToken', 'owner'] as const)
+      assert(BigInt(known[field]) === 0n || BigInt(m[field]) !== BigInt(known[field]), 'Canonical deployment addresses cannot be used for rehearsal');
+  }
   return m;
 }
 export function registerConfirmation(c: RegisterOptions, m: Manifest) {

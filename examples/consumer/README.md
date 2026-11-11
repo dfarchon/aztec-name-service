@@ -54,7 +54,8 @@ Import public read APIs from `@ans/sdk/read`; no wallet connection or proving ru
 
 1. Run `npm run dev` and discover a compatible wallet in the current browser.
 2. Compare the connection symbols on the page and in the wallet, then confirm the secure channel.
-3. Select an authorized account. `connectAns` checks the chain, rollup, registry, account authorization and sponsor contract class, then registers the required contract artifacts with the wallet.
+3. Approve the ANS permission request in the wallet: account reads, payment authorizations, and the Registry, active Registrar, default Resolver, payment token and sponsor contract. `requestAnsCapabilities` checks the wallet network first and names only these addresses; when a name uses its own Resolver or the Registrar changes, the wallet asks again for that contract only. An incomplete grant returns `wallet_rejected`.
+4. Select an authorized account. `connectAns` checks the chain, rollup, registry, account authorization and sponsor contract class, then registers the required contract artifacts with the wallet.
 
 `connectAns` returns an `AnsContext` containing the reader, wallet and account. It checks the wallet’s `chainId` and rollup version against the reader before registering contracts. Private balance reads, fee authorization and transaction submission recheck the wallet network inside its queue; a mismatch returns `wrong_deployment`. Reconnect after switching networks. Wallet keys remain in the wallet.
 

@@ -7,7 +7,8 @@ import { join } from 'node:path';
 import { createRequire } from 'node:module';
 import { sponsoredFpc } from './common.js';
 import { V6_PROFILES, assertV6Fpc, assertV6Network, dryRunNode } from './v6-network.js';
-import { REPO, ZERO, parseArgs, parseInitKeysArgs, parseOptions, finalizeConfig, confirmation, makePolicy, configHash, deploymentPlan, buildManifest } from './deploy-v6-plan.js';
+import { loadReservedList } from './launch-policy.js';
+import { PAID_V6_MANIFEST, REPO, ZERO, parseArgs, parseInitKeysArgs, parseOptions, finalizeConfig, confirmation, makePolicy, configHash, deploymentPlan, buildManifest } from './deploy-v6-plan.js';
 import { main, physicalPath, privatePaths, v6Artifacts, instances, buildInitialState, assertCheckpointKeys, atomicJson, deploymentError } from './deploy-v6.js';
 // macOS tmpdir() is /var/..., a symlink to /private/var; path checks compare physical paths.
 const realTmp=realpathSync(tmpdir());
@@ -295,16 +296,22 @@ test('sponsored testnet confirmation pins the original identity and explicit reg
   const c = parseArgs([...testnet, '--dry-run']);
   assert.equal(confirmation(c), `testnet-v6:6.0.0:11155111:679261766:0x1f435a7f2da358caf887a470faeee7d5d5f4efba:registryVersion=6:registrar=tiered:priceVersion=1:token=official:treasury=${treasury}`);
 });
-test('sponsored manifest deep-equals existing deployed output', async () => {
-  const current = JSON.parse(await readFile(join(REPO, 'deployments/testnet-v6.json'), 'utf8'));
-  const c = parseArgs(['--network', 'testnet-v6', '--registrar', current.registrarKind, '--price-version', String(current.priceVersion), '--treasury', current.treasury, '--dry-run']);
-  const p = makePolicy(c, { decimals: current.feeDecimals, annualPrice: current.annualPrice, lengthPrices: current.lengthPrices }, current.treasury);
-  const identity = { chainId: current.chainId, rollupVersion: current.rollupVersion, rollup: current.rollup };
-  const actual = buildManifest(c, p, identity, { ...current, token: current.feeToken }, current.classIds, current.transactions, current.deployedAt);
-  assert.deepEqual(actual, current);
-  assert.equal(JSON.stringify(actual, null, 2) + '\n', await readFile(join(REPO, 'deployments/testnet-v6.json'), 'utf8'));
-  const feeJuice = buildManifest({ ...c, feePayment: 'fee-juice' }, p, identity, { ...current, token: current.feeToken }, current.classIds, current.transactions, current.deployedAt);
-  assert.deepEqual(feeJuice, { ...current, feePayment: 'fee-juice', sponsoredFpc: null });
+test('sponsored manifests deep-equal existing deployed output (current free, archived paid)', async () => {
+  for (const file of [join(REPO, 'deployments/testnet-v6.json'), PAID_V6_MANIFEST]) {
+    const text = await readFile(file, 'utf8'), current = JSON.parse(text);
+    const launch = current.registrarKind === 'launch'
+      ? ['--min-public-length', String(current.minPublicLength), '--initial-paused', String(current.initialPaused), '--max-renew-ahead', current.maxRenewAhead]
+      : [];
+    const c = parseArgs(['--network', 'testnet-v6', '--registrar', current.registrarKind, '--token', current.feeTokenSource, '--price-version', String(current.priceVersion), '--treasury', current.treasury, ...launch, '--dry-run']);
+    if (c.registrar === 'launch') c.reservedLabels = loadReservedList(JSON.parse(await readFile(c.reservedList!, 'utf8')));
+    const p = makePolicy(c, { decimals: current.feeDecimals, annualPrice: current.annualPrice, lengthPrices: current.lengthPrices }, current.treasury);
+    const identity = { chainId: current.chainId, rollupVersion: current.rollupVersion, rollup: current.rollup };
+    const actual = buildManifest(c, p, identity, { ...current, token: current.feeToken }, current.classIds, current.transactions, current.deployedAt);
+    assert.deepEqual(actual, current, file);
+    assert.equal(JSON.stringify(actual, null, 2) + '\n', text, file);
+    const feeJuice = buildManifest({ ...c, feePayment: 'fee-juice' }, p, identity, { ...current, token: current.feeToken }, current.classIds, current.transactions, current.deployedAt);
+    assert.deepEqual(feeJuice, { ...current, feePayment: 'fee-juice', sponsoredFpc: null }, file);
+  }
 });
 test('fee-juice rehearsal requires dated isolated state and explicit manifest outside deployments', () => {
   const extra = ['--fee-payment', 'fee-juice', '--min-fee-juice', '1', '--dry-run'];

@@ -20,6 +20,7 @@ import metadata from './public-metadata.json';
 import { retryDelay } from './usability';
 import { createWebNode } from './rpc';
 import { deriveKeys, RecordStore } from './vault';
+import sdkPackage from '../../sdk/package.json';
 
 export { choosingAccount } from './account-state';
 
@@ -475,13 +476,31 @@ const walletStep = async <T>(step: string, run: () => Promise<T>): Promise<T> =>
   }
 };
 
-export async function connectExternal(wallet: Wallet, provider: WalletProvider) {
+export async function connectExternal(connected: Wallet, provider: WalletProvider) {
   await lock();
   if (!state.reader) throw new Error('Node or registry is not ready.');
+  const reader = state.reader;
+  let wallet = connected;
   try {
     await acquireTabLock();
     recordsKey = await deviceRecordsKey();
-    const accounts = (await walletStep('read accounts', () => wallet.getAccounts())).map((a) => ({
+    let granted;
+    // Aztec 6 wallets refuse account and contract calls until ANS holds matching capabilities.
+    // Test doubles without capability negotiation skip it; real wallet-sdk wallets always implement it.
+    if (typeof (connected as Partial<Wallet>).requestCapabilities === 'function') {
+      const { requestAnsCapabilities } = await import('@ans/sdk');
+      const result = await walletStep('authorize accounts and ANS contracts', () =>
+        requestAnsCapabilities(reader, connected, {
+          app: { name: 'ANS · Aztec Name Service', version: sdkPackage.version, url: location.origin },
+          sponsoredFpc: config.feePayment === 'sponsored' ? config.sponsoredFpc : undefined,
+        }),
+      );
+      wallet = result.wallet;
+      granted = result.accounts;
+    }
+    const accounts = (
+      granted ?? (await walletStep('read accounts', () => wallet.getAccounts()))
+    ).map((a) => ({
       alias: a.alias,
       address: a.item,
     }));

@@ -54,7 +54,8 @@ npm run read
 
 1. 执行 `npm run dev`，在当前浏览器发现兼容钱包。
 2. 核对页面与钱包中的连接图案，确认连接。
-3. 选择授权账户。`connectAns` 校验 chain、rollup、注册表、账户授权与赞助手续费合约类，然后向钱包注册所需合约信息。
+3. 在钱包中批准 ANS 的权限请求：读取账户、签付款授权，以及 Registry、当前 Registrar、默认 Resolver、支付 Token 和赞助合约。`requestAnsCapabilities` 先核对钱包网络，只申请这些具体地址；之后名字使用自己的 Resolver、或 Registrar 更换时，钱包会只为该合约再询问一次。权限不完整时返回 `wallet_rejected`。
+4. 选择授权账户。`connectAns` 校验 chain、rollup、注册表、账户授权与赞助手续费合约类，然后向钱包注册所需合约信息。
 
 `connectAns` 返回包含读取器、钱包与账户的 `AnsContext`，注册合约信息前会核对钱包与读取器的 `chainId` 和 rollup 版本。私有余额读取、费用授权与交易提交在钱包队列内再次检查网络，不匹配时返回 `wrong_deployment`。切换网络后需重新连接；密钥保留在钱包中。
 

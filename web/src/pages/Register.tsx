@@ -3,6 +3,7 @@ import {
   AnsError,
   assertRegistrableLabel,
   type FeeQuote,
+  formatName,
   getFeeQuote,
   normalizeName,
   type RegistrationCheck,
@@ -142,7 +143,7 @@ function RegistrationFunding({ free = false }: { free?: boolean }) {
 
 function NewRegistration({ initial }: { initial?: string }) {
   const { ctx, records } = useSession();
-  const [name, setName] = useState(initial ?? '');
+  const [name, setName] = useState(initial ? formatName(initial) : '');
   const [years, setYears] = useState(1);
   const [quote, setQuote] = useState<FeeQuote>();
   const [error, setError] = useState<string>();
@@ -237,7 +238,7 @@ function NewRegistration({ initial }: { initial?: string }) {
         <input
           value={name}
           onChange={(e) => setName(e.target.value)}
-          placeholder={translate('alice')}
+          placeholder={translate('alice.fog')}
         />
       </Field>
       {labelError && <small className="err">{translate(labelError)}</small>}
@@ -422,7 +423,7 @@ function PlanCard({ plan }: { plan: RegistrationPlan }) {
 
   return (
     <Card
-      title={plan.label}
+      title={formatName(plan.label)}
       tone={dead ? 'warn' : check?.state === 'registered' ? 'ok' : undefined}
     >
       <dl>

@@ -1,4 +1,5 @@
 import { AztecAddress } from "@aztec-labs/aztec.js/addresses";
+import { NAME_SUFFIX } from "@ans/sdk/read";
 
 import { parseNetworkConfig } from "./network-config";
 
@@ -10,7 +11,8 @@ export const config = {
   registry: env.VITE_REGISTRY
     ? AztecAddress.fromStringUnsafe(env.VITE_REGISTRY as string)
     : undefined,
-  nameSuffix: (env.VITE_NAME_SUFFIX as string | undefined) || undefined,
+  /** Every name displays as `<label>.fog`; input may include or omit it. */
+  nameSuffix: NAME_SUFFIX,
   webWalletUrls: ((env.VITE_WEB_WALLET_URLS as string | undefined) || "")
     .split(",")
     .map((s) => s.trim())

@@ -12,6 +12,8 @@ import { Fq, Fr } from '@aztec-labs/aztec.js/fields';
 import type { AztecNode } from '@aztec-labs/aztec.js/node';
 import { TxStatus } from '@aztec-labs/aztec.js/tx';
 import canonical from '../../deployments/testnet-v6.json' with { type: 'json' };
+// The rehearsal is paid (mAZTEC), so its fixture starts from the archived paid deployment, not the free current one.
+import paid from '../../deployments/legacy/testnet-v6-tiered.json' with { type: 'json' };
 import { REPO, type Manifest } from './deploy-v6-plan.js';
 import { FEE_JUICE, type BridgeClaim } from './fee-juice-payment.js';
 import { V6_PROFILES } from './v6-network.js';
@@ -28,7 +30,7 @@ import {
 
 const address = (n: number) => new AztecAddress(new Fr(n)).toString();
 const hash = `0x${'1'.repeat(64)}`;
-const m: Manifest = { ...canonical, feePayment: 'fee-juice', sponsoredFpc: null,
+const m: Manifest = { ...paid, feePayment: 'fee-juice', sponsoredFpc: null,
   network: 'testnet-v6',
   registry: address(100), resolver: address(101), registrar: address(102), feeToken: address(103),
   owner: address(105),
@@ -98,8 +100,9 @@ test('canonical and all repository paths are refused, including physical symlink
 });
 test('each canonical address, including owner, is refused by value despite mixed case', async t => {
   const f = await fixture(t);
-  for (const field of ['registry', 'registrar', 'resolver', 'feeToken', 'owner'] as const) {
-    for (const value of [canonical[field], `0x${canonical[field].slice(2).toUpperCase()}`]) {
+  for (const known of [canonical, paid]) for (const field of ['registry', 'registrar', 'resolver', 'feeToken', 'owner'] as const) {
+    if (BigInt(known[field]) === 0n) continue; // the free deployment has no token
+    for (const value of [known[field], `0x${known[field].slice(2).toUpperCase()}`]) {
       await writeFile(f.manifest, JSON.stringify({ ...m, [field]: value }));
       await assert.rejects(loadRehearsalManifest(f.manifest), /Canonical deployment/);
     }

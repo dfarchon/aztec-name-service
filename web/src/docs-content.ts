@@ -12,17 +12,8 @@ import {
 const aztecAnnualPrice = formatUnits(BigInt(pricing.annualPrice), pricing.decimals);
 const aztecPrice3 = formatUnits(BigInt(pricing.lengthPrices['3']), pricing.decimals);
 const aztecPrice4 = formatUnits(BigInt(pricing.lengthPrices['4']), pricing.decimals);
-/** The fee the active test Registrar charges today, so readers do not have to wait for the Register quote. */
-const testAnnualPrice = formatUnits(BigInt(deployment.annualPrice), deployment.feeDecimals);
-const testPrice3 = formatUnits(BigInt(deployment.lengthPrices['3']), deployment.feeDecimals);
-const testPrice4 = formatUnits(BigInt(deployment.lengthPrices['4']), deployment.feeDecimals);
-/** "128 / 32 / 1 mAZTEC" style summary of the active test Registrar's length tiers. */
-const testTiers = [
-  `${testPrice3} ${deployment.feeSymbol} (3 characters)`,
-  `${testPrice4} ${deployment.feeSymbol} (4 characters)`,
-  `${testAnnualPrice} ${deployment.feeSymbol} (5+ characters)`,
-].join(', ');
-const testSymbol = deployment.feeSymbol;
+/** Minimum public label length of the live free test Registrar. */
+const testMinLength = deployment.minPublicLength;
 export type Article = {
   id: string;
   group: 'guide' | 'developer' | 'help';
@@ -37,8 +28,8 @@ export const articles: Article[] = [
     title: 'Register your first name',
     body: [
       'Search for a name, connect an Aztec wallet, and review the lease and exact fee. Root labels use 3–31 ASCII letters, digits or hyphens; no leading or trailing hyphen, no "--" and no "0x" prefix.',
-      `You need a desktop browser with an Aztec wallet extension; Azguard currently offers one for Chrome (mobile wallets are not supported yet). Install it in the same browser, unlock it and select Testnet. If the wallet asks for network details, enter: node ${deployment.nodeUrl}, chain ID ${deployment.chainId} and rollup version ${deployment.rollupVersion}. The chain ID identifies Ethereum Sepolia, the public test network that Aztec Testnet settles on; the rollup version identifies the current Aztec Testnet release. Both must match exactly, otherwise ANS stops before any transaction so nothing is sent to the wrong network.`,
-      'Use a test account funded in the exact payment token and quote shown on Register. AZTEC is the selected pricing currency; mAZTEC is a clearly labeled 18-decimal test stand-in with no official backing. See “Which token do I need?” for the difference between AZTEC, mAZTEC, ANSF and Fee Juice. Network fees are paid by a shared sponsor contract, so you do not need Fee Juice.',
+      `You need a desktop browser with an Aztec 6 wallet extension, such as Nulo for Chrome or Firefox (open source, not independently audited; mobile wallets are not supported yet). Install it from the official listing linked at nulo.sh, unlock it and switch its network to Aztec Testnet; Nulo starts on Aztec mainnet. When you connect, the wallet asks to let ANS read your account, sign payment authorizations and use the ANS contracts. Approve it; if a name uses its own resolver, or the Registrar changes, the wallet asks again for that contract only. If the wallet asks for network details, enter: node ${deployment.nodeUrl}, chain ID ${deployment.chainId} and rollup version ${deployment.rollupVersion}. The chain ID identifies Ethereum Sepolia, the public test network that Aztec Testnet settles on; the rollup version identifies the current Aztec Testnet release. Both must match exactly, otherwise ANS stops before any transaction so nothing is sent to the wrong network.`,
+      `Registration on this test deployment is free: the Registrar has no payment token, so there is nothing to buy, approve or hold. Public names need at least ${testMinLength} characters; shorter names show Not yet available and reserved names show Reserved. Network fees are paid by a shared sponsor contract, so you do not need Fee Juice either. See “Which token do I need?” for AZTEC, mAZTEC, ANSF and Fee Juice.`,
       'Registration has two transactions: first a commit (a sealed fingerprint that hides which name you want, so nobody can grab it first), then the registration after about one minute. Keep the registration plan until the second transaction is confirmed. If interrupted, open Register again and resume the saved plan.',
       'After registration, open Manage, set an Aztec address, then connect that address’s wallet to confirm its primary name. Registration alone does not set a receiving address.',
     ],
@@ -48,10 +39,10 @@ export const articles: Article[] = [
     group: 'guide',
     title: 'Pricing and payment assets',
     body: [
-      `Registration and renewal will be priced in AZTEC. Shorter names cost more: the provisional annual rate is ${aztecPrice3} AZTEC for 3 characters, ${aztecPrice4} AZTEC for 4 characters and ${aztecAnnualPrice} AZTEC for 5 or more, for one to five whole years. Renewals use the same tier. This is the target policy; AZTEC collection is not active on this test deployment. Today the test deployment charges the same tiers in ${testSymbol} per year: ${testTiers}; the Register page always shows the exact on-chain quote before you pay.`,
+      `Registration and renewal will be priced in AZTEC. Shorter names cost more: the provisional annual rate is ${aztecPrice3} AZTEC for 3 characters, ${aztecPrice4} AZTEC for 4 characters and ${aztecAnnualPrice} AZTEC for 5 or more, for one to five whole years. Renewals use the same tier. This is the target policy; AZTEC collection is not active on this test deployment. Today the test deployment is free: no registration or renewal fee for any length, with one-year leases. The Register page always shows the exact on-chain quote.`,
       'AZTEC is the official 18-decimal Ethereum token. Fee Juice is network fee credit obtained by depositing AZTEC; it cannot be transferred to a registration treasury. ANSF is an older project test token from earlier deployments. Receiving Fee Juice does not fund any registration payment; see “Which token do I need?”.',
       'The payment asset must be verified on the connected network before AZTEC collection can start. A website update or a token with the same symbol cannot change the active Registrar. The payment screen continues to show the current on-chain quote and token address.',
-      'When the connected module is NameRegistrarLaunch, public registration uses a live minimum length (initial default 7), reserved-name list and pause switch. A launch lease and each renewal are exactly 365 days. Free means no registration-token transfer or authorization; Fee Juice or sponsorship still pays network fees. Short names show Not yet available, reserved names show Reserved, and a pause blocks only public registration. This does not announce a deployment or change the current testnet fees.',
+      `When the connected module is NameRegistrarLaunch, public registration uses a live minimum length (initial default 7), reserved-name list and pause switch. A launch lease and each renewal are exactly 365 days. Free means no registration-token transfer or authorization; Fee Juice or sponsorship still pays network fees. Short names show Not yet available, reserved names show Reserved, and a pause blocks only public registration. The current test deployment uses a free NameRegistrarLaunch with a public minimum of ${testMinLength} characters; this does not announce a mainnet deployment.`,
       'The administrator selects the active Registrar directly. A confirmed change takes effect immediately. Review the current token, treasury and exact quote before authorizing payment; prepare a new plan if its policy changed.',
     ],
   },
@@ -60,9 +51,9 @@ export const articles: Article[] = [
     group: 'guide',
     title: 'Which token do I need?',
     body: [
-      `To register on this test deployment you need ${testSymbol} only, per year: ${testTiers}, held as a private balance in the wallet account that registers. The Register page shows the exact token address and quote; a token you create yourself with the same symbol will not work.`,
-      `${testSymbol} is a test stand-in for AZTEC with 18 decimals and no value or official backing. AZTEC is the official token and the planned pricing currency, but it is not accepted here yet. ANSF is an older 6-decimal ANS test token used by earlier deployments; it cannot pay the current Registrar. Fee Juice is Aztec network fee credit; you do not need it because a shared sponsor contract pays network fees, and it can never pay a registration fee.`,
-      `There is currently no public self-serve faucet or published public request channel for this deployment. Test balances are arranged by the testnet operator; ordinary users cannot obtain them through this site. The V6 acceptance runner funds its test account through an administrator-authorized mint_to_private call on the deployed token. This is an operator test procedure, not a public faucet. The testnet-v6 manifest identifies ${testSymbol} at ${deployment.feeToken} (${deployment.feeDecimals} decimals). Verify this exact address and your private balance on Register; tokens from older rollups or with the same symbol cannot pay here.`,
+      'You need no token to register on this test deployment. Its Registrar is free: it has no payment token, so registration creates no token authorization and reads no private balance. A shared sponsor contract pays the network fees.',
+      'AZTEC is the official token and the planned pricing currency; it is not accepted here. mAZTEC is the 18-decimal test stand-in that the previous paid test deployment charged; it is no longer needed. ANSF is an older 6-decimal ANS test token from earlier deployments. Fee Juice is Aztec network fee credit; you do not need it because the sponsor pays network fees, and it can never pay a registration fee.',
+      `There is nothing to obtain: free registration needs no faucet, balance or request channel, so treat any site offering ANS test tokens for this deployment as unrelated. The testnet-v6 manifest records the payment token as ${deployment.feeToken} (none). Names registered on the previous paid test deployment are not carried over.`,
     ],
   },
   {
@@ -70,7 +61,7 @@ export const articles: Article[] = [
     group: 'help',
     title: 'Plain-language glossary',
     body: [
-      'Name: your readable ANS name, like alice. It is not an internet domain or website address. Primary name: the one name your account shows by default; it is only shown when the name also points back to your address, so nobody can claim to be you.',
+      'Name: your readable ANS name, like alice.fog. Every name ends in .fog (Fully Obfuscated Glyph); you register only the part before it. It is not an internet domain or website address. Primary name: the one name your account shows by default; it is only shown when the name also points back to your address, so nobody can claim to be you.',
       'Commit: the first registration step. It records a sealed fingerprint of your request so nobody can see or front-run the name; after about one minute you send the actual registration.',
       'Sponsored fee payer (FPC): a shared contract that pays Aztec network fees for you, so you do not need Fee Juice. It does not pay the registration fee.',
       'Registrar: the contract that takes the registration fee and creates or renews names. Resolver: the contract that stores where a name points, such as its Aztec address and profile records.',
@@ -112,7 +103,7 @@ export const articles: Article[] = [
     group: 'guide',
     title: 'Create and manage subnames',
     body: [
-      'A parent owner can issue team.alice to another address, for a lease no longer than the parent’s. Up to four subname levels are supported. Every label follows the root label rules.',
+      'A parent owner can issue team.alice.fog to another address, for a lease no longer than the parent’s. Up to four subname levels are supported. Every label follows the root label rules.',
       'Parent owners retain revocation and reissue rights. Revoking, transferring or re-registering a parent invalidates its descendants; reissuing the same name cannot revive old descendant records. Subnames do not use paid root registration or root renewal.',
     ],
   },
@@ -123,7 +114,7 @@ export const articles: Article[] = [
     body: [
       'Use Node 24.12 or newer. Download and extract the starter below; it includes the SDK package, example code and public testnet configuration. The SDK is distributed as a versioned download and is not published on public npm.',
       'Keep the Aztec 6.0.0 dependency versions and overrides in the application’s root package.json. Overrides from the SDK package do not apply to your application. Audit the installed dependencies after integration.',
-      'Import public read APIs from @ans/sdk/read; no wallet connection or proving runtime is required. Keep wallet execution imports behind user actions. resolveAddress returns the address and the block snapshot used for the read. Pass that snapshot to resolvePrimary to verify both directions at the same block.',
+      'Names display as alice.fog, but the SDK, contracts and routes use the bare label alice. Strip the suffix from user input with normalizeName(input, { suffix: NAME_SUFFIX }) and show names with formatName(label). Import public read APIs from @ans/sdk/read; no wallet connection or proving runtime is required. Keep wallet execution imports behind user actions. resolveAddress returns the address and the block snapshot used for the read. Pass that snapshot to resolvePrimary to verify both directions at the same block.',
     ],
     code: `import { createAztecNodeClient } from '@aztec-labs/aztec.js/node';
 import { AztecAddress } from '@aztec-labs/aztec.js/addresses';
@@ -182,11 +173,11 @@ if (result.status === 'resolved') {
 
 export const summaries: Record<string, string> = {
   tokens:
-    'The current payment token, private balance requirements and the role of network fee credit.',
+    'Why registration needs no token on this test deployment, and the role of network fee credit.',
   glossary:
     'Definitions of names, registration commitments, contract modules and transaction states.',
   'getting-started': 'Search, register and set up your name.',
-  pricing: 'AZTEC denomination, current fees and payment availability.',
+  pricing: 'AZTEC target pricing, free test registration and launch policy.',
   manage: 'Keep your name active and confirm its primary address.',
   profile: 'Publish a profile and addresses for other chains.',
   permissions: 'Delegate record editing or transfer your name.',
@@ -226,7 +217,7 @@ export const groups: { id: Article['group']; title: string; description: string 
   },
 ];
 const headings: Record<string, string[]> = {
-  tokens: ['The token you need', 'AZTEC, test tokens and Fee Juice', 'Getting test tokens'],
+  tokens: ['The token you need', 'AZTEC, test tokens and Fee Juice', 'Nothing to obtain'],
   glossary: [
     'Names',
     'Commit',
@@ -238,7 +229,7 @@ const headings: Record<string, string[]> = {
   'getting-started': [
     'Choose a name',
     'Set up your wallet',
-    'Prepare the payment',
+    'No registration fee',
     'Complete registration',
     'Set your receiving address',
   ],
@@ -330,12 +321,8 @@ export function sectionsFor(article: Article): DocSection[] {
       type: 'links',
       items: [
         {
-          title: 'Install Azguard for Chrome',
-          href: 'https://azguardwallet.io/help/azguard-wallet/introducing',
-        },
-        {
-          title: 'Wallet network setup',
-          href: 'https://azguardwallet.io/help/wallet-setup',
+          title: 'Install Nulo for Chrome or Firefox',
+          href: 'https://nulo.sh',
         },
       ],
     });

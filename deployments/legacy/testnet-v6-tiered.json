@@ -1,0 +1,45 @@
+{
+  "schema": "ans-deployment-v6/1",
+  "network": "testnet-v6",
+  "aztecVersion": "6.0.0",
+  "protocol": 6,
+  "nodeUrl": "https://aztec-testnet.drpc.org",
+  "chainId": "11155111",
+  "rollupVersion": "679261766",
+  "rollup": "0x1f435a7f2da358caf887a470faeee7d5d5f4efba",
+  "realProofs": true,
+  "sponsoredFpc": "0x2d8fff82a3b0c15d0a89169e7d8d043e079ab94d52031f1de1e4972ebad169d3",
+  "registry": "0x04393ee270097dcb7ba0d7cdcc924f9155fca1cce09508691409624925fb53e5",
+  "resolver": "0x09bfffe1465474fadb6e2bc8ba94c0d3e05a045b83d4e634db358e7d4823b31a",
+  "registrar": "0x2bb08150cabb43f71716cc50a18b4af62bfc9c99c2e017c1bc0cd935861c590b",
+  "registrarKind": "tiered",
+  "legacy": "0x0000000000000000000000000000000000000000000000000000000000000000",
+  "feeToken": "0x15b52b96864f87ff277ef09887d4233831f3fe80bc197dac27efe9712375e1ad",
+  "feeTokenSource": "official",
+  "feeTokenClassId": "0x067df4ddda0b0872ef604f47f3681d5e8c0de98280ac6b79963851c055ba91e0",
+  "feeSymbol": "mAZTEC",
+  "feeDecimals": 18,
+  "treasury": "0x0650cfdf480defa1c57b5874a4ff70d3d73cd0a2b00e47d1a120aafe42ec70aa",
+  "annualPrice": "1000000000000000000",
+  "lengthPrices": {
+    "3": "128000000000000000000",
+    "4": "32000000000000000000"
+  },
+  "priceVersion": 1,
+  "classIds": {
+    "registry": "0x11c7848115693d525b0f00719c0e185ea88d67b79e87445139dcd28d09965963",
+    "resolver": "0x04f2812713892b0ae29569a95e83966d9bc8fcdbd73fcf9cfdad258ae5216835",
+    "registrar": "0x2f130538880b663ee58100b2150b9ffa8b246cf13cda7ad449aba02741a5d4f8",
+    "token": "0x067df4ddda0b0872ef604f47f3681d5e8c0de98280ac6b79963851c055ba91e0"
+  },
+  "owner": "0x225bc0cedd562b42e6db647c933c4da56bab0a1f7d706d47bf2d69f570e715e4",
+  "transactions": {
+    "deploy-token": "0x09e4cc35ddd38b3f0d692da53fd605ea10425ac8000e319b03b423067b9b90d3",
+    "deploy-registry": "0x0a171cbac77334eccd5d1ec87e69e2c5d203ef5f8e69a90ad4bb12b2a363364e",
+    "deploy-resolver": "0x2104b800c5e9501b230b671a7c0f2f870c444fdc44d63936dc0a2a81d640ed26",
+    "deploy-registrar": "0x2c43e878eec71d7665022806e775302ccab735aface56eaacf9cc961d1fdcaaf",
+    "bootstrap": "0x13906d57ce479de008926139dbb8548c54966dfc5a6a77b2c7990e650cf678bc"
+  },
+  "generator": "e2e/src/deploy-v6.ts",
+  "deployedAt": "2026-10-27T12:09:52.912Z"
+}

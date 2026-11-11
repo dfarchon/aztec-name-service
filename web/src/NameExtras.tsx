@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import type { RegistryReader, Snapshot } from '@ans/sdk/read';
+import { formatName, type RegistryReader, type Snapshot } from '@ans/sdk/read';
 import { Card, CopyValue } from './components';
 import { translate as t } from './i18n';
 import { favoriteKey, readFavorites, toggleFavorite } from './portfolio';
@@ -15,7 +15,7 @@ export function ShareName({ name }: { name: string }) {
   const [qr, setQr] = useState(''), [error, setError] = useState(''), [open, setOpen] = useState(false);
   const url = `${location.origin}${location.pathname}#/name/${encodeURIComponent(name)}`;
   useEffect(() => { let live = true; setQr(''); setError(''); if (open) import('qrcode').then(q => q.toDataURL(url, { width: 256, margin: 3, errorCorrectionLevel: 'M' })).then(data => { if (live) setQr(data); }).catch(() => { if (live) setError('QR code unavailable. Copy the link instead.'); }); return () => { live = false; }; }, [url, open]);
-  return <details onToggle={e => setOpen(e.currentTarget.open)}><summary>{t('Share name')}</summary><div className="share-card"><h3>{name}</h3>{qr && <img width="256" height="256" src={qr} alt={t('QR code for this name')} />}<CopyValue value={url} label={t('Copy profile link')} /><small>{t('This link shares the public profile. It is not a payment request.')}</small>{error && <p role="alert">{t(error)}</p>}</div></details>;
+  return <details onToggle={e => setOpen(e.currentTarget.open)}><summary>{t('Share name')}</summary><div className="share-card"><h3>{formatName(name)}</h3>{qr && <img width="256" height="256" src={qr} alt={t('QR code for this name')} />}<CopyValue value={url} label={t('Copy profile link')} /><small>{t('This link shares the public profile. It is not a payment request.')}</small>{error && <p role="alert">{t(error)}</p>}</div></details>;
 }
 export function PublicRecords({ reader, node, generation, snapshot }: { reader: RegistryReader; node: bigint; generation: number; snapshot: Snapshot }) {
   const [records, setRecords] = useState<Record<string, string>>(), [error, setError] = useState('');

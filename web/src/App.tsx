@@ -66,6 +66,7 @@ export function App() {
 
   return (
     <div className="app">
+      <div className="fog" aria-hidden="true" />
       <a className="skip-link" href="#content" onClick={e => { e.preventDefault(); document.getElementById("content")?.focus(); }}>{translate("Skip to content")}</a>
       <header className="app-header">
         <a className="product-name" href="#/">{translate("Aztec Name Service")}</a>
@@ -91,10 +92,10 @@ export function App() {
         </div>
       )}
       <main id="content" tabIndex={-1} className={page === 'docs' || page === 'help' ? 'docs-page' : undefined}>
-        {page !== 'docs' && page !== 'help' && <div className="page-heading"><h1>{translate(PAGE_TITLES[page] ?? "Name service")}</h1></div>}
+        {page !== 'docs' && page !== 'help' && page !== '' && <div className="page-heading"><h1>{translate(PAGE_TITLES[page] ?? "Name service")}</h1></div>}
         <RouteBoundary key={page} resetKey={`${page}:${arg ?? ''}`}>
         <Suspense fallback={<CardLoading />}>
-        {page === "" && <SearchPage initial={arg} />}
+        {page === "" && <SearchPage initial={arg} page="home" />}
         {page === "name" && <SearchPage initial={arg} />}
         {page === "status" && <StatusPage />}
         {page === "docs" && <DocsPage article={arg} />}

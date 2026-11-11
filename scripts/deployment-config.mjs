@@ -7,6 +7,8 @@ import { operatorSlotProblems } from './operator-slot.mjs';
 import { parse, printParseErrorCode } from 'jsonc-parser';
 
 const repository = new URL('../', import.meta.url);
+/** Class of the official Aztec 6.0.0 Token artifact; `web/src/public-metadata.json` pins it for every deployment. */
+const OFFICIAL_TOKEN_CLASS = '0x067df4ddda0b0872ef604f47f3681d5e8c0de98280ac6b79963851c055ba91e0';
 function read(path, root) {
   const content = readFileSync(new URL(path, root), 'utf8');
   if (!path.endsWith('.jsonc')) return JSON.parse(content);
@@ -37,8 +39,9 @@ export function deploymentConfigMismatches(root = repository) {
   const publicMetadata = read('web/src/public-metadata.json', root);
   if (publicMetadata.fpcAddress !== deployment.sponsoredFpc)
     problems.push('v6 public metadata fpcAddress differs from deployment');
-  if (publicMetadata.tokenClassId !== deployment.feeTokenClassId)
-    problems.push('v6 public metadata tokenClassId differs from deployment');
+  // The metadata always describes the official Token, also when this deployment is free or uses the repo token.
+  if (publicMetadata.tokenClassId !== OFFICIAL_TOKEN_CLASS)
+    problems.push('v6 public metadata tokenClassId differs from the official Token class');
   const configs = ['ops/wrangler.jsonc', 'ops/wrangler-monitor.jsonc'].map((path) => [
     path,
     read(path, root),
@@ -186,7 +189,7 @@ export function v6ManifestProblems(m, { expectNetwork } = {}) {
   const tokenId = free
     ? zero
     : m.feeTokenSource === 'official'
-      ? '0x067df4ddda0b0872ef604f47f3681d5e8c0de98280ac6b79963851c055ba91e0'
+      ? OFFICIAL_TOKEN_CLASS
       : baseline.testToken;
   check(m.feeTokenClassId === tokenId && m.classIds?.token === tokenId, 'v6 token class');
   for (const key of [

@@ -7,8 +7,10 @@ import {
   AnsError,
   assertRegistrableLabel,
   chargeFor,
+  formatName,
   asciiTagToField,
   GRACE_PERIOD,
+  NAME_SUFFIX,
   nameStatus,
   type NameRecord,
   normalizeName,
@@ -66,6 +68,22 @@ test("normalizeName canonicalizes and rejects exactly what the contract rejects"
     code(() => normalizeName("alice.eth", { suffix: ".aztec" })),
     "invalid_name",
   );
+});
+
+test(".fog is a display suffix over the canonical label", () => {
+  assert.equal(NAME_SUFFIX, ".fog");
+  assert.equal(normalizeName("Alice.FOG", { suffix: NAME_SUFFIX }).label, "alice");
+  assert.equal(normalizeName("alice", { suffix: NAME_SUFFIX }).label, "alice");
+  assert.equal(formatName("alice"), "alice.fog");
+  assert.equal(formatName(normalizeName("team.alice", { allowSubnames: true })), "team.alice.fog");
+  // Only one suffix is stripped, so formatName and normalizeName round-trip even for a root named "fog".
+  for (const name of ["fog", "team.fog", "team.alice"]) {
+    const label = normalizeName(name, { allowSubnames: true });
+    assert.equal(normalizeName(formatName(label), { suffix: NAME_SUFFIX, allowSubnames: true }).label, label.label);
+  }
+  // Canonical SDK inputs keep their meaning: without the option ".fog" is a parent label, not the suffix.
+  assert.equal(normalizeName("team.fog", { allowSubnames: true }).parent?.label, "fog");
+  assert.equal(code(() => normalizeName("alice.fog")), "invalid_name");
 });
 
 test("unpackLabel round-trips and refuses non-canonical data", () => {

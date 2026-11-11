@@ -75,7 +75,8 @@ export function WalletConnection() {
           version: new Fr(s.reader.deployment.rollupVersion),
         },
         appId: "ans-public-names",
-        timeout: 15000,
+        // Nulo asks the user to approve the connection during discovery; keep the SDK's 60 s window.
+        timeout: 60000,
         onWalletDiscovered: (p) => {
           if (generation.current === g)
             setProviders((old) => [...old.filter((x) => x.id !== p.id), p]);
@@ -208,7 +209,7 @@ export function WalletConnection() {
               </button>
             ))}
           {!searching && !busy && !s.wallet && discovery.current && !providers.length && (
-            <div><p>{translate("No compatible wallet found. Open this site in the browser where your wallet is installed, unlock it and select the matching testnet.")}</p><a href="https://azguardwallet.io/help/azguard-wallet/introducing" target="_blank" rel="noopener noreferrer">{translate("Install Azguard for Chrome")}</a><p><a href="#/docs/getting-started">{translate("Wallet and testnet setup")}</a></p></div>
+            <div><p>{translate("No compatible wallet found. Open this site in the browser where your wallet is installed, unlock it and select the matching testnet.")}</p><a href="https://nulo.sh" target="_blank" rel="noopener noreferrer">{translate("Install Nulo for Chrome or Firefox")}</a><p><a href="#/docs/getting-started">{translate("Wallet and testnet setup")}</a></p></div>
           )}
         </>
       )}

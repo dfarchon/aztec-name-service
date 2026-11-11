@@ -7,6 +7,10 @@ import { reservedListHash } from './launch-policy.js';
 import { V6_PROFILES, assertV6Url, type V6Network } from './v6-network.js';
 
 export const REPO = fileURLToPath(new URL('../../', import.meta.url));
+/** The paid tiered mAZTEC testnet deployment that the free launch deployment replaced on 2026-11-11. Its names stay there. */
+export const PAID_V6_MANIFEST = join(REPO, 'deployments/legacy/testnet-v6-tiered.json');
+/** Every public V6 testnet deployment; rehearsals must never reuse their addresses. */
+export const PUBLIC_V6_MANIFESTS = [join(REPO, 'deployments/testnet-v6.json'), PAID_V6_MANIFEST] as const;
 export const ZERO = `0x${'0'.repeat(64)}`;
 export const DEPLOY_STEPS = ['deploy-token', 'deploy-registry', 'deploy-resolver', 'deploy-registrar', 'bootstrap'] as const;
 export type LaunchOptions = { registryVersion?: 6 | 7; minPublicLength?: number; initialPaused?: boolean; maxRenewAhead?: string; reservedLabels?: string[]; reservedList?: string };
