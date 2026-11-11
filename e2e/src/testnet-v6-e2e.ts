@@ -1,4 +1,4 @@
-/** Public V6 acceptance against the canonical deployment. Never deploys or changes modules. */
+/** Public paid-mode V6 acceptance against the archived tiered mAZTEC deployment. Never deploys or changes modules. */
 import assert from 'node:assert/strict';
 import { homedir } from 'node:os';
 import { mkdir } from 'node:fs/promises';
@@ -34,7 +34,7 @@ import { TxHash, TxStatus } from '@aztec-labs/aztec.js/tx';
 import { setLogLevel } from '@aztec-labs/foundation/log';
 import { newWallet, randomKeys, sponsoredFpc, sleep } from './common.js';
 import { V6_PROFILES, assertV6Fpc, type V6NodeInfo } from './v6-network.js';
-import { REPO, assertPrivateDir, within, type Manifest } from './deploy-v6-plan.js';
+import { PAID_V6_MANIFEST, REPO, assertPrivateDir, within, type Manifest } from './deploy-v6-plan.js';
 import { physicalPath, v6Artifacts } from './deploy-v6.js';
 import { acquireTestnetLock } from './testnet-lock.js';
 import { readKeys } from './init-keys.js';
@@ -85,7 +85,8 @@ export async function main() {
     return;
   }
   const rebroadcast = parseRebroadcast(process.argv.slice(2));
-  const manifest = loadManifest(join(REPO, 'deployments/testnet-v6.json'));
+  // The current testnet deployment is free; this runner mints and pays, so it targets the paid deployment it was built for.
+  const manifest = loadManifest(PAID_V6_MANIFEST);
   assert(process.env.ANS_V6_E2E_REPORT, 'ANS_V6_E2E_REPORT is required');
   const deploymentDir = await physicalPath(
     resolve(

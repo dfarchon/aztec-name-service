@@ -4,7 +4,7 @@ Aztec 上类似 ENS 的名字注册与解析服务：Noir 合约、TypeScript SD
 
 > **English.** ANS is an ENS-like name service for Aztec: Noir contracts, a TypeScript SDK, a web app and a Cloudflare monitor in one npm-workspace repository. It currently runs on the Aztec public testnet only, and the contracts are unaudited. See [Development](#开发) for commands, [docs/sdk-onboarding.md](docs/sdk-onboarding.md) for SDK integration (bilingual) and [SECURITY.md](SECURITY.md) for vulnerability reports.
 
-**状态**：仅部署在 Aztec 公共测试网，合约未经审计。测试网收费使用无价值的项目测试币 mAZTEC。
+**状态**：仅部署在 Aztec 公共测试网，合约未经审计。测试网注册免费：当前 Registrar 为无支付 Token 的 `NameRegistrarLaunch`，网络费由赞助合约代付。
 
 ## 名字规则
 
@@ -35,7 +35,7 @@ Aztec 上类似 ENS 的名字注册与解析服务：Noir 合约、TypeScript SD
 
 ## 定价
 
-注册和续期按名字长度分档，目标年费为 **3 个字符 128、4 个字符 32、5 个字符及以上 1 AZTEC**（18 位精度）。定价事实源为 `deployments/aztec-pricing.json`，实际报价始终从当前 Registrar 读取。测试网用 mAZTEC 演练同样的价格；官方 AZTEC 的 L2 可转账资产尚未接入，Fee Juice 只用于网络费。
+注册和续期按名字长度分档，目标年费为 **3 个字符 128、4 个字符 32、5 个字符及以上 1 AZTEC**（18 位精度）。定价事实源为 `deployments/aztec-pricing.json`，实际报价始终从当前 Registrar 读取。测试网当前免费，不收注册费；此前的 tiered 部署曾用 mAZTEC 演练同样的价格。官方 AZTEC 的 L2 可转账资产尚未接入，Fee Juice 只用于网络费。
 
 ## 仓库结构
 
@@ -104,12 +104,12 @@ npm run test:extensions
 
 ## 公共测试网
 
-当前部署见 `deployments/testnet-v6.json`（Aztec 6 测试网，V6 Registry、分档 Registrar、mAZTEC）。Aztec 5.2.1 测试网上的 V2–V5 部署为只读存档，见 `deployments/testnet.json` 与 `deployments/legacy/`。
+当前部署见 `deployments/testnet-v6.json`（Aztec 6 测试网，V6 Registry、免费 `NameRegistrarLaunch`，公开注册至少 5 个字符）。2026-11-11 起替换此前收费的 tiered 部署，旧部署上的名字不迁移，其清单存档为 `deployments/legacy/testnet-v6-tiered.json`。Aztec 5.2.1 测试网上的 V2–V5 部署为只读存档，见 `deployments/testnet.json` 与 `deployments/legacy/`。
 
 ```sh
 # 只读预检：只调用 getNodeInfo / getContract，不生成密钥、不发送交易
 npm run deploy:v6 -- --network testnet-v6 --registrar tiered --price-version 1 --treasury 0x0000000000000000000000000000000000000000000000000000000000000001 --state-dir /tmp/ans-v6-public-dryrun --dry-run
-# 对现有部署做真实证明验收（会广播交易）
+# 对存档的收费 V6 部署做真实证明验收（会铸造 mAZTEC 并付费，广播交易）；免费部署尚无公网验收脚本
 ANS_V6_E2E_REPORT=/path/to/report.json npm run test:testnet:v6
 ```
 
@@ -145,7 +145,7 @@ SDK 尚未发布到 npm。它按链上准确类 ID 识别 V2–V7 与三种 Regi
 
 ## Launch Registrar
 
-`NameRegistrarLaunch` 是 V6/V7 可选的收费模块，当前测试网清单不变，也不表示主网已部署。公开注册默认至少 7 个字符，管理员可在 3–31 内调整；短名显示 “Not yet available”，保留名显示 “Reserved”。保留表按 node 存储，32 个 node 一批，零值跳过；仓库 `deployments/reserved-labels.json` 为 v1 分类名单，共 195 项且全部至少 7 个字符；加载器校验合法性和跨分类重复，排序后的规范哈希随部署策略固定，分类和变更流程见 `deployments/reserved-labels.md`。
+`NameRegistrarLaunch` 是 V6/V7 可选的收费模块，当前测试网以免费模式使用它（最短 5 个字符），不表示主网已部署。公开注册默认至少 7 个字符，管理员可在 3–31 内调整；短名显示 “Not yet available”，保留名显示 “Reserved”。保留表按 node 存储，32 个 node 一批，零值跳过；仓库 `deployments/reserved-labels.json` 为 v1 分类名单，共 195 项且全部至少 7 个字符；加载器校验合法性和跨分类重复，排序后的规范哈希随部署策略固定，分类和变更流程见 `deployments/reserved-labels.md`。
 
 每次注册和续期固定 365 天。`max_renew_ahead` 单位为秒，构造时须在 0–315360000（10 年）内：0（本地/测试网脚本默认值）不限制提前续期，可重复续期；非零时只有当前到期时间 `<= 链上时间 + max_renew_ahead` 才能续期。主网配置 `maxRenewAhead = 31536000`，到期前 1 年内可续期。管理员和 treasury 为占位地址 `0x2419a5bafa9cd88d6a625c21b96f16f79bf6e279253b1993609a3edc169f8c68`（离线生成，从未部署），带 `adminPlaceholder: true`；正式启动前必须替换为多签并通过 readiness。暂停只阻止公开注册，持有人续期和管理员铸造继续开放，以免宽限期内丢失名字。
 
@@ -155,7 +155,7 @@ SDK 尚未发布到 npm。它按链上准确类 ID 识别 V2–V7 与三种 Regi
 
 ## Launch Registrar (English)
 
-`NameRegistrarLaunch` is an optional V6/V7 module. It does not change the current testnet manifest or announce a mainnet deployment. Public registration defaults to at least 7 characters; the live administrator can choose 3–31. Short names show “Not yet available”; reserved names show “Reserved”. Reservations use node keys, batches of 32 and zero padding. `deployments/reserved-labels.json` contains the categorized v1 list of 195 labels, all at least 7 characters. The loader rejects illegal labels and duplicates before hashing the sorted flat list; categories and change procedure are in `deployments/reserved-labels.md`.
+`NameRegistrarLaunch` is an optional V6/V7 module. The current testnet runs it in free mode with a 5-character public minimum; this does not announce a mainnet deployment. Public registration defaults to at least 7 characters; the live administrator can choose 3–31. Short names show “Not yet available”; reserved names show “Reserved”. Reservations use node keys, batches of 32 and zero padding. `deployments/reserved-labels.json` contains the categorized v1 list of 195 labels, all at least 7 characters. The loader rejects illegal labels and duplicates before hashing the sorted flat list; categories and change procedure are in `deployments/reserved-labels.md`.
 
 Each registration and renewal is exactly 365 days. `max_renew_ahead` is seconds, bounded at construction to 0–315360000 (10 years): 0 (the local/testnet script default) allows repeated renewal without a horizon; otherwise current expiry must be at most chain time plus the horizon. Mainnet sets `maxRenewAhead = 31536000`: renewal opens 1 year before expiry. Admin and treasury use placeholder address `0x2419a5bafa9cd88d6a625c21b96f16f79bf6e279253b1993609a3edc169f8c68` (offline-generated, never deployed), with `adminPlaceholder: true`; replace with a multisig and pass readiness before launch. Pause blocks only public registration; holder renewal and administrator mint stay available, protecting holders during the grace period.
 

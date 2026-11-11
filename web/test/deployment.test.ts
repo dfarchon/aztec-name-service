@@ -35,8 +35,9 @@ test('token website and Markdown exports explain the funding boundary in English
   const tokens = articles.find((a) => a.id === 'tokens')!;
   const markdown = articleToMarkdown(tokens);
   assert.doesNotMatch(markdown, /TODO|\p{Script=Han}/u);
-  assert.match(markdown, /mint_to_private/);
   assert.ok(markdown.includes(manifest.feeToken));
-  assert.match(markdown, /no public self-serve faucet/);
-  assert.match(markdown, /no public self-serve faucet or published public request channel/);
+  // The live test Registrar is free: the guide must not send readers looking for a token or faucet.
+  assert.equal(manifest.feeTokenSource, 'none');
+  assert.match(markdown, /You need no token to register/);
+  assert.match(markdown, /needs no faucet, balance or request channel/);
 });

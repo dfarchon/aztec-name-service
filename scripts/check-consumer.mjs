@@ -39,11 +39,8 @@ try {
     manifest.deployment,
     JSON.parse(readFileSync('deployments/testnet-v6.json', 'utf8')),
   );
-  assert.ok(['ANSF', 'mAZTEC'].includes(manifest.deployment.feeSymbol));
-  assert.equal(
-    manifest.deployment.feeDecimals,
-    manifest.deployment.feeSymbol === 'mAZTEC' ? 18 : 6,
-  );
+  assert.ok(['ANSF', 'mAZTEC', 'FREE'].includes(manifest.deployment.feeSymbol));
+  assert.equal(manifest.deployment.feeDecimals, manifest.deployment.feeSymbol === 'ANSF' ? 6 : 18);
   execFileSync('npm', ['install', '--no-fund', '--no-audit'], { cwd, stdio: 'pipe' });
   // Exercise the published JavaScript in plain Node, without tsx or bundler transforms.
   execFileSync(

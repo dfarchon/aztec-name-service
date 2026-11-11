@@ -1,4 +1,9 @@
 {
+  "minPublicLength": 5,
+  "initialPaused": false,
+  "maxRenewAhead": "0",
+  "reservedListHash": "d3b5a6f138526e410311b4577f41bdcab0d24186405f4c51841f2906551028aa",
+  "reservedVerified": true,
   "schema": "ans-deployment-v6/1",
   "network": "testnet-v6",
   "aztecVersion": "6.0.0",
@@ -9,37 +14,43 @@
   "rollup": "0x1f435a7f2da358caf887a470faeee7d5d5f4efba",
   "realProofs": true,
   "sponsoredFpc": "0x2d8fff82a3b0c15d0a89169e7d8d043e079ab94d52031f1de1e4972ebad169d3",
-  "registry": "0x04393ee270097dcb7ba0d7cdcc924f9155fca1cce09508691409624925fb53e5",
-  "resolver": "0x09bfffe1465474fadb6e2bc8ba94c0d3e05a045b83d4e634db358e7d4823b31a",
-  "registrar": "0x2bb08150cabb43f71716cc50a18b4af62bfc9c99c2e017c1bc0cd935861c590b",
-  "registrarKind": "tiered",
+  "registry": "0x2d4dcccfab0afa50d15d4ec3fd7c3ef4beac112a0379bb51102ffd8a18969bd7",
+  "resolver": "0x0f737886154ada69533177a70a65da2194f1bf2771d4bc07eb05e11536eee12f",
+  "registrar": "0x210cd05dde1ae6e37894c5a4f632acf85a09a49f1445bc0190d18cc26a952f34",
+  "registrarKind": "launch",
   "legacy": "0x0000000000000000000000000000000000000000000000000000000000000000",
-  "feeToken": "0x15b52b96864f87ff277ef09887d4233831f3fe80bc197dac27efe9712375e1ad",
-  "feeTokenSource": "official",
-  "feeTokenClassId": "0x067df4ddda0b0872ef604f47f3681d5e8c0de98280ac6b79963851c055ba91e0",
-  "feeSymbol": "mAZTEC",
+  "feeToken": "0x0000000000000000000000000000000000000000000000000000000000000000",
+  "feeTokenSource": "none",
+  "feeTokenClassId": "0x0000000000000000000000000000000000000000000000000000000000000000",
+  "feeSymbol": "FREE",
   "feeDecimals": 18,
-  "treasury": "0x0650cfdf480defa1c57b5874a4ff70d3d73cd0a2b00e47d1a120aafe42ec70aa",
-  "annualPrice": "1000000000000000000",
+  "treasury": "0x2200860d4eb8fecf70c3bd0431dd90c6a613d2f78708b3c3e37ec7e46593ae10",
+  "annualPrice": "0",
   "lengthPrices": {
-    "3": "128000000000000000000",
-    "4": "32000000000000000000"
+    "3": "0",
+    "4": "0"
   },
   "priceVersion": 1,
   "classIds": {
     "registry": "0x11c7848115693d525b0f00719c0e185ea88d67b79e87445139dcd28d09965963",
     "resolver": "0x04f2812713892b0ae29569a95e83966d9bc8fcdbd73fcf9cfdad258ae5216835",
-    "registrar": "0x2f130538880b663ee58100b2150b9ffa8b246cf13cda7ad449aba02741a5d4f8",
-    "token": "0x067df4ddda0b0872ef604f47f3681d5e8c0de98280ac6b79963851c055ba91e0"
+    "registrar": "0x0d100435527961830faa7903103461a5fe61282c3a1745086bb6524bddc8d52f",
+    "token": "0x0000000000000000000000000000000000000000000000000000000000000000"
   },
-  "owner": "0x225bc0cedd562b42e6db647c933c4da56bab0a1f7d706d47bf2d69f570e715e4",
+  "owner": "0x1ea48c3863d0b45fc452939e6b7cb5c46ed054d02b3734856a666dbae5c34582",
   "transactions": {
-    "deploy-token": "0x09e4cc35ddd38b3f0d692da53fd605ea10425ac8000e319b03b423067b9b90d3",
-    "deploy-registry": "0x0a171cbac77334eccd5d1ec87e69e2c5d203ef5f8e69a90ad4bb12b2a363364e",
-    "deploy-resolver": "0x2104b800c5e9501b230b671a7c0f2f870c444fdc44d63936dc0a2a81d640ed26",
-    "deploy-registrar": "0x2c43e878eec71d7665022806e775302ccab735aface56eaacf9cc961d1fdcaaf",
-    "bootstrap": "0x13906d57ce479de008926139dbb8548c54966dfc5a6a77b2c7990e650cf678bc"
+    "deploy-registry": "0x1955ac9756e8a2b62f1fc7fc801f7716d9af5a48a10e5b35fe0fe3e5c0ac3543",
+    "deploy-resolver": "0x0c62a31337c8e1354378530c14a18d2c2d2217af897fa22f6a069429f2057b36",
+    "deploy-registrar": "0x143d34840e189def611a0562404dde0967b3cecb1b55cfcc5475dd98b9a6c232",
+    "seed-reserved-0": "0x0f609062eb0501f50ca73b255ccb0919bd4f198c37d53cd92577224e3bf07fa1",
+    "seed-reserved-1": "0x2aed642f598eae3a8bb196bd37fc8da34a39638595c76b259f4e14378b81e167",
+    "seed-reserved-2": "0x165a0c5c907471b9905448817e6153798ab84758f7449623125b320a1ba2f403",
+    "seed-reserved-3": "0x0ef118ca47a6242472799bd573152f0ce69c6eb89d52b7a6b7601fa21377a173",
+    "seed-reserved-4": "0x29f7100b52eb0b347ab4fd331a2ea97625a6bbdf3390ed483883f1196b75ee3b",
+    "seed-reserved-5": "0x04335b87774480b2b4d0f090979f093fa564c10e0ca419e45e5b3b512cad05c4",
+    "seed-reserved-6": "0x2a0b084a437b8db8cccc885edb7dc12df6c544f41cc1b5def95fbb6e254a611b",
+    "bootstrap": "0x1368f0429b6a52691810ee8b1938402d6ee202e786763e7cd210f87be880d11b"
   },
   "generator": "e2e/src/deploy-v6.ts",
-  "deployedAt": "2026-10-27T12:09:52.912Z"
+  "deployedAt": "2026-11-11T01:50:46.739Z"
 }

@@ -34,7 +34,7 @@
   },
   "vars": {
     "RPC_URL": "https://aztec-testnet.drpc.org",
-    "REGISTRY": "0x04393ee270097dcb7ba0d7cdcc924f9155fca1cce09508691409624925fb53e5",
+    "REGISTRY": "0x2d4dcccfab0afa50d15d4ec3fd7c3ef4beac112a0379bb51102ffd8a18969bd7",
     "SPONSORED_FPC": "0x2d8fff82a3b0c15d0a89169e7d8d043e079ab94d52031f1de1e4972ebad169d3",
     "SITE_URL": "https://ans-testnet.huantian233.workers.dev",
     "CHAIN_ID": "11155111",

@@ -8,7 +8,7 @@ import { TxStatus } from '@aztec-labs/aztec.js/tx';
 import { loadE2EKeys, runSafely } from './testnet-v6-e2e.js';
 import { initKeys } from './init-keys.js';
 import { V6_PROFILES, type V6NodeInfo } from './v6-network.js';
-import { REPO } from './deploy-v6-plan.js';
+import { PAID_V6_MANIFEST, REPO } from './deploy-v6-plan.js';
 import {
   assertPayment,
   assertStableBaseline,
@@ -30,7 +30,7 @@ import {
   validateState,
   type E2EState,
 } from './testnet-v6-e2e-state.js';
-const manifest = loadManifest(join(REPO, 'deployments/testnet-v6.json'));
+const manifest = loadManifest(PAID_V6_MANIFEST);
 const profile = V6_PROFILES['testnet-v6'];
 const info = (): V6NodeInfo => ({
   nodeVersion: profile.nodeVersion,
@@ -78,7 +78,9 @@ test('public runner rejects local, wrong identity, sample and noncanonical manif
     await writeFile(path, JSON.stringify({ ...manifest, ...changed }));
     assert.throws(() => loadManifest(path));
   }
-  assert.equal(loadManifest(join(REPO, 'deployments/testnet-v6.json')).network, 'testnet-v6');
+  assert.equal(loadManifest(PAID_V6_MANIFEST).network, 'testnet-v6');
+  // The free launch deployment has no payment token, so the paid runner refuses it instead of minting or paying.
+  assert.throws(() => loadManifest(join(REPO, 'deployments/testnet-v6.json')), /Tiered mAZTEC deployment required/);
 });
 
 test('each node identity field fails before key loader or broadcast boundary', async () => {
