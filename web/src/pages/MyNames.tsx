@@ -1,7 +1,7 @@
 import { favoriteKey, readFavorites, downloadCalendar } from "../portfolio";
 import { FavoriteButton } from "../NameExtras";
 import { translate } from "../i18n";
-import { listOwnedNames, type NamesCursor, type OwnedName } from "@ans/sdk";
+import { formatName, listOwnedNames, type NamesCursor, type OwnedName } from "@ans/sdk";
 import { useEffect, useRef, useState } from "react";
 import { go, NeedsAccount } from "../App";
 import { Card, CopyValue, EmptyState } from "../components";
@@ -48,7 +48,7 @@ export function MyNamesPage() {
         for (const n of r.names) {
           const id = `${ctx.account}:${favoritesKey}:${n.node}:${n.generation}:${n.expiresAt}`;
           if (n.expiresAt - r.snapshot.timestamp <= 30n * 86400n && !sent.current.has(id)) {
-            try { new Notification(translate("Name renewal reminder"), { body: `${n.name} · ${date(n.expiresAt)}`, tag: id }); sent.current.add(id); } catch { setReminderError("Notifications are unavailable in this browser."); }
+            try { new Notification(translate("Name renewal reminder"), { body: `${formatName(n.name)} · ${date(n.expiresAt)}`, tag: id }); sent.current.add(id); } catch { setReminderError("Notifications are unavailable in this browser."); }
           }
         }
       }
@@ -78,7 +78,7 @@ export function MyNamesPage() {
     };
   }, [ctx]);
   useEffect(() => { if (!reminders || !ctx) return; const timer = setInterval(() => { if (!busy) void load(); }, 60000); return () => clearInterval(timer); }, [ctx, reminders, busy]);
-  const favoriteCard = reader && <Card title={translate("Favorites")}>{favorites.length ? favorites.map(name => <div className="name-row" key={name}><a href={`#/name/${encodeURIComponent(name)}`}>{name}</a><FavoriteButton reader={reader} name={name}/></div>) : <p className="muted">{translate("Save names from search to keep them here.")}</p>}</Card>;
+  const favoriteCard = reader && <Card title={translate("Favorites")}>{favorites.length ? favorites.map(name => <div className="name-row" key={name}><a href={`#/name/${encodeURIComponent(name)}`}>{formatName(name)}</a><FavoriteButton reader={reader} name={name}/></div>) : <p className="muted">{translate("Save names from search to keep them here.")}</p>}</Card>;
   if (!ctx) return <>{favoriteCard}<NeedsAccount /></>;
   const visible = names.filter(n => n.name.includes(query.toLowerCase().trim()) && (filter === "all" || filter === "favorites" && favorites.includes(n.name) || filter === "expiring" && leaseDays(n.expiresAt) <= 30 || n.status === filter));
   return (
@@ -87,7 +87,7 @@ export function MyNamesPage() {
         <div className="portfolio-tools"><input type="search" aria-label={translate("Search your names")} placeholder={translate("Search your names")} value={query} onChange={e => setQuery(e.target.value)}/><select aria-label={translate("Filter names")} value={filter} onChange={e => setFilter(e.target.value)}>{[["all","All names"],["active","Active"],["grace","Grace period"],["expiring","Expiring within 30 days"],["favorites","Favorites"]].map(([value,label]) => <option key={value} value={value}>{translate(label)}</option>)}</select></div>
         {[...visible].sort((a, b) => Number(a.expiresAt - b.expiresAt) || a.name.localeCompare(b.name)).map((n) => (
           <div className="name-row" key={n.node.toString()}>
-            <CopyValue value={n.name} label={translate("Copy name")} />
+            <CopyValue value={formatName(n.name)} label={translate("Copy name")} />
             <span className={leaseDays(n.expiresAt) <= 30 ? "warn" : ""} title={date(n.expiresAt)}>
               {translate(statusText[n.status])} · {leaseText(n.expiresAt)}
             </span>

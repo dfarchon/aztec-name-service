@@ -70,7 +70,7 @@ export const articles: Article[] = [
     group: 'help',
     title: 'Plain-language glossary',
     body: [
-      'Name: your readable ANS name, like alice. It is not an internet domain or website address. Primary name: the one name your account shows by default; it is only shown when the name also points back to your address, so nobody can claim to be you.',
+      'Name: your readable ANS name, like alice.fog. Every name ends in .fog (Fully Obfuscated Glyph); you register only the part before it. It is not an internet domain or website address. Primary name: the one name your account shows by default; it is only shown when the name also points back to your address, so nobody can claim to be you.',
       'Commit: the first registration step. It records a sealed fingerprint of your request so nobody can see or front-run the name; after about one minute you send the actual registration.',
       'Sponsored fee payer (FPC): a shared contract that pays Aztec network fees for you, so you do not need Fee Juice. It does not pay the registration fee.',
       'Registrar: the contract that takes the registration fee and creates or renews names. Resolver: the contract that stores where a name points, such as its Aztec address and profile records.',
@@ -112,7 +112,7 @@ export const articles: Article[] = [
     group: 'guide',
     title: 'Create and manage subnames',
     body: [
-      'A parent owner can issue team.alice to another address, for a lease no longer than the parent’s. Up to four subname levels are supported. Every label follows the root label rules.',
+      'A parent owner can issue team.alice.fog to another address, for a lease no longer than the parent’s. Up to four subname levels are supported. Every label follows the root label rules.',
       'Parent owners retain revocation and reissue rights. Revoking, transferring or re-registering a parent invalidates its descendants; reissuing the same name cannot revive old descendant records. Subnames do not use paid root registration or root renewal.',
     ],
   },
@@ -123,7 +123,7 @@ export const articles: Article[] = [
     body: [
       'Use Node 24.12 or newer. Download and extract the starter below; it includes the SDK package, example code and public testnet configuration. The SDK is distributed as a versioned download and is not published on public npm.',
       'Keep the Aztec 6.0.0 dependency versions and overrides in the application’s root package.json. Overrides from the SDK package do not apply to your application. Audit the installed dependencies after integration.',
-      'Import public read APIs from @ans/sdk/read; no wallet connection or proving runtime is required. Keep wallet execution imports behind user actions. resolveAddress returns the address and the block snapshot used for the read. Pass that snapshot to resolvePrimary to verify both directions at the same block.',
+      'Names display as alice.fog, but the SDK, contracts and routes use the bare label alice. Strip the suffix from user input with normalizeName(input, { suffix: NAME_SUFFIX }) and show names with formatName(label). Import public read APIs from @ans/sdk/read; no wallet connection or proving runtime is required. Keep wallet execution imports behind user actions. resolveAddress returns the address and the block snapshot used for the read. Pass that snapshot to resolvePrimary to verify both directions at the same block.',
     ],
     code: `import { createAztecNodeClient } from '@aztec-labs/aztec.js/node';
 import { AztecAddress } from '@aztec-labs/aztec.js/addresses';

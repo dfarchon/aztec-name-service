@@ -4,6 +4,7 @@ import {
   type AddressResolution,
   type LaunchEligibility,
   type RegistryConfig,
+  formatName,
   getAvailability,
   normalizeName,
   resolveAddress,
@@ -23,9 +24,30 @@ type Result = Awaited<ReturnType<typeof getAvailability>> & {
   feeConfig: RegistryConfig;
 };
 
-export function SearchPage({ initial }: { initial?: string }) {
+/** Home heading. The free badge follows the live Registrar (zero payment token), never a static claim. */
+function FogHero() {
+  const { reader } = useSession();
+  const [free, setFree] = useState(false);
+  useEffect(() => {
+    let live = true;
+    setFree(false);
+    reader?.getConfig().then((c) => { if (live) setFree(c.feeToken.isZero()); }).catch(() => {});
+    return () => { live = false; };
+  }, [reader]);
+  return (
+    <header className="page-heading fog-hero">
+      <p className="eyebrow">{translate("Name search")}</p>
+      <h1>{translate("Claim a name in the")} <span className="fog-word">.fog</span></h1>
+      <p className="fog-lead">{translate("Fully Obfuscated Glyph: one readable name for your Aztec account.")}</p>
+      {free && <p className="fog-free"><span className="status-badge">{translate("Free to mint")}</span> {translate("No registration fee. Network fees still apply.")}</p>}
+    </header>
+  );
+}
+
+export function SearchPage({ initial, page = "name" }: { initial?: string; page?: "home" | "name" }) {
   const { reader, status } = useSession();
-  const [input, setInput] = useState(initial ?? "");
+  // Routes carry the canonical label; the field shows the display form, which the suffix option strips back exactly.
+  const [input, setInput] = useState(initial ? formatName(initial) : "");
   const [result, setResult] = useState<Result>();
   const [error, setError] = useState<{ message: string; retry?: RpcRetryInfo }>();
   const generation = useRef(0);
@@ -71,7 +93,7 @@ export function SearchPage({ initial }: { initial?: string }) {
       if (window.location.hash !== `#/name/${info.label.label}`) {
         route.current = info.label.label;
         loadedRoute.current = { name: info.label.label, reader };
-        setInput(info.label.label);
+        setInput(formatName(info.label));
         go("name", info.label.label);
       }
     } catch (e) {
@@ -86,21 +108,22 @@ export function SearchPage({ initial }: { initial?: string }) {
     if (route.current === initial) return;
     route.current = initial;
     generation.current++;
-    setInput(initial ?? "");
+    setInput(initial ? formatName(initial) : "");
     setResult(undefined);
     setError(undefined);
     setLoading(false);
     loadedRoute.current = undefined;
   }, [initial]);
   useEffect(() => {
-    if (!initial || input !== initial || !reader || !["ready", "locked"].includes(status)) return;
+    if (!initial || input !== formatName(initial) || !reader || !["ready", "locked"].includes(status)) return;
     if (loadedRoute.current?.name === initial && loadedRoute.current.reader === reader) return;
     loadedRoute.current = { name: initial, reader };
-    void query(initial);
+    void query(formatName(initial));
   }, [initial, input, reader, status, query]);
 
   return (
     <>
+      {page === "home" && <FogHero />}
       <Card className="search-card">
         <label className="search-label" htmlFor="name-query">{translate("Name")}</label>
         <form
@@ -118,7 +141,7 @@ export function SearchPage({ initial }: { initial?: string }) {
             aria-invalid={!!preview && "error" in preview}
             aria-describedby="search-feedback"
             value={input}
-            placeholder={translate("Enter a name, e.g. alice")}
+            placeholder={translate("Enter a name, e.g. alice.fog")}
             onChange={(e) => {
               generation.current++;
               setInput(e.target.value);
@@ -139,7 +162,7 @@ export function SearchPage({ initial }: { initial?: string }) {
           ("error" in preview ? (
             <small className="err">{translate(preview.error)}</small>
           ) : (
-            preview.label !== input.trim() && <small>{translate("Search for:")} {preview.label}</small>
+            formatName(preview.label) !== input.trim() && <small>{translate("Search for:")} {formatName(preview.label)}</small>
           ))}
         {!reader && <small>{status === "offline" ? translate("Node unavailable. Reconnect and retry.") : status === "misconfigured" ? translate("Network configuration error") : translate("Connecting to network…")}</small>}
         </div>
@@ -154,10 +177,10 @@ export function SearchPage({ initial }: { initial?: string }) {
       </div></Card>}
 
       {result && (
-        <Card title={<CopyValue value={result.label.label} label={translate("Copy name")} />} meta={<span className="status-badge">{result.eligibility === "paused" ? "Registration paused" : result.eligibility === "too_short" ? "Not yet available" : result.eligibility === "reserved" ? "Reserved" : result.migration ? translate("Migration required") : result.available ? translate("Available") : result.status === "active" ? translate("Registered · Active") : translate(result.label.parent ? "Inactive subname" : statusText[result.status])}</span>}>
+        <Card className="fog-reveal" title={<CopyValue value={formatName(result.label)} label={translate("Copy name")} />} meta={<span className="status-badge">{result.eligibility === "paused" ? "Registration paused" : result.eligibility === "too_short" ? "Not yet available" : result.eligibility === "reserved" ? "Reserved" : result.migration ? translate("Migration required") : result.available ? translate("Available") : result.status === "active" ? translate("Registered · Active") : translate(result.label.parent ? "Inactive subname" : statusText[result.status])}</span>}>
           {result.eligibility === "paused" && <p role="status">Public registration is paused. Renewals remain available to holders.</p>}
           {result.eligibility === "too_short" && <p>Names shorter than {result.feeConfig.launch?.minPublicLength} characters are not yet available for public registration.</p>}
-          {result.available && result.feeConfig.feeToken.isZero() && <p>Registration fee: Free</p>}
+          {result.available && result.feeConfig.feeToken.isZero() && <p>{translate("Registration fee: Free. Network fees still apply.")}</p>}
           {(result.status !== "unregistered" || (!result.available && result.eligibility === "open")) && <dl>
             {result.status !== "unregistered" && (
               <>

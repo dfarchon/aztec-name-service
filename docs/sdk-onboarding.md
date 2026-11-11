@@ -31,6 +31,10 @@ npm run dev
 
 价格按名字长度分档：报价需传入名字（`flow.quote(duration, name)`，或 `getFeeQuote` 的 `labelLength`），名字改变后重新报价；分档 Registrar 收到不带长度的报价请求返回 `invalid_argument`。报价的 `labelLength` 与金额一起绑定，不能用于其他长度的名字。新注册的名字不能包含 `--`，也不能以 `0x` 开头，SDK 在请求钱包前返回 `invalid_name`；已有名字照常解析和续期。SDK 0.5.0 及更早版本不认识分档 Registrar，会返回 `wrong_deployment`，需升级到当前版本。
 
+## 名字后缀 .fog
+
+名字统一显示为 `<标签>.fog`（Fully Obfuscated Glyph）。后缀只用于展示，链上只存储和哈希标签本身，`alice.fog` 即根标签 `alice`，`team.alice.fog` 即 `alice` 的子域 `team`。用户输入用 `normalizeName(input, { suffix: NAME_SUFFIX })` 去掉末尾一个 `.fog`；展示用 `formatName(label)`。其他 SDK 调用、路由和存储一律使用规范标签：不带该选项时 `team.fog` 表示根名字 `fog` 的子域，不会被当成后缀。
+
 ## Aztec 6 钱包权限
 
 Aztec 6 钱包（例如 Nulo）在授权前拒绝 `getChainInfo` 以外的账户和合约调用。连接后先核对网络，再用 `wallet.requestCapabilities` 申请：读取账户、签付款授权，以及 Registry、当前 Registrar、默认 Resolver、支付 Token 和赞助合约（启用时）的注册、模拟与发送权限。只列具体地址，不申请通配符、地址簿或私有事件。名字保留自己的 Resolver，或管理员启用新的 Registrar、支付 Token 时，SDK 在使用前会先 `registerContract` 该合约；接入方应在此之前为该地址补申请权限。`connectAns` 要求钱包已完成授权。
@@ -56,6 +60,8 @@ SDK 保留旧部署的名字读取与管理兼容。管理员直接配置费用 
 当前 mAZTEC 是项目测试 Token，尚无自助水龙头。外部开发者需获取准确 Token 的私有余额；`doctor` 输出资产地址，余额预检说明缺额。官方 AZTEC 收款仍需核验目标网络可转账资产。网站发布与 SDK 安装均不产生或兑换资产。
 
 # SDK integration and registration
+
+Names display as `<label>.fog` (Fully Obfuscated Glyph). The suffix is presentation only: contracts store and hash the bare label, so `alice.fog` is the root label `alice` and `team.alice.fog` is the subname `team` under `alice`. Strip one trailing `.fog` from user input with `normalizeName(input, { suffix: NAME_SUFFIX })` and display names with `formatName(label)`. Every other SDK call, route and stored value uses the canonical label; without the option, `team.fog` means a subname of the root name `fog`, not the suffix.
 
 Install the SDK, verify the deployment and connect an authorized wallet account. Run `doctor` to check network identity, contract classes, active modules, the exact payment token and sponsorship. Run `read` without a wallet, then use the browser example for connection, balance preflight, encrypted recovery and registration.
 

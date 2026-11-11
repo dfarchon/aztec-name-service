@@ -14,8 +14,22 @@ export type Label = {
   packed: bigint;
 };
 
+/**
+ * Display suffix of every ANS name (".fog", Fully Obfuscated Glyph). It is presentation only: contracts hash and store
+ * the bare label, so `alice.fog` is the root label `alice`. SDK calls that take a name expect the canonical label.
+ */
+export const NAME_SUFFIX = ".fog";
+
+/** Display form of a canonical label: `alice` → `alice.fog`, `team.alice` → `team.alice.fog`. */
+export function formatName(name: string | Pick<Label, "label">): string {
+  return `${typeof name === "string" ? name : name.label}${NAME_SUFFIX}`;
+}
+
 export type NormalizeOptions = {
-  /** Optional display suffix (e.g. ".aztec") stripped from the input. Anything else containing a dot is rejected. */
+  /**
+   * Display suffix stripped once from the end of the input; pass `NAME_SUFFIX` for user input. Without it any other dot
+   * is a subname separator (with `allowSubnames`) or rejected.
+   */
   suffix?: string;
   allowSubnames?: boolean;
 };

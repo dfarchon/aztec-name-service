@@ -5,6 +5,7 @@ import { translate, renewalWindowHint } from "../i18n";
 import {
   clearAddress,
   clearPrimary,
+  formatName,
   getFeeQuote,
   inspectHolding,
   renew,
@@ -132,7 +133,7 @@ export function ManagePage({ name }: { name: string }) {
       {error && <Card tone="err"><p role="alert">{translate(error)}</p><button onClick={() => refresh(n => n + 1)}>{translate("Refresh")}</button></Card>}
       {primaryUntrusted && <Card tone="err"><p role="alert">{translate("Your primary name uses an unverified resolver.")}</p></Card>}
 
-      <Card title={<CopyValue value={h.label.label} label={translate("Copy name")} />}>
+      <Card title={<CopyValue value={formatName(h.label)} label={translate("Copy name")} />}>
         <SetupChecklist registered={active} address={forward?.status === "resolved"} primary={primary} />
         <dl>
           <dt>{translate("Status")}</dt>
@@ -287,7 +288,7 @@ export function ManagePage({ name }: { name: string }) {
           )}
         </div>
       </Card>
-      {h.label.parent && <p className="muted">{translate("This subname is controlled by its parent owner.")} <a href={`#/name/${h.label.parent.label}`}>{h.label.parent.label}</a></p>}
+      {h.label.parent && <p className="muted">{translate("This subname is controlled by its parent owner.")} <a href={`#/name/${h.label.parent.label}`}>{formatName(h.label.parent)}</a></p>}
       {!ctx.reader.extended && <p className="muted">{translate("This registry supports core names. Profiles, transfers, editors and subnames require V4.")} <a href="#/docs/deployments">{translate("Networks and versions")}</a></p>}
       {ctx.reader.extended && <Suspense fallback={<p>{translate("Loading records…")}</p>}><Extensions ctx={ctx} holding={h} onDone={done}/></Suspense>}
       <ShareName name={name} />
