@@ -112,6 +112,7 @@ export async function runTxOutcome(
       else await ctx.assertWalletNetwork();
       await ctx.signer.beforeSend?.(ctx.account);
       interaction = typeof call === 'function' ? await call() : call;
+      await encodeLocally(interaction);
       if (opts.preflight) {
         emit({ state: 'simulating' });
         await interaction.simulate(send);
@@ -156,6 +157,17 @@ export async function runTxOutcome(
   async function clearNotBroadcast() {
     try { await opts.notBroadcast?.(); } catch { /* Keep the marker and original wallet error. */ }
   }
+}
+
+/**
+ * Encodes the call (arguments and function selector) before anything is marked as possibly broadcast. This is
+ * local work that can still fail, e.g. when the hashing WASM cannot load; such a failure never reached the wallet,
+ * so it stays a plain, retryable error instead of an unknown broadcast. The fee payload is left to `send`: a custom
+ * fee method may ask the wallet for an authorization, which must not happen twice.
+ */
+async function encodeLocally(interaction: ContractFunctionInteraction) {
+  const call = interaction as Partial<Pick<ContractFunctionInteraction, 'getFunctionCall'>>;
+  if (typeof call.getFunctionCall === 'function') await call.getFunctionCall();
 }
 
 /** Follows a sent transaction by hash. Safe to call again after a reload or a timeout. */
