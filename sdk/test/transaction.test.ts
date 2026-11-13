@@ -7,6 +7,7 @@ import { TxHash, TxStatus } from '@aztec-labs/aztec.js/tx';
 import { AztecAddress } from '@aztec-labs/aztec.js/addresses';
 import { NameRegistrarTieredContract } from '../src/artifacts/NameRegistrarTiered.js';
 import { normalizeName, nodeOf, renew } from '../src/index.js';
+import { runTxOutcome } from '../src/transactions/tx.js';
 
 const hash = TxHash.random().toString();
 const nodeWithReceipt = (statuses: string[], reverted = false) => {
@@ -193,6 +194,35 @@ test('runTx: all nested markers must be nonempty reads, including cyclic aggrega
   const error = new Error('Failed to fetch');
   Object.assign(error, { errors: [error, taggedReadError()] });
   assert.ok(!(await failedSend(error)).some((u) => u.state === 'unknown'));
+});
+
+test('a call that cannot be encoded locally fails before the broadcast marker and never reaches the wallet', async () => {
+  const order: string[] = [], updates: TxUpdate[] = [];
+  // A confirming node, so a regression that does reach send fails at once instead of polling for a receipt.
+  const ctx = { reader: { modular: false, node: nodeWithReceipt([TxStatus.CHECKPOINTED]) }, account: {}, signer: {}, assertWalletNetwork: async () => {}, queue: {run: (f: () => Promise<unknown>) => f()} } as unknown as AnsContext;
+  // What the live site hit: bb.js could not fetch its WASM while hashing the function selector.
+  const interaction = {
+    getFunctionCall: async () => { order.push('encode'); throw new TypeError('Failed to fetch'); },
+    send: async () => { order.push('send'); return { txHash: hash }; },
+  } as unknown as ContractFunctionInteraction;
+  await assert.rejects(
+    runTxOutcome(ctx, interaction, { onUpdate: u => updates.push(u), beforeBroadcast: async () => { order.push('marker'); } }),
+    (e: AnsError) => e.code === 'network',
+  );
+  assert.deepEqual(order, ['encode']);
+  assert.equal(updates.length, 0);
+});
+
+test('the call is encoded before the broadcast marker, then sent', async () => {
+  const order: string[] = [];
+  const ctx = { reader: { modular: false, node: nodeWithReceipt([TxStatus.CHECKPOINTED]) }, account: {}, signer: {}, assertWalletNetwork: async () => {}, queue: {run: (f: () => Promise<unknown>) => f()} } as unknown as AnsContext;
+  const interaction = {
+    getFunctionCall: async () => { order.push('encode'); return {}; },
+    send: async () => { order.push('send'); return { txHash: hash }; },
+  } as unknown as ContractFunctionInteraction;
+  const outcome = await runTxOutcome(ctx, interaction, { beforeBroadcast: async () => { order.push('marker'); } });
+  assert.equal(outcome.status, 'success');
+  assert.deepEqual(order, ['encode', 'marker', 'send']);
 });
 
 test('host beforeSend validation runs inside shared queue after identity and cannot mark unknown broadcast', async () => {

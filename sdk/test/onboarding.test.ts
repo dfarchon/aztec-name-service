@@ -296,6 +296,23 @@ test('a commit that reverts on first send clears its hash so one retry broadcast
   assert.equal(f.broadcasts(), 2);
 });
 
+test('registration flow: a call that cannot be encoded locally leaves no broadcast marker and the retry sends', async () => {
+  const f = await fixture();
+  let encodes = 0;
+  Object.assign(f.interaction, {
+    getFunctionCall: async () => {
+      if (++encodes === 1) throw new TypeError('Failed to fetch');
+      return {};
+    },
+  });
+  await assert.rejects(f.flow.commit(f.plan), (e: AnsError) => e.code === 'network');
+  assert.ok(f.history.every((p) => p.broadcastUnknown === undefined));
+  assert.equal(f.broadcasts(), 0);
+  await f.flow.commit(f.plan);
+  assert.equal(encodes, 2);
+  assert.equal(f.broadcasts(), 1);
+});
+
 test('registration flow: a read failure before sendTx does not set broadcastUnknown and the retry sends', async () => {
   const f = await fixture();
   const original = f.interaction.send;
