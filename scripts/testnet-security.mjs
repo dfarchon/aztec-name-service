@@ -14,7 +14,10 @@ export function contentSecurityPolicy(walletUrls = '') {
     "default-src 'self'",
     "script-src 'self' 'wasm-unsafe-eval'",
     "worker-src 'self' blob:",
-    "connect-src 'self' https: wss:",
+    // bb.js ships its WASM as an inlined `data:application/gzip` URL and loads it with fetch(). Without
+    // `data:` the first function-selector hash fails with "Failed to fetch", so no transaction can be built.
+    // A data: URL is read locally and cannot carry anything off the page.
+    "connect-src 'self' data: https: wss:",
     `frame-src 'self'${origins.size ? ` ${[...origins].join(' ')}` : ''}`,
     "img-src 'self' data: blob:",
     "style-src 'self' 'unsafe-inline'",

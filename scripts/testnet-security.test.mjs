@@ -17,6 +17,18 @@ test('only configured wallet origins are allowed, deduplicated across paths', ()
   assert.ok(!policy.includes("'unsafe-eval'"));
 });
 
+test('bb.js can fetch its inlined WASM, while scripts and frames stay closed to data: URLs', () => {
+  const directives = Object.fromEntries(
+    contentSecurityPolicy()
+      .split('; ')
+      .map((d) => [d.split(' ')[0], d.split(' ').slice(1)]),
+  );
+  // Without data: here every transaction fails before reaching the wallet ("Failed to fetch").
+  assert.ok(directives['connect-src'].includes('data:'));
+  for (const name of ['script-src', 'frame-src', 'worker-src', 'default-src'])
+    assert.ok(!directives[name].includes('data:'), name);
+});
+
 test('wallet URLs cannot introduce script or opaque frame origins', () => {
   for (const url of [
     'javascript:alert(1)',
