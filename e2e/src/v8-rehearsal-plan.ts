@@ -36,8 +36,8 @@ export function prepareV8Rehearsal(reservations: { categories: Record<string, st
     deploymentPolicy: { universalDeploy: false, nonzeroBoundOwnerRequired: true,
       beforeBootstrap: 'Use v8BoundDeployment(owner); read back instance.deployer and administrator with assertV8DeploymentOwner before further transactions. Persist the bound owner with the deployment checkpoint.' },
     waits: { applicationSeconds: 86400, protocolSeconds: 86400, forwardAndRollbackMinimumSeconds: 345600 },
-    budget: { maximumFeeJuice: '90', maximumSepoliaEth: '0.006', estimate: null,
-      decision: 'BLOCKED until independent safety review, Sonnet, fresh real-proof/network identity/balances and measured fees including both class publications; significant overrun stops before funding' },
+    budget: { maximumFeeJuice: '350', maximumSepoliaEth: '0.006', estimate: null,
+      decision: 'Owner approved 350 FJ (150 A + 150 B + 50 C, minted free on Sepolia FeeAssetHandler) and 0.006 Sepolia ETH ceiling; per-step fresh sampling and isolated ans-signer boundary required' },
     recovery: 'Persist hash before broadcast. Known hash means track only. Ambiguous/no hash means stop. Never auto-resend or duplicate bridge through SSH. Bounded bridge proven-block recovery only.',
   };
 }
@@ -59,7 +59,7 @@ export const V8_REQUIRED_BUDGET_OPERATIONS = [
 export type V8FeeMeasurement = { operation: string; transactions: number; feeJuiceBaseUnitsPerTransaction: bigint };
 /** Read-only envelope comparison. Measurements and fresh independent-account balances are supplied after reviews. */
 export function evaluateV8RehearsalBudget(requiredOperations: string[], measurements: V8FeeMeasurement[], availableFeeJuiceBaseUnits: bigint | undefined, estimatedSepoliaWei: bigint | undefined) {
-  const maximumFeeJuice = 90n * 10n ** 18n, maximumSepolia = 6n * 10n ** 15n;
+  const maximumFeeJuice = 350n * 10n ** 18n, maximumSepolia = 6n * 10n ** 15n;
   assert(availableFeeJuiceBaseUnits === undefined || availableFeeJuiceBaseUnits >= 0n, 'invalid Fee Juice balance units');
   assert(estimatedSepoliaWei === undefined || estimatedSepoliaWei >= 0n, 'invalid Sepolia estimate units');
   const unique = new Map(measurements.map(row => [row.operation, row]));
@@ -73,6 +73,6 @@ export function evaluateV8RehearsalBudget(requiredOperations: string[], measurem
     : availableFeeJuiceBaseUnits < total ? 'balance-deficit' : 'within-envelope';
   return { readOnly: true, fundingAuthorized: false, publicExecutionAuthorized: false, status, missingMeasurements: missing,
     measuredFeeJuiceBaseUnits: String(total), estimatedSepoliaWei: estimatedSepoliaWei === undefined ? null : String(estimatedSepoliaWei),
-    maximumFeeJuice: '90', maximumSepoliaEth: '0.006',
-    next: 'Independent safety review and Sonnet precede fresh real-proof/network identity/balance/fee evidence. Stop/report any overrun before funding; no automatic resend or budget increase.' };
+    maximumFeeJuice: '350', maximumSepoliaEth: '0.006',
+    next: 'Isolated ans-signer dry-run verifies fresh real-proof/network identity/balance/fee evidence before explicit --send --confirm. Stop/report any overrun before funding; no automatic resend or budget increase.' };
 }

@@ -37,12 +37,12 @@ test('V8 measured envelope cannot omit class publication or silently increase fu
   assert.equal(evaluateV8RehearsalBudget([], [], undefined, undefined).status, 'unmeasured');
   const operations = [...V8_REQUIRED_BUDGET_OPERATIONS];
   const measurements = operations.map(operation => ({ operation, transactions: 1, feeJuiceBaseUnitsPerTransaction: 10n ** 18n }));
-  const pass = evaluateV8RehearsalBudget(operations, measurements, 90n * 10n ** 18n, 6n * 10n ** 15n);
+  const pass = evaluateV8RehearsalBudget(operations, measurements, 350n * 10n ** 18n, 6n * 10n ** 15n);
   assert.equal(pass.status, 'within-envelope'); assert.equal(pass.fundingAuthorized, false); assert.equal(pass.publicExecutionAuthorized, false);
-  assert.equal(evaluateV8RehearsalBudget(operations, measurements.slice(1), 90n * 10n ** 18n, 0n).status, 'unmeasured');
+  assert.equal(evaluateV8RehearsalBudget(operations, measurements.slice(1), 350n * 10n ** 18n, 0n).status, 'unmeasured');
   assert.equal(evaluateV8RehearsalBudget(operations, measurements, 0n, 0n).status, 'balance-deficit');
-  assert.equal(evaluateV8RehearsalBudget(operations, measurements.map(row => ({ ...row, feeJuiceBaseUnitsPerTransaction: 10n * 10n ** 18n })), 1000n * 10n ** 18n, 0n).status, 'over-budget-stop-before-funding');
-  assert.equal(evaluateV8RehearsalBudget(operations, measurements, 90n * 10n ** 18n, 6000000000000001n).status, 'over-budget-stop-before-funding');
+  assert.equal(evaluateV8RehearsalBudget(operations, measurements.map(row => ({ ...row, feeJuiceBaseUnitsPerTransaction: 20n * 10n ** 18n })), 1000n * 10n ** 18n, 0n).status, 'over-budget-stop-before-funding');
+  assert.equal(evaluateV8RehearsalBudget(operations, measurements, 350n * 10n ** 18n, 6000000000000001n).status, 'over-budget-stop-before-funding');
 });
 
 
