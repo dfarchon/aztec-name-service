@@ -6,8 +6,8 @@ import { dirname, isAbsolute, resolve, join } from 'node:path';
 import { createHash } from 'node:crypto';
 import { privateKeyToAccount } from 'viem/accounts';
 import {
-  getSchnorrAccountContractAddress,
-  SchnorrAccountContractArtifact,
+  getSchnorrInitializerlessAccountContractAddress,
+  SchnorrInitializerlessAccountContractArtifact,
 } from '@aztec-labs/accounts/schnorr';
 import { getContractClassFromArtifact } from '@aztec-labs/aztec.js/contracts';
 import { Fr, Fq } from '@aztec-labs/aztec.js/fields';
@@ -44,7 +44,9 @@ export async function writeDeterministicFixtures(directory: string) {
         secret: secret.toString(),
         salt: salt.toString(),
         signingKey: signingKey.toString(),
-        address: (await getSchnorrAccountContractAddress(signingKey, salt, secret)).toString(),
+        address: (
+          await getSchnorrInitializerlessAccountContractAddress(signingKey, salt, secret)
+        ).toString(),
       };
     }),
   );
@@ -54,7 +56,7 @@ export async function writeDeterministicFixtures(directory: string) {
     toolchain: '6.0.0',
     l1Library: 'viem@2.57.1',
     accountClassId: (
-      await getContractClassFromArtifact(SchnorrAccountContractArtifact)
+      await getContractClassFromArtifact(SchnorrInitializerlessAccountContractArtifact)
     ).id.toString(),
     actors: actors.map(({ role, address }) => ({ role, address })),
     fundingFixtureAddress: privateKeyToAccount(fundingFixture).address,

@@ -51,6 +51,7 @@
     "test:upgrade": "tsx e2e/src/core-upgrade.ts",
     "test:upgrade-wallet": "tsx e2e/src/core-upgrade-wallet.ts",
     "test:upgrade-history": "tsx e2e/src/core-upgrade-history.ts",
+    "test:v8-readiness-local": "npm run test:v8-readiness-local -w ans-e2e",
     "test:tooling": "node --test scripts/txe-loopback.test.mjs"
   },
   "description": "Aztec name service: contracts, TypeScript SDK and web app",

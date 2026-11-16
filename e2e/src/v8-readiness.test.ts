@@ -66,6 +66,25 @@ test('offline fixed fixtures use pinned account derivation, exclusive output and
     assert(!/signingKey|secret|0x/.test(JSON.stringify(result)));
     const a = JSON.parse(publicText);
     assert.equal(new Set(a.actors.map((x: { address: string }) => x.address)).size, 3);
+    const {
+      getSchnorrInitializerlessAccountContractAddress,
+      SchnorrInitializerlessAccountContractArtifact,
+    } = await import('@aztec-labs/accounts/schnorr');
+    const { getContractClassFromArtifact } = await import('@aztec-labs/aztec.js/contracts');
+    const { Fr, Fq } = await import('@aztec-labs/aztec.js/fields');
+    assert.equal(
+      a.accountClassId,
+      (await getContractClassFromArtifact(SchnorrInitializerlessAccountContractArtifact)).id.toString(),
+    );
+    for (const [index, entry] of a.actors.entries()) {
+      const i = BigInt(index + 1);
+      const expected = await getSchnorrInitializerlessAccountContractAddress(
+        new Fq(i + 20n),
+        new Fr(i + 10n),
+        new Fr(i),
+      );
+      assert.equal(entry.address, expected.toString());
+    }
     const second = join(directory, 'second');
     await writeDeterministicFixtures(second);
     assert.equal(await readFile(join(second, 'public-fixtures.json'), 'utf8'), publicText);
