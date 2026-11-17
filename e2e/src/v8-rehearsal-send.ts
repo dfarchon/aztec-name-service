@@ -196,6 +196,7 @@ export async function sendV8Rehearsal(
       const spentL1Wei = Object.values(state.l1FeesWei).reduce((a, b) => a + BigInt(b), 0n);
       const spentL2Wei = Object.values(state.l2FeesWei).reduce((a, b) => a + BigInt(b), 0n);
       await savePrivateJson(reportPath, {
+        ...extra,
         schema: 'ans-v8-live-rehearsal-report/1',
         status,
         confirmation: state.confirmation,
@@ -209,7 +210,6 @@ export async function sendV8Rehearsal(
         l2Done: state.l2Done,
         l2SpentFeeJuiceWei: String(spentL2Wei),
         waitTimestamps: state.waitTimestamps,
-        ...extra,
       });
     };
 
@@ -402,7 +402,7 @@ export async function sendV8Rehearsal(
     for (const [stepName, hash] of Object.entries(state.l2Transactions)) {
       if (state.l2Done.includes(stepName)) continue;
       await reserveObservation(`l2:${stepName}`);
-      await trackTx(rawNode, hash, { waitFor: 'confirmed', timeoutMs: 3_600_000 });
+      await trackTx(rawNode, hash, { waitFor: 'confirmed', timeoutMs: 3_600_000, pollMs: 1_500 });
       const receipt = await rawNode.getTxReceipt(TxHash.fromString(hash));
       assert(receipt.hasExecutionSucceeded(), `Tracked L2 tx failed for ${stepName}: ${hash}`);
       if (receipt.transactionFee !== undefined) state.l2FeesWei[stepName] = String(receipt.transactionFee);
@@ -488,7 +488,7 @@ export async function sendV8Rehearsal(
         const hash = state.l2Transactions[name];
         assert(hash, `Step ${name} produced no L2 transaction hash`);
         await reserveObservation(`l2:${name}`);
-        await trackTx(rawNode, hash, { waitFor: 'confirmed', timeoutMs: 3_600_000 });
+        await trackTx(rawNode, hash, { waitFor: 'confirmed', timeoutMs: 3_600_000, pollMs: 1_500 });
         const receipt = await rawNode.getTxReceipt(TxHash.fromString(hash));
         assert(receipt.hasExecutionSucceeded(), `Step ${name} execution failed: ${hash}`);
         if (receipt.transactionFee !== undefined) state.l2FeesWei[name] = String(receipt.transactionFee);
@@ -1061,7 +1061,7 @@ export async function sendV8Rehearsal(
     if (!state.l2Done.includes('commit-across-upgrade')) {
       const u = await reader.getCoreUpgradeState();
       const targetAt = u.scheduled.activationAt || u.protocol.activationAt;
-      const commitWindowStart = targetAt - 7_200n;
+      const commitWindowStart = targetAt - 3_600n;
       const now = (await reader.snapshot()).timestamp;
       const w = v8WaitCheckpoint('protocol', now, commitWindowStart);
       state.waitTimestamps['pre-activation-commit'] = w.earliestNextResumeAsiaTaipei;

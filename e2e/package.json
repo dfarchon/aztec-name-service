@@ -19,7 +19,8 @@
     "testnet:v6-nofpc-register": "tsx src/testnet-v6-nofpc-register.ts",
     "bridge:fee-juice": "tsx src/fee-juice-bridge.ts",
     "test:fee-juice-local": "tsx src/fee-juice-local.ts",
-    "test:v8-readiness-local": "tsx src/v8-readiness-local.ts"
+    "test:v8-readiness-local": "tsx src/v8-readiness-local.ts",
+    "testnet:v8-autoresume": "tsx src/v8-rehearsal-autoresume.ts"
   },
   "dependencies": {
     "@ans/sdk": "0.7.0",
