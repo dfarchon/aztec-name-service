@@ -35,13 +35,14 @@ export function rehearsalPlan(c: RehearsalConfig, stateDir: string) {
   assert.deepEqual(c.quoteWindowsSeconds, [60, 120, 180, 240, 300]);
   assert(/^0x[\da-f]{40}$/i.test(c.l1Address));
   assert(c.balanceAccounts.every((a) => /^0x[\da-f]{64}$/i.test(a)));
+  const reservedSeedBatches = Math.ceil(c.reservedLabels.length / 32);
   const steps = [
     ['deploy-registry', 4],
     ['deploy-resolver', 3],
     ['deploy-registrar', 4],
     ['deploy-custom-resolver', 3],
     ['configure', 1.98],
-    ['seed-reserved', 1.98],
+    ['seed-reserved', 1.98 * reservedSeedBatches],
     ['resume', 1.98],
     ['commit', 1.98],
     ['register', 1.98],
@@ -75,6 +76,7 @@ export function rehearsalPlan(c: RehearsalConfig, stateDir: string) {
     stateDir,
     configHash: createHash('sha256').update(JSON.stringify(c)).digest('hex'),
     steps,
+    reservedSeedBatches,
     totalFeeJuice: base,
     recommendedFeeJuice: Math.ceil(base * 1.5),
     feeEstimate:

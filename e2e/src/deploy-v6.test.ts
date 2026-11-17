@@ -300,7 +300,7 @@ test('sponsored manifests deep-equal existing deployed output (current free, arc
   for (const file of [join(REPO, 'deployments/testnet-v6.json'), PAID_V6_MANIFEST]) {
     const text = await readFile(file, 'utf8'), current = JSON.parse(text);
     const launch = current.registrarKind === 'launch'
-      ? ['--min-public-length', String(current.minPublicLength), '--initial-paused', String(current.initialPaused), '--max-renew-ahead', current.maxRenewAhead]
+      ? ['--min-public-length', String(current.minPublicLength), '--initial-paused', String(current.initialPaused), '--max-renew-ahead', current.maxRenewAhead, '--reserved-list', join(REPO, 'e2e/src/fixtures/reserved-labels-v1.json')]
       : [];
     const c = parseArgs(['--network', 'testnet-v6', '--registrar', current.registrarKind, '--token', current.feeTokenSource, '--price-version', String(current.priceVersion), '--treasury', current.treasury, ...launch, '--dry-run']);
     if (c.registrar === 'launch') c.reservedLabels = loadReservedList(JSON.parse(await readFile(c.reservedList!, 'utf8')));

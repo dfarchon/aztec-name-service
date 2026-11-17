@@ -46,6 +46,7 @@ function FogHero() {
 
 export function SearchPage({ initial, page = "name" }: { initial?: string; page?: "home" | "name" }) {
   const { reader, status } = useSession();
+  const unavailable = !reader && (status === "offline" || status === "misconfigured");
   // Routes carry the canonical label; the field shows the display form, which the suffix option strips back exactly.
   const [input, setInput] = useState(initial ? formatName(initial) : "");
   const [result, setResult] = useState<Result>();
@@ -60,6 +61,13 @@ export function SearchPage({ initial, page = "name" }: { initial?: string; page?
     [],
   );
   const [loading, setLoading] = useState(false);
+  useEffect(() => {
+    if (reader) return;
+    generation.current++;
+    loadedRoute.current = undefined;
+    setResult(undefined);
+    setLoading(false);
+  }, [reader]);
 
   // Normalization is local and instant; the query only runs on explicit request.
   const preview = useMemo(() => {
@@ -164,11 +172,13 @@ export function SearchPage({ initial, page = "name" }: { initial?: string; page?
           ) : (
             formatName(preview.label) !== input.trim() && <small>{translate("Search for:")} {formatName(preview.label)}</small>
           ))}
-        {!reader && <small>{status === "offline" ? translate("Node unavailable. Reconnect and retry.") : status === "misconfigured" ? translate("Network configuration error") : translate("Connecting to network…")}</small>}
+        {!reader && !unavailable && <small>{translate("Connecting to network…")}</small>}
         </div>
       </Card>
 
-      {error && <Card tone="err"><div role="alert" data-query-error>
+      {unavailable ? <Card tone="err"><div role="alert" data-query-unavailable>
+        <p>{status === "misconfigured" ? translate("Network configuration error") : translate("Node unavailable. Reconnect and retry.")}</p>
+      </div></Card> : error && <Card tone="err"><div role="alert" data-query-error>
         <p>{error.retry?.temporary
           ? translate(error.retry.timeout ? "The node temporarily timed out. Automatically retried {count} times. Please try again shortly." : "The node is temporarily unavailable. Automatically retried {count} times. Please try again shortly.", { count: error.retry.retryCount })
           : translate(error.message)}</p>
@@ -176,7 +186,7 @@ export function SearchPage({ initial, page = "name" }: { initial?: string; page?
         <button disabled={!reader || loading || !preview || "error" in preview} onClick={() => void query()}>{translate("Retry")}</button>
       </div></Card>}
 
-      {result && (
+      {reader && result && (
         <Card className="fog-reveal" title={<CopyValue value={formatName(result.label)} label={translate("Copy name")} />} meta={<span className="status-badge">{result.eligibility === "paused" ? "Registration paused" : result.eligibility === "too_short" ? "Not yet available" : result.eligibility === "reserved" ? "Reserved" : result.migration ? translate("Migration required") : result.available ? translate("Available") : result.status === "active" ? translate("Registered · Active") : translate(result.label.parent ? "Inactive subname" : statusText[result.status])}</span>}>
           {result.eligibility === "paused" && <p role="status">Public registration is paused. Renewals remain available to holders.</p>}
           {result.eligibility === "too_short" && <p>Names shorter than {result.feeConfig.launch?.minPublicLength} characters are not yet available for public registration.</p>}

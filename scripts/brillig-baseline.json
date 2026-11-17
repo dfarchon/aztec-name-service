@@ -1999,6 +1999,41 @@
         "separateSubgraph": false,
         "reviewNote": "V7 private entry wrappers only; initialized-instance/nullifier requests and revertible side effects are validated by protocol/kernel constraints. No ANS-primary diagnostic."
       }
+    ],
+    "v8": [
+      {
+        "fingerprint": "covered | aztec-nr@v6.0.0/aztec/src/context/private_context.nr:561:38 | ",
+        "kind": "covered",
+        "primary": "aztec-nr@v6.0.0/aztec/src/context/private_context.nr:561:38",
+        "category": "upstream",
+        "count": 22,
+        "ansFrames": [],
+        "review": false,
+        "separateSubgraph": false,
+        "rationale": "Two V8 packages preserve 11 guarded private functions each; pinned public initializer checks add the existing upstream initialization diagnostics. Independent safety review remains required."
+      },
+      {
+        "fingerprint": "covered | aztec-nr@v6.0.0/aztec/src/nullifier/utils.nr:18:52 | ",
+        "kind": "covered",
+        "primary": "aztec-nr@v6.0.0/aztec/src/nullifier/utils.nr:18:52",
+        "category": "upstream",
+        "count": 22,
+        "ansFrames": [],
+        "review": false,
+        "separateSubgraph": false,
+        "rationale": "Two V8 packages preserve 11 guarded private functions each; pinned public initializer checks add the existing upstream initialization diagnostics. Independent safety review remains required."
+      },
+      {
+        "fingerprint": "covered | aztec-nr@v6.0.0/aztec/src/oracle/get_contract_instance.nr:18:29 | ",
+        "kind": "covered",
+        "primary": "aztec-nr@v6.0.0/aztec/src/oracle/get_contract_instance.nr:18:29",
+        "category": "upstream",
+        "count": 22,
+        "ansFrames": [],
+        "review": false,
+        "separateSubgraph": false,
+        "rationale": "Two V8 packages preserve 11 guarded private functions each; pinned public initializer checks add the existing upstream initialization diagnostics. Independent safety review remains required."
+      }
     ]
   }
 }
