@@ -78,6 +78,7 @@ import {
   type V8ActorRole,
   type V8PublicAccounts,
 } from './v8-account-generator.js';
+import { v8WaitCheckpoint } from './v8-rehearsal-plan.js';
 import { fullDelay } from './v8-safe-operator.js';
 import { verifyPublicNode } from './v8-real-adapters.js';
 import {
@@ -554,6 +555,20 @@ export async function sendV8Rehearsal(
       await save();
     }
 
+    if (!state.l2Done.includes('deploy-registry')) {
+      await assert.rejects(
+        () =>
+          Contract.deploy(
+            wallet!,
+            NameRegistryV8Contract.artifact,
+            [AztecAddress.ZERO, new Fr(123n)],
+            undefined,
+            { salt: registrySalt, ...v8BoundDeployment(owner) },
+          ).simulate({ from: owner }),
+        /initial class mismatch/,
+      );
+    }
+
     await runL2Step(
       'deploy-registry',
       'A',
@@ -717,6 +732,12 @@ export async function sendV8Rehearsal(
         }),
       );
     }
+    const valid300Plan = await prepareRegistration(makeCtx('B'), {
+      name: 'seven77',
+      duration: YEAR,
+      quoteValiditySeconds: 300n,
+    });
+    assert(valid300Plan.quoteExpiry - (await reader.snapshot()).timestamp >= 300n);
     assert.equal(
       (await getFeeQuote(reader, { operation: 'register', duration: YEAR, labelLength: 12 })).fee,
       0n,
@@ -787,8 +808,24 @@ export async function sendV8Rehearsal(
     await runL2Step('offer-transfer', 'B', (fee) =>
       offerTransfer(makeCtx('B', fee), { name: 'transfer-name', recipient }, { waitFor: 'included' }),
     );
-    await runL2Step('accept-transfer', 'C', (fee) =>
-      acceptTransfer(makeCtx('C', fee), { name: 'transfer-name' }, { waitFor: 'included' }),
+    await runL2Step(
+      'accept-transfer',
+      'C',
+      (fee) => acceptTransfer(makeCtx('C', fee), { name: 'transfer-name' }, { waitFor: 'included' }),
+      async () => {
+        const snap = await reader.snapshot();
+        const transferredNode = await nodeOf(normalizeName('transfer-name'));
+        const rec = await reader.getName(transferredNode, snap);
+        assert(rec.owner.equals(recipient), 'transfer-name owner must be recipient C');
+        const activeResolver = await reader.getResolver(transferredNode, rec.generation, snap);
+        assert(activeResolver.equals(resolverInstance.address), 'transfer must reset custom resolver');
+        const oldCustom = NameResolverContract.at(customInstance.address, wallet!);
+        await assert.rejects(() =>
+          oldCustom.methods
+            .set_address(transferredNode, rec.generation, 0, true, recipient)
+            .simulate({ from: recipient }),
+        );
+      },
     );
     await runL2Step('renew-upgrade-name', 'B', (fee) =>
       renew(makeCtx('B', fee), { name: 'upgrade-name', duration: YEAR }, { waitFor: 'included' }),
@@ -829,23 +866,31 @@ export async function sendV8Rehearsal(
         await new Promise((r) => setTimeout(r, 5_000));
       }
     }
-    await runL2Step('admin-mint-register', 'A', async (fee) => {
-      const mintLabel = normalizeName('adm');
-      return launch.methods
-        .admin_register(
-          mintLabel.bytes,
-          mintLabel.len,
-          recipient,
-          0,
-          BigInt(state.adminMint!.expiry),
-          Fr.fromString(state.adminMint!.secret),
-        )
-        .send({
-          from: owner,
-          fee: fee ? { paymentMethod: fee } : undefined,
-          wait: NO_WAIT,
-        });
-    });
+    await runL2Step(
+      'admin-mint-register',
+      'A',
+      async (fee) => {
+        const mintLabel = normalizeName('adm');
+        return launch.methods
+          .admin_register(
+            mintLabel.bytes,
+            mintLabel.len,
+            recipient,
+            0,
+            BigInt(state.adminMint!.expiry),
+            Fr.fromString(state.adminMint!.secret),
+          )
+          .send({
+            from: owner,
+            fee: fee ? { paymentMethod: fee } : undefined,
+            wait: NO_WAIT,
+          });
+      },
+      async () => {
+        const rec = await reader.getName(await nodeOf(normalizeName('adm')), await reader.snapshot());
+        assert(rec.owner.equals(recipient), 'admin-mint adm must belong to recipient C');
+      },
+    );
 
     // Publish successor B if not already registered on chain.
     if (!(await rawNode.getContractClass(B))) {
@@ -859,20 +904,38 @@ export async function sendV8Rehearsal(
     }
     await wallet.registerContractClass(NameRegistryV8RehearsalContract.artifact);
 
+    if (!state.l2Done.includes('approve-release-B')) {
+      const s = await reader.getCoreUpgradeState();
+      await assert.rejects(
+        () => coreV8.methods.propose_upgrade(s.nonce, A, B).simulate({ from: owner }),
+        /release not approved/,
+      );
+    }
+
     type UpgradeInput = CoreUpgradeAction extends infer U
       ? U extends CoreUpgradeAction
         ? Omit<U, 'expectedNonce'>
         : never
       : never;
-    const govStep = async (name: string, role: V8ActorRole, build: UpgradeInput) =>
-      runL2Step(name, role, async (fee) => {
-        const s = await reader.getCoreUpgradeState();
-        return administerCoreUpgrade(
-          makeCtx(role, fee),
-          { ...build, expectedNonce: s.nonce } as CoreUpgradeAction,
-          { waitFor: 'included' },
-        );
-      });
+    const govStep = async (
+      name: string,
+      role: V8ActorRole,
+      build: UpgradeInput,
+      verify: () => Promise<void> = async () => {},
+    ) =>
+      runL2Step(
+        name,
+        role,
+        async (fee) => {
+          const s = await reader.getCoreUpgradeState();
+          return administerCoreUpgrade(
+            makeCtx(role, fee),
+            { ...build, expectedNonce: s.nonce } as CoreUpgradeAction,
+            { waitFor: 'included' },
+          );
+        },
+        verify,
+      );
 
     await govStep('approve-release-B', 'A', {
       kind: 'approve_release',
@@ -880,6 +943,13 @@ export async function sendV8Rehearsal(
       family: CORE_UPGRADE_FAMILY,
       releaseSeq: 2,
     });
+    if (!state.l2Done.includes('approve-edges')) {
+      const s = await reader.getCoreUpgradeState();
+      await assert.rejects(
+        () => coreV8.methods.propose_upgrade(s.nonce, A, B).simulate({ from: owner }),
+        /edge not approved/,
+      );
+    }
     await govStep('approve-edges', 'A', {
       kind: 'approve_edge_pair',
       older: A.toBigInt(),
@@ -897,11 +967,18 @@ export async function sendV8Rehearsal(
       from: A.toBigInt(),
       to: B.toBigInt(),
     });
-    await govStep('revoke-edge-forward', 'A', {
-      kind: 'revoke_edge',
-      from: A.toBigInt(),
-      to: B.toBigInt(),
-    });
+    await govStep(
+      'revoke-edge-forward',
+      'A',
+      {
+        kind: 'revoke_edge',
+        from: A.toBigInt(),
+        to: B.toBigInt(),
+      },
+      async () => {
+        assert(!(await reader.getCoreUpgradeState()).pending.active, 'revoke_edge must clear pending');
+      },
+    );
     await govStep('reapprove-edges', 'A', {
       kind: 'approve_edge_pair',
       older: A.toBigInt(),
@@ -923,12 +1000,13 @@ export async function sendV8Rehearsal(
       stage: 'application' | 'protocol' | 'rollback-application' | 'rollback-protocol',
       startedAt: bigint,
       readyAt: bigint,
+      key: string = stage,
     ) => {
       const now = (await reader.snapshot()).timestamp;
       const w = fullDelay(stage, startedAt, now, readyAt);
-      state.waitTimestamps[stage] = w.earliestNextResumeAsiaTaipei;
+      state.waitTimestamps[key] = w.earliestNextResumeAsiaTaipei;
       if (w.status === 'waiting') {
-        await save(`WAITING_${stage.toUpperCase()}`, w);
+        await save(`WAITING_${key.toUpperCase()}`, w);
         console.log(JSON.stringify(w, null, 2));
         return true;
       }
@@ -938,7 +1016,19 @@ export async function sendV8Rehearsal(
     if (!state.l2Done.includes('execute-for-scheduled-cancel')) {
       const u = await reader.getCoreUpgradeState();
       assert(u.pending.active);
-      if (await checkOrExitWait('application', u.pending.proposedAt, u.pending.readyAt)) return;
+      await assert.rejects(
+        () => coreV8.methods.execute_upgrade(u.nonce, A, B).simulate({ from: owner }),
+        /application delay not elapsed|proposal/,
+      ).catch(() => {});
+      if (
+        await checkOrExitWait(
+          'application',
+          u.pending.proposedAt,
+          u.pending.readyAt,
+          'application-scheduled-cancel',
+        )
+      )
+        return;
     }
     await govStep('execute-for-scheduled-cancel', 'A', {
       kind: 'execute',
@@ -963,16 +1053,29 @@ export async function sendV8Rehearsal(
       to: B.toBigInt(),
     });
 
-    // Commit a registration under A before B activates so reveal happens under B after activation.
-    if (!state.plans['across-upgrade']) {
-      const p = await prepareRegistration(makeCtx('B'), {
-        name: 'across-upgrade',
-        duration: YEAR,
-      });
-      state.plans['across-upgrade'] = serializePlan(p);
-      await save();
-    }
+    // Commit `across-upgrade` inside [T - 7200s, T - 900s) so MAX_COMMIT_AGE (86,400s) and quoteExpiry
+    // remain valid well past protocol activation T when revealed under successor B!
     if (!state.l2Done.includes('commit-across-upgrade')) {
+      const u = await reader.getCoreUpgradeState();
+      const targetAt = u.scheduled.activationAt || u.protocol.activationAt;
+      const commitWindowStart = targetAt - 7_200n;
+      const now = (await reader.snapshot()).timestamp;
+      const w = v8WaitCheckpoint('protocol', now, commitWindowStart);
+      state.waitTimestamps['pre-activation-commit'] = w.earliestNextResumeAsiaTaipei;
+      if (w.status === 'waiting') {
+        await save('WAITING_PRE_ACTIVATION_COMMIT', w);
+        console.log(JSON.stringify(w, null, 2));
+        return;
+      }
+      assert(targetAt - now > 900n, 'Past 900s pre-activation SDK safety margin before commit-across-upgrade');
+      if (!state.plans['across-upgrade']) {
+        const p = await prepareRegistration(makeCtx('B'), {
+          name: 'across-upgrade',
+          duration: YEAR,
+        });
+        state.plans['across-upgrade'] = serializePlan(p);
+        await save();
+      }
       let p = deserializePlan(state.plans['across-upgrade']!);
       await runL2Step('commit-across-upgrade', 'B', async (fee) => {
         const res = await submitCommit(makeCtx('B', fee), p, { waitFor: 'included' });
@@ -1005,6 +1108,10 @@ export async function sendV8Rehearsal(
       async () => {
         const u = await reader.getCoreUpgradeState();
         assert.equal(u.currentClass, String(B));
+        await assert.rejects(
+          () => coreSuccessor.methods.cancel_scheduled_upgrade(u.nonce).simulate({ from: owner }),
+          /no scheduled upgrade/,
+        );
       },
     );
 
