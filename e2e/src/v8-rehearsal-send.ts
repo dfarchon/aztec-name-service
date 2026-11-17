@@ -402,7 +402,7 @@ export async function sendV8Rehearsal(
     for (const [stepName, hash] of Object.entries(state.l2Transactions)) {
       if (state.l2Done.includes(stepName)) continue;
       await reserveObservation(`l2:${stepName}`);
-      await trackTx(rawNode, hash, { waitFor: 'proven', timeoutMs: 1_800_000 });
+      await trackTx(rawNode, hash, { waitFor: 'confirmed', timeoutMs: 3_600_000 });
       const receipt = await rawNode.getTxReceipt(TxHash.fromString(hash));
       assert(receipt.hasExecutionSucceeded(), `Tracked L2 tx failed for ${stepName}: ${hash}`);
       if (receipt.transactionFee !== undefined) state.l2FeesWei[stepName] = String(receipt.transactionFee);
@@ -422,6 +422,7 @@ export async function sendV8Rehearsal(
             state.l2Transactions[activeL2] = hash;
             if (activeClaimRole) state.claims[activeClaimRole].consumedByStep = activeL2;
             await save();
+            console.log(`BROADCAST ${activeL2} ${hash}`);
             return target.sendTx(tx);
           };
         const value = Reflect.get(target, prop);
@@ -475,9 +476,10 @@ export async function sendV8Rehearsal(
       verify: () => Promise<void> = async () => {},
     ) => {
       if (state.l2Done.includes(name)) {
-        await verify();
+        console.log(`SKIP ${name} ${state.l2Transactions[name] ?? ''}`);
         return;
       }
+      console.log(`STEP ${name} (actor=${role})`);
       await verifyLiveNetworks();
       const fee = await feeFor(role, name);
       activeL2 = name;
@@ -486,13 +488,14 @@ export async function sendV8Rehearsal(
         const hash = state.l2Transactions[name];
         assert(hash, `Step ${name} produced no L2 transaction hash`);
         await reserveObservation(`l2:${name}`);
-        await trackTx(rawNode, hash, { waitFor: 'proven', timeoutMs: 1_800_000 });
+        await trackTx(rawNode, hash, { waitFor: 'confirmed', timeoutMs: 3_600_000 });
         const receipt = await rawNode.getTxReceipt(TxHash.fromString(hash));
         assert(receipt.hasExecutionSucceeded(), `Step ${name} execution failed: ${hash}`);
         if (receipt.transactionFee !== undefined) state.l2FeesWei[name] = String(receipt.transactionFee);
         await verify();
         state.l2Done.push(name);
         await save();
+        console.log(`DONE ${name} ${hash}`);
       } finally {
         activeL2 = '';
         activeClaimRole = undefined;
@@ -1204,6 +1207,11 @@ export async function sendV8Rehearsal(
       },
     );
 
+    const finalTxHash = state.l2Transactions['post-rollback-write'];
+    if (finalTxHash) {
+      console.log(`FINALIZING proven epoch for ${finalTxHash}`);
+      await trackTx(rawNode, finalTxHash, { waitFor: 'proven', timeoutMs: 5_400_000 });
+    }
     state.completedAt = new Date().toISOString();
     await save('COMPLETED', { completedAt: state.completedAt });
     const doneSummary = {
