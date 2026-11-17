@@ -1,10 +1,29 @@
 import { gzipSync } from 'node:zlib';
 import type { Plugin } from 'vite';
 
+const MAX_STATIC_ASSET_BYTES = 25 * 1024 * 1024;
+
 /** Budget the full static entry graph, including shared chunks. Wallet execution loads on demand. */
 export function initialBundleBudget(): Plugin {
   return {
     name: 'initial-bundle-budget',
+    config(userConfig) {
+      if (userConfig.build?.rollupOptions?.output) return;
+      return {
+        build: {
+          rollupOptions: {
+            output: {
+              manualChunks(id) {
+                const clean = id.replace(/\\/g, '/').split('?')[0];
+                if (clean.endsWith('-metadata.json')) return;
+                const match = clean.match(/\/sdk\/(?:src|dist)\/artifacts\/([^/]+)\.json$/);
+                if (match) return `artifact-${match[1]}`;
+              },
+            },
+          },
+        },
+      };
+    },
     generateBundle: {
       order: 'post',
       handler(_options, bundle) {
@@ -42,6 +61,18 @@ export function initialBundleBudget(): Plugin {
         }
         if (gzipBytes > 400_000)
           this.error(`Initial JavaScript exceeds the 400 kB gzip budget: ${gzipBytes} bytes`);
+        for (const item of Object.values(bundle)) {
+          const bytes =
+            item.type === 'chunk'
+              ? Buffer.byteLength(item.code)
+              : typeof item.source === 'string'
+                ? Buffer.byteLength(item.source)
+                : item.source.byteLength;
+          if (bytes > MAX_STATIC_ASSET_BYTES)
+            this.error(
+              `Bundle output ${item.fileName} exceeds the 25 MiB static asset limit: ${bytes} bytes`,
+            );
+        }
         this.emitFile({
           type: 'asset',
           fileName: 'bundle-budget.json',
@@ -51,6 +82,7 @@ export function initialBundleBudget(): Plugin {
                 rawBytes,
                 gzipBytes,
                 maxGzipBytes: 400_000,
+                maxAssetBytes: MAX_STATIC_ASSET_BYTES,
                 chunks: [...initial],
                 executionArtifactsDeferred: true,
                 executionArtifactChunks,
