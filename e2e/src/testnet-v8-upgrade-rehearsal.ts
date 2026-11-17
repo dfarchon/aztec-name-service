@@ -134,9 +134,69 @@ export async function verifyCanonicalSepoliaContracts(l1: {
   );
 }
 
+function isTransientRpcRateLimit(err: unknown): boolean {
+  const msg = String((err as { message?: string })?.message ?? err ?? '');
+  return /\b(429|502|503|504)\b|rate limit|Too Many Requests|ECONNRESET|ETIMEDOUT|fetch failed/i.test(msg);
+}
+
+/**
+ * Paces concurrent read-only Aztec RPC calls and backs off on HTTP 429/5xx rate limits.
+ * Strictly NEVER retries `sendTx` so broadcast semantics remain 100% single-shot.
+ */
+export function createRateLimitedAztecNode(url: string) {
+  const base = createAztecNodeClient(url, { maxBatchSize: 3 });
+  let inFlight = 0;
+  const queue: Array<() => void> = [];
+  const acquire = () =>
+    new Promise<void>((resolve) => {
+      if (inFlight < 2) {
+        inFlight++;
+        resolve();
+      } else {
+        queue.push(() => {
+          inFlight++;
+          resolve();
+        });
+      }
+    });
+  const release = () => {
+    setTimeout(() => {
+      inFlight--;
+      const next = queue.shift();
+      if (next) next();
+    }, 60);
+  };
+
+  return new Proxy(base, {
+    get(target, prop) {
+      const value = Reflect.get(target, prop);
+      if (typeof value !== 'function') return value;
+      const bound = value.bind(target);
+      if (prop === 'sendTx') return bound;
+      return async (...args: unknown[]) => {
+        const delays = [2_000, 4_000, 8_000, 15_000, 30_000, 45_000];
+        for (let attempt = 0; ; attempt++) {
+          await acquire();
+          try {
+            return await bound(...args);
+          } catch (err) {
+            if (attempt < delays.length && isTransientRpcRateLimit(err)) {
+              await new Promise((r) => setTimeout(r, delays[attempt]));
+              continue;
+            }
+            throw err;
+          } finally {
+            release();
+          }
+        }
+      };
+    },
+  });
+}
+
 export const v8RehearsalCliDeps = {
   signerIdentity: currentSignerIdentity,
-  createNode: (url: string) => createAztecNodeClient(url, { maxBatchSize: 3 }),
+  createNode: (url: string) => createRateLimitedAztecNode(url),
   createL1: (url: string) =>
     createPublicClient({ chain: sepolia, transport: http(url, { timeout: 20_000, retryCount: 0 }) }),
 };

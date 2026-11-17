@@ -30,12 +30,12 @@ import {
 } from '@aztec-labs/aztec.js/contracts';
 import { publishContractClass } from '@aztec-labs/aztec.js/deployment';
 import { FeeJuicePaymentMethodWithClaim, type FeePaymentMethod } from '@aztec-labs/aztec.js/fee';
-import { Fq, Fr } from '@aztec-labs/aztec.js/fields';
+import { BlockNumber, Fq, Fr } from '@aztec-labs/aztec.js/fields';
 import { isL1ToL2MessageReady } from '@aztec-labs/aztec.js/messaging';
 import type { AztecNode } from '@aztec-labs/aztec.js/node';
 import { TxHash } from '@aztec-labs/aztec.js/tx';
 import { setLogLevel } from '@aztec-labs/foundation/log';
-import { computeSecretHash } from '@aztec-labs/stdlib/hash';
+import { computeSecretHash, deriveStorageSlotInMap } from '@aztec-labs/stdlib/hash';
 import type { Tx } from '@aztec-labs/stdlib/tx';
 import { EmbeddedWallet } from '@aztec-labs/wallets/embedded';
 import {
@@ -130,6 +130,7 @@ type V8RunState = {
     customResolver: string;
   };
   plans: Record<string, string>;
+  reservedReadbackVerified?: boolean;
   adminMint?: { expiry: string; secret: string; commitment: string };
   waitTimestamps: Record<string, string>;
   completedAt?: string;
@@ -677,6 +678,35 @@ export async function sendV8Rehearsal(
       );
     }
 
+    const verifyAll325Reservations = async () => {
+      if (state.reservedReadbackVerified) return;
+      const r = await RegistryReader.connect(rawNode, registryInstance.address, {
+        allowRehearsalSuccessor: true,
+      });
+      const snap = await r.snapshot();
+      const mods = await r.getModules(snap);
+      assert(mods.registrar.equals(registrarInstance.address), 'Registrar module binding mismatch');
+      assert(mods.resolver.equals(resolverInstance.address), 'Resolver module binding mismatch');
+      const block = BlockNumber(snap.blockNumber);
+      for (let i = 0; i < nodes.length; i += 3) {
+        const slice = nodes.slice(i, i + 3);
+        const vals = await Promise.all(
+          slice.map(async (id) => {
+            const slot = await deriveStorageSlotInMap(
+              NameRegistrarLaunchContract.storage.reserved.slot,
+              new Fr(id),
+            );
+            return (await rawNode.getPublicStorageAt(block, registrarInstance.address, slot)).toBigInt();
+          }),
+        );
+        assert(vals.every((v) => v === 1n), `Reserved readback parity failed at batch offset ${i}`);
+      }
+      assert(await r.isCanonical(snap), 'Reservation readback snapshot reorged');
+      state.reservedReadbackVerified = true;
+      await save();
+      console.log('VERIFIED all 325 reserved labels at canonical snapshot');
+    };
+
     await runL2Step(
       'bootstrap',
       'A',
@@ -686,15 +716,9 @@ export async function sendV8Rehearsal(
           fee: fee ? { paymentMethod: fee } : undefined,
           wait: NO_WAIT,
         }),
-      async () => {
-        const r = await RegistryReader.connect(rawNode, registryInstance.address, {
-          allowRehearsalSuccessor: true,
-        });
-        const snap = await r.snapshot();
-        const checks = await Promise.all(nodes.map((id) => r.isReserved(id, snap)));
-        assert(checks.every(Boolean), 'Reserved readback parity failed');
-      },
+      verifyAll325Reservations,
     );
+    await verifyAll325Reservations();
 
     const reader = await RegistryReader.connect(node, registryInstance.address, {
       allowRehearsalSuccessor: true,

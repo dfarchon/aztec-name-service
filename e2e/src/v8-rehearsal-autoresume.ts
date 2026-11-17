@@ -11,7 +11,7 @@ import { mkdir, open, readFile, rename, writeFile } from 'node:fs/promises';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { BlockNumber } from '@aztec-labs/aztec.js/fields';
-import { createAztecNodeClient } from '@aztec-labs/aztec.js/node';
+import { createRateLimitedAztecNode } from './testnet-v8-upgrade-rehearsal.js';
 import { formatUnits } from 'viem';
 import { assertIsolatedSignerDirectory, currentSignerIdentity, type SignerIdentity } from './v8-account-generator.js';
 import { savePrivateJson } from './testnet-v6-e2e-state.js';
@@ -187,7 +187,7 @@ export async function evaluateAndMaybeResume(opts: {
   const readSafeChainNow =
     opts.readSafeChainNow ??
     (async () => {
-      const node = createAztecNodeClient(V6_PROFILES['testnet-v6'].nodeUrl, { maxBatchSize: 10 });
+      const node = createRateLimitedAztecNode(V6_PROFILES['testnet-v6'].nodeUrl);
       const tips = await node.getChainTips();
       const [bProp, bCheck] = await Promise.all([
         node.getBlockData(BlockNumber(tips.proposed.number)),
