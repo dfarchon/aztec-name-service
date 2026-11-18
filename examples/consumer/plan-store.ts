@@ -5,7 +5,7 @@ import {
   type RegistrationPlan,
   type RegistrationPlanStore,
   type Sealed,
-} from '@ans/sdk';
+} from '@fog/sdk';
 
 /** Encryption and storage errors propagate; never replace an unreadable plan. */
 export function encryptedPlanStore(
@@ -14,7 +14,7 @@ export function encryptedPlanStore(
   scope: string,
 ): RegistrationPlanStore & { list: () => Promise<RegistrationPlan[]> } {
   if (passphrase.length < 8) throw new Error('Use a recovery passphrase of at least 8 characters');
-  const prefix = `ans-consumer:v1:${scope}:`;
+  const prefix = `fog-consumer:v1:${scope}:`;
   async function load(key: string) {
     const value = storage.getItem(prefix + key);
     if (value === null) return undefined;

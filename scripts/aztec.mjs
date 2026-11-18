@@ -8,12 +8,12 @@ import { fileURLToPath } from 'node:url';
 const version = '6.0.0';
 const pinned = readFileSync(new URL('../.aztecrc', import.meta.url), 'utf8').trim();
 if (pinned !== version) throw new Error(`.aztecrc pins ${pinned}, but scripts/aztec.mjs requires ${version}`);
-const root = process.env.ANS_AZTEC_TOOLCHAIN_DIR ?? join(homedir(), '.aztec', 'versions', version);
+const root = process.env.FOG_AZTEC_TOOLCHAIN_DIR ?? join(homedir(), '.aztec', 'versions', version);
 try {
   const pkg = JSON.parse(readFileSync(join(root, 'node_modules/@aztec-labs/aztec/package.json'), 'utf8'));
   if (pkg.version !== version) throw new Error(`found ${pkg.version}`);
 } catch (error) {
-  throw new Error(`ANS requires Aztec ${version} at ${root}; install it with aztec-up install ${version}. ${error.message}`);
+  throw new Error(`Fog requires Aztec ${version} at ${root}; install it with aztec-up install ${version}. ${error.message}`);
 }
 // AZTEC_VERSIONED keeps the wrapper from re-selecting a toolchain through aztec-up.
 const env = { ...process.env, AZTEC_VERSIONED: '1' };

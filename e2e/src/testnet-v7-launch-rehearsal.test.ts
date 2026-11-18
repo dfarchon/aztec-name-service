@@ -62,7 +62,7 @@ test('CLI defaults to read-only, rejects ambiguous/unknown options and requires 
 });
 test('live dry-run only uses allowlisted public reads and leaves checkpoint directory untouched', async () => {
   const f = dependencies();
-  const dir = join(homedir(), `.local/share/ans/testnet-v7-launch-rehearsal-unit-${process.pid}`);
+  const dir = join(homedir(), `.local/share/fog/testnet-v7-launch-rehearsal-unit-${process.pid}`);
   await assert.rejects(lstat(dir), { code: 'ENOENT' });
   const log = console.log;
   console.log = () => {};

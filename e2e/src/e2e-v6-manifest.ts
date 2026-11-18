@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { createRequire } from 'node:module';
-import { AnsContext, RegistryReader, checkRegistration, getAvailability, getFeeQuote, inspectHolding, prepareRegistration, submitCommit, submitRegistration, waitUntilRegistrable, setAddress, resolveAddress, renew } from '@ans/sdk';
+import { FogContext, RegistryReader, checkRegistration, getAvailability, getFeeQuote, inspectHolding, prepareRegistration, submitCommit, submitRegistration, waitUntilRegistrable, setAddress, resolveAddress, renew } from '@fog/sdk';
 import { NameRegistryV6Contract } from '../../sdk/src/artifacts/NameRegistryV6.js';
 import { AztecAddress } from '@aztec-labs/aztec.js/addresses';
 import { Fr, Fq } from '@aztec-labs/aztec.js/fields';
@@ -16,8 +16,8 @@ import { physicalPath, v6Artifacts, type V6State } from './deploy-v6.js';
 import { acquireTestnetLock } from './testnet-lock.js';
 import { readKeys } from './init-keys.js';
 const { v6ManifestProblems } = createRequire(import.meta.url)('../../scripts/deployment-config.mjs');
-const manifestPath = process.env.ANS_V6_MANIFEST, stateDir = process.env.ANS_V6_STATE_DIR;
-assert(manifestPath && stateDir, 'ANS_V6_MANIFEST and ANS_V6_STATE_DIR are required');
+const manifestPath = process.env.FOG_V6_MANIFEST, stateDir = process.env.FOG_V6_STATE_DIR;
+assert(manifestPath && stateDir, 'FOG_V6_MANIFEST and FOG_V6_STATE_DIR are required');
 const manifest = JSON.parse(await readFile(manifestPath, 'utf8')) as Manifest;
 assert.deepEqual(v6ManifestProblems(manifest, { expectNetwork: 'local' }), []);
 assert.equal(manifest.chainId, '31337');
@@ -51,7 +51,7 @@ try {
     const restored = (await wallet.createSchnorrInitializerlessAccount(Fr.fromString(t.secret), Fr.fromString(t.salt), Fq.fromString(t.signingKey))).address;
     assert(restored.equals(treasury), 'Rehearsal treasury account mismatch');
   }
-  const ctx = new AnsContext(reader, { wallet, account: user, fee });
+  const ctx = new FogContext(reader, { wallet, account: user, fee });
   await ctx.ensureRegistered(free?{}:{ feeToken: { address: tokenAddress, artifact: artifacts.token } });
   if(token) await token.methods.mint_to_private(user, BigInt(manifest.annualPrice) * 1000n).send({ from: admin, fee });
   const balance = async (a: AztecAddress) => token?BigInt((await token.methods.balance_of_private(a).simulate({ from: a })).result as bigint):0n;

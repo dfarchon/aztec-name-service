@@ -8,7 +8,7 @@ import { build, type Plugin } from 'vite';
 import { initialBundleBudget } from '../examples/consumer/bundle-budget.js';
 
 async function bundle(entry: string, artifact: string, payload = '') {
-  const root = mkdtempSync(join(tmpdir(), 'ans-bundle-budget-'));
+  const root = mkdtempSync(join(tmpdir(), 'fog-bundle-budget-'));
   writeFileSync(join(root, 'entry.js'), entry);
   const source: Plugin = {
     name: 'budget-test-source',
@@ -51,7 +51,7 @@ async function bundle(entry: string, artifact: string, payload = '') {
 test('build rejects eager execution artifacts in workspace and installed SDKs', async () => {
   for (const path of [
     '/sdk/src/artifacts/Registry.js',
-    '/node_modules/@ans/sdk/dist/artifacts/Registry.js',
+    '/node_modules/@fog/sdk/dist/artifacts/Registry.js',
   ])
     await assert.rejects(
       bundle('import {artifact} from "artifact"; window.execution = artifact;', path),
@@ -62,7 +62,7 @@ test('build rejects eager execution artifacts in workspace and installed SDKs', 
 test('build allows lazy execution artifacts and eager metadata', async () => {
   const result = await bundle(
     'window.loadExecution = () => import("artifact");',
-    '/node_modules/@ans/sdk/dist/artifacts/Registry.js',
+    '/node_modules/@fog/sdk/dist/artifacts/Registry.js',
   );
   assert.ok('output' in result);
   const metadata = result.output.find(
@@ -74,7 +74,7 @@ test('build allows lazy execution artifacts and eager metadata', async () => {
   assert.equal(budget.chunks.includes(budget.executionArtifactChunks[0]), false);
   await bundle(
     'import {artifact} from "artifact"; window.metadata = artifact;',
-    '/node_modules/@ans/sdk/dist/artifacts/Registry-metadata.json',
+    '/node_modules/@fog/sdk/dist/artifacts/Registry-metadata.json',
   );
 });
 
@@ -90,7 +90,7 @@ test('initial budget includes large static shared chunks', async () => {
 });
 
 test('default output splits deferred contract artifact JSONs and rejects >25 MiB assets', async () => {
-  const root = mkdtempSync(join(tmpdir(), 'ans-bundle-split-'));
+  const root = mkdtempSync(join(tmpdir(), 'fog-bundle-split-'));
   writeFileSync(
     join(root, 'entry.js'),
     'window.loadWallet = () => import("wallet-context"); window.meta = "ok";',
@@ -100,16 +100,16 @@ test('default output splits deferred contract artifact JSONs and rejects >25 MiB
     resolveId(id) {
       if (id === 'wallet-context') return '/sdk/dist/wallet/context.js';
       if (id === 'artifact-v7')
-        return '/node_modules/@ans/sdk/dist/artifacts/name_registry_v7.json';
+        return '/node_modules/@fog/sdk/dist/artifacts/name_registry_v7.json';
       if (id === 'artifact-v8')
-        return '/node_modules/@ans/sdk/dist/artifacts/name_registry_v8.json';
+        return '/node_modules/@fog/sdk/dist/artifacts/name_registry_v8.json';
     },
     load(id) {
       if (id === '/sdk/dist/wallet/context.js')
         return 'import v7 from "artifact-v7"; import v8 from "artifact-v8"; export const both = [v7, v8];';
-      if (id === '/node_modules/@ans/sdk/dist/artifacts/name_registry_v7.json')
+      if (id === '/node_modules/@fog/sdk/dist/artifacts/name_registry_v7.json')
         return '{"name":"v7"}';
-      if (id === '/node_modules/@ans/sdk/dist/artifacts/name_registry_v8.json')
+      if (id === '/node_modules/@fog/sdk/dist/artifacts/name_registry_v8.json')
         return '{"name":"v8"}';
     },
   };

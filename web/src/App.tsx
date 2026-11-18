@@ -61,7 +61,7 @@ export function App() {
   const [theme, setTheme] = useState(() => document.documentElement.dataset.theme === "light" ? "light" : "dark");
   useEffect(() => {
     document.documentElement.dataset.theme = theme;
-    try { localStorage.setItem("ans:theme", theme); } catch { /* Theme remains usable without storage. */ }
+    try { localStorage.setItem("fog:theme", theme); } catch { /* Theme remains usable without storage. */ }
   }, [theme]);
 
   return (
@@ -69,7 +69,7 @@ export function App() {
       <div className="fog" aria-hidden="true" />
       <a className="skip-link" href="#content" onClick={e => { e.preventDefault(); document.getElementById("content")?.focus(); }}>{translate("Skip to content")}</a>
       <header className="app-header">
-        <a className="product-name" href="#/">{translate("Aztec Name Service")}</a>
+        <a className="product-name" href="#/">{translate("Fog Names")}</a>
         <nav aria-label={translate("Main navigation")}>
           {NAV.map(([p, label]) => (
             <a key={p} className={page === p || (p === "" && page === "name") ? "on" : ""} aria-current={page === p || (p === "" && page === "name") ? "page" : undefined} href={`#/${p}`}>

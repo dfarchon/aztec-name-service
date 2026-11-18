@@ -1,5 +1,5 @@
 {
-  "schema": "ans-reserved-labels/1",
+  "schema": "fog-reserved-labels/1",
   "minLength": 7,
   "categories": {
     "aztec": [
@@ -39,7 +39,7 @@
       "noircompiler",
       "noirlang"
     ],
-    "ans": [
+    "fog": [
       "ans-admin",
       "ans-community",
       "ans-explorer",

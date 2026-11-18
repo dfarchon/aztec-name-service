@@ -7,7 +7,7 @@ import { test } from 'node:test';
 import { assertDeploymentConfig, deploymentConfigMismatches } from './deployment-config.mjs';
 
 function fixture(t) {
-  const directory = mkdtempSync(join(tmpdir(), 'ans-deployment-config-'));
+  const directory = mkdtempSync(join(tmpdir(), 'fog-deployment-config-'));
   const root = pathToFileURL(`${directory}/`);
   t.after(() => rmSync(directory, { recursive: true, force: true }));
   const files = [
@@ -175,7 +175,7 @@ test('v6 rejects nested private fields', () => {
   }
 });
 test('sample v6 manifest cannot masquerade as canonical public deployment', (t) => {
-  const d = mkdtempSync(join(tmpdir(), 'ans-v6-sample-'));
+  const d = mkdtempSync(join(tmpdir(), 'fog-v6-sample-'));
   t.after(() => rmSync(d, { recursive: true, force: true }));
   const path = join(d, 'testnet-v6.json');
   writeFileSync(path, JSON.stringify(v6Sample));
@@ -457,7 +457,7 @@ import { symlinkSync, unlinkSync } from 'node:fs';
 import { consumerFiles, packageConsumer } from './package-consumer.mjs';
 
 function consumerFixture(t) {
-  const directory = mkdtempSync(join(tmpdir(), 'ans-consumer-files-'));
+  const directory = mkdtempSync(join(tmpdir(), 'fog-consumer-files-'));
   t.after(() => rmSync(directory, { recursive: true, force: true }));
   execFileSync('git', ['init', '-q', directory]);
   const dir = join(directory, 'examples/consumer');

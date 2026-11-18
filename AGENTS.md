@@ -1,10 +1,10 @@
-# ANS repository
+# Fog Names repository
 
 This is one npm-workspace repository containing the Aztec contracts (`contracts/`), SDK (`sdk/`), web app (`web/`), Cloudflare site and monitor (`ops/`) and chain acceptance tests (`e2e/`).
 
 ## Product boundary
 
-Public names and owners, with transfers, editor roles, subnames, public profile records and multi-chain address records. No private owner commitments or cross-chain asset transfers. Follow `README.md` for lease and authorization rules. Preserve commit-reveal, exact fee authorization, generation/revision checks and bidirectional primary verification.
+Public `.fog` names and owners, with transfers, editor roles, subnames, public profile records and multi-chain address records. No private owner commitments or cross-chain asset transfers. Follow `README.md` for lease and authorization rules. Preserve commit-reveal, exact fee authorization, generation/revision checks and bidirectional primary verification. Keep all code, UI strings and documentation strictly in English.
 
 ## Toolchain and verification
 
@@ -26,7 +26,7 @@ Public names and owners, with transfers, editor roles, subnames, public profile 
 - Class IDs must not change within one toolchain version; they may change only with a toolchain change. A toolchain change never changes storage slots, field order or packed encodings.
 - Preserve commit age, exact payment authorization, ownership, generation/revision, editor restrictions, ancestor lifetime and primary consent checks.
 - `scripts/sync-v4.mjs` maintains the historical V4 artifact from frozen V3 source and the extension include. Do not change legacy behavior while editing newer versions. Keep `v4_test_module` as a TXE-only fixture, outside SDK artifacts and public deployment.
-- Changes to modules, fees or migration require `npm run test:modular`; extended name flows and administrator authority require `npm run test:extensions` on an isolated proof-disabled node. Run `npm run smoke:modular -w @ans/web` for browser controls; fixtures do not establish signing readiness.
+- Changes to modules, fees or migration require `npm run test:modular`; extended name flows and administrator authority require `npm run test:extensions` on an isolated proof-disabled node. Run `npm run smoke:modular -w @fog/web` for browser controls; fixtures do not establish signing readiness.
 
 ## Data and delivery
 
@@ -36,9 +36,9 @@ Never commit .env files, wallet keys, registration secrets, deployment keys, loc
 
 - Follow `docs/code-structure.md`: keep protocol/layout selection, holding permissions and registration recovery in their existing modules. Web registration uses the SDK flow with an encrypted storage adapter.
 - Run `npm run format:integration` for SDK consumer examples and the documentation source; `npm run check:format` enforces the same pinned formatting rules in CI. This scope excludes generated contract artifacts and unrelated source.
-- Keep English and Chinese onboarding rules aligned. Define API inputs, results, units and relevant errors; distinguish application memory, encrypted recovery data and chain state.
+- Keep onboarding documentation in clear English. Define API inputs, results, units and relevant errors; distinguish application memory, encrypted recovery data and chain state.
 - Documentation TypeScript examples must be complete modules with declared inputs. `npm run test:consumer` compiles the exact examples against the independently installed SDK, without broadcasting transactions.
 - Verify both wallet chain ID and rollup version before registering contracts, reading private balances, creating payment authorization or sending. Keep these operation checks inside the shared wallet queue. A validation failure before `send` must not set a registration plan's unknown-broadcast flag.
 - Registration recovery clears a saved transaction hash only when a receipt proves that transaction reverted or was dropped. Callback, wallet and RPC exceptions never count as receipt evidence.
-- Keep public display caching available through `@ans/sdk/read`, without ANS contract artifacts. Independent consumer checks must exercise compiled JavaScript in plain Node as well as TypeScript examples and browser builds.
-- `npm run check:docs` checks bilingual fields, table columns, article links and matching README examples. The website and Markdown exports continue to use one content source.
+- Keep public display caching available through `@fog/sdk/read`, without contract execution artifacts. Independent consumer checks must exercise compiled JavaScript in plain Node as well as TypeScript examples and browser builds.
+- `npm run check:docs` checks English-only content, table columns, article links and matching README examples. The website and Markdown exports continue to use one content source.

@@ -5,17 +5,17 @@ import { Fr } from '@aztec-labs/aztec.js/fields';
 import type { AppCapabilities, Wallet, WalletCapabilities } from '@aztec-labs/aztec.js/wallet';
 
 import {
-  AnsError,
-  ansCapabilityManifest,
-  requestAnsCapabilities,
-  scopeAnsWallet,
+  FogError,
+  fogCapabilityManifest,
+  requestFogCapabilities,
+  scopeFogWallet,
   type RegistryReader,
 } from '../src/index.js';
 
 const addr = (n: bigint) => AztecAddress.fromBigIntUnsafe(n);
 const account = addr(100n);
-const app = { name: 'ANS test', version: '0.7.0', url: 'https://ans.example' };
-const rejected = (e: unknown) => e instanceof AnsError && e.code === 'wallet_rejected';
+const app = { name: 'Fog test', version: '0.7.0', url: 'https://fog.example' };
+const rejected = (e: unknown) => e instanceof FogError && e.code === 'wallet_rejected';
 
 /** Grants exactly what was asked, like a wallet whose user approves every prompt. */
 function fakeWallet(
@@ -61,8 +61,8 @@ const reader = (feeToken = addr(4n)) =>
     getModules: async () => ({ registrar: addr(2n), resolver: addr(3n) }),
   }) as unknown as RegistryReader;
 
-test('the manifest names only ANS contracts, drops zero addresses and asks for no address book or events', () => {
-  const m = ansCapabilityManifest([addr(1n), addr(2n), addr(1n), AztecAddress.ZERO], app);
+test('the manifest names only Fog contracts, drops zero addresses and asks for no address book or events', () => {
+  const m = fogCapabilityManifest([addr(1n), addr(2n), addr(1n), AztecAddress.ZERO], app);
   assert.deepEqual(contractsOf(m), [addr(1n).toString(), addr(2n).toString()]);
   assert.deepEqual(
     m.capabilities.map((c) => c.type),
@@ -80,9 +80,9 @@ test('the manifest names only ANS contracts, drops zero addresses and asks for n
   assert.deepEqual(m.metadata, app);
 });
 
-test('requestAnsCapabilities asks for the registry, active modules, payment token and sponsor', async () => {
+test('requestFogCapabilities asks for the registry, active modules, payment token and sponsor', async () => {
   const f = fakeWallet();
-  const { accounts } = await requestAnsCapabilities(reader(), f.wallet, { app, sponsoredFpc: addr(5n) });
+  const { accounts } = await requestFogCapabilities(reader(), f.wallet, { app, sponsoredFpc: addr(5n) });
   assert.equal(f.requests.length, 1);
   assert.deepEqual(contractsOf(f.requests[0]), [1n, 4n, 2n, 3n, 5n].map((n) => addr(n).toString()));
   assert.equal(accounts.length, 1);
@@ -91,7 +91,7 @@ test('requestAnsCapabilities asks for the registry, active modules, payment toke
 
 test('a free registrar with no payment token asks for no token contract', async () => {
   const f = fakeWallet();
-  await requestAnsCapabilities(reader(AztecAddress.ZERO), f.wallet, { app });
+  await requestFogCapabilities(reader(AztecAddress.ZERO), f.wallet, { app });
   assert.deepEqual(contractsOf(f.requests[0]), [1n, 2n, 3n].map((n) => addr(n).toString()));
 });
 
@@ -99,15 +99,15 @@ test('a wallet on another network is refused before any permission request', asy
   const f = fakeWallet();
   f.wallet.getChainInfo = async () => ({ chainId: new Fr(1), version: new Fr(1) }) as never;
   await assert.rejects(
-    requestAnsCapabilities(reader(), f.wallet, { app }),
-    (e: AnsError) => e.code === 'wrong_deployment',
+    requestFogCapabilities(reader(), f.wallet, { app }),
+    (e: FogError) => e.code === 'wrong_deployment',
   );
   assert.equal(f.requests.length, 0);
 });
 
 test('a grant without an explicit account list falls back to the wallet account list', async () => {
   const f = fakeWallet({ omitAccountList: true });
-  const accounts = await scopeAnsWallet(f.wallet, app).authorize([addr(1n)]);
+  const accounts = await scopeFogWallet(f.wallet, app).authorize([addr(1n)]);
   assert.equal(accounts.length, 1);
 });
 
@@ -115,19 +115,19 @@ test('a partial grant fails closed', async () => {
   const noSend = fakeWallet({
     grant: (m) => m.capabilities.filter((c) => c.type !== 'transaction') as WalletCapabilities['granted'],
   });
-  await assert.rejects(scopeAnsWallet(noSend.wallet, app).authorize([addr(1n)]), rejected);
+  await assert.rejects(scopeFogWallet(noSend.wallet, app).authorize([addr(1n)]), rejected);
   const noSigning = fakeWallet({
     grant: (m) =>
       m.capabilities.map((c) =>
         c.type === 'accounts' ? { ...c, canCreateAuthWit: false, accounts: [] } : c,
       ),
   });
-  await assert.rejects(scopeAnsWallet(noSigning.wallet, app).authorize([addr(1n)]), rejected);
+  await assert.rejects(scopeFogWallet(noSigning.wallet, app).authorize([addr(1n)]), rejected);
 });
 
 test('registering a contract outside the grant widens it first and keeps earlier contracts', async () => {
   const f = fakeWallet();
-  const scoped = scopeAnsWallet(f.wallet, app);
+  const scoped = scopeFogWallet(f.wallet, app);
   await scoped.authorize([addr(1n)]);
   await scoped.wallet.registerContract({ address: addr(1n) } as never);
   assert.equal(f.requests.length, 1);
@@ -139,7 +139,7 @@ test('registering a contract outside the grant widens it first and keeps earlier
 
 test('a widened grant that drops the session account ends the session', async () => {
   const f = fakeWallet();
-  const scoped = scopeAnsWallet(f.wallet, app);
+  const scoped = scopeFogWallet(f.wallet, app);
   await scoped.authorize([addr(1n)]);
   f.setAccounts([{ alias: 'Other', item: addr(200n) }]);
   await assert.rejects(scoped.wallet.registerContract({ address: addr(9n) } as never), rejected);

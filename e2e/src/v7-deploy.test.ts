@@ -5,7 +5,7 @@ import { v6Artifacts } from './deploy-v6.js';
 import { createRequire } from 'node:module';
 const { v6ManifestProblems } = createRequire(import.meta.url)('../../scripts/deployment-config.mjs');
 const base = ['--network', 'local', '--registrar', 'launch', '--token', 'none', '--price-version', '1'];
-const mainnet = ['--network', 'mainnet', '--node-url', 'https://rpc.invalid', '--registrar', 'launch', '--token', 'none', '--price-version', '1', '--min-fee-juice', '1', '--state-dir', '/tmp/ans-v7-preview', '--manifest-out', '/tmp/ans-v7-manifest.json', '--dry-run'];
+const mainnet = ['--network', 'mainnet', '--node-url', 'https://rpc.invalid', '--registrar', 'launch', '--token', 'none', '--price-version', '1', '--min-fee-juice', '1', '--state-dir', '/tmp/fog-v7-preview', '--manifest-out', '/tmp/fog-v7-manifest.json', '--dry-run'];
 const pricing = { decimals: 18, annualPrice: '1', lengthPrices: { '3': '128', '4': '32' } };
 test('registry version defaults preserve testnet V6 and require mainnet V7 with the exact renewal horizon', () => {
   assert.equal(parseArgs(base).registryVersion, 6);

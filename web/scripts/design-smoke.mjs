@@ -13,7 +13,7 @@ try {
    await page.setViewport({width,height:900});
    const result=await page.evaluate(()=>({overflow:document.documentElement.scrollWidth>innerWidth,radius:getComputedStyle(document.querySelector('.card')).borderRadius,font:getComputedStyle(document.body).fontFamily,targets:[...document.querySelectorAll('button,nav a,summary')].filter(e=>e.getBoundingClientRect().width>0).map(e=>({text:e.textContent,h:e.getBoundingClientRect().height,w:e.getBoundingClientRect().width}))}));
    assert.equal(result.overflow,false,`${theme} ${width} overflow`);assert.equal(result.radius,'0px');assert.ok(result.font.includes('Fira Sans'));assert.ok(result.targets.every(e=>e.h>=44&&e.w>=44),JSON.stringify(result.targets));
-   if(width===1280||width===320) await page.screenshot({path:`/tmp/ans-design-${theme}-${width}.png`,fullPage:true});
+   if(width===1280||width===320) await page.screenshot({path:`/tmp/fog-design-${theme}-${width}.png`,fullPage:true});
   }
   console.log(`PASS ${theme}: desktop/tablet/mobile/320px layout and touch targets`);
  }

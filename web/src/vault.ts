@@ -1,11 +1,11 @@
-import { parseWithBigInt, stringifyWithBigInt } from "@ans/sdk/read";
+import { parseWithBigInt, stringifyWithBigInt } from "@fog/sdk/read";
 
 /**
  * Local secrets for one browser profile. A passphrase is stretched once per unlock (PBKDF2-SHA256); the result keys
  * both the encrypted PXE / wallet stores and this vault. Nothing here is ever sent anywhere.
  */
 const ITERATIONS = 310_000;
-const SALT_KEY = "ans:vault-salt";
+const SALT_KEY = "fog:vault-salt";
 
 function salt(): Uint8Array {
   let s: string | null = null;

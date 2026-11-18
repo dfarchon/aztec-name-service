@@ -13,7 +13,7 @@ import { WalletSchema, type Wallet } from '@aztec-labs/aztec.js/wallet';
 import { createSafeJsonRpcServer } from '@aztec-labs/foundation/json-rpc/server';
 import { TokenContractArtifact } from '@aztec-labs/noir-contracts.js/Token';
 import { EmbeddedWallet } from '@aztec-labs/wallets/embedded';
-import { getName, RegistryReader, resolveAddress, resolvePrimary, trackTx } from '@ans/sdk';
+import { getName, RegistryReader, resolveAddress, resolvePrimary, trackTx } from '@fog/sdk';
 import { AztecAddress } from '@aztec-labs/aztec.js/addresses';
 import { createServer as createViteServer } from 'vite';
 import puppeteer from 'puppeteer-core';
@@ -29,9 +29,9 @@ const manageOnly = process.argv.includes('--manage-only');
 const connectOnly = process.argv.includes('--connect-only');
 assert(process.argv.slice(2).every(arg => ['--manage-only', '--connect-only'].includes(arg)), 'Unknown browser acceptance option');
 assert(!(connectOnly && manageOnly), 'Choose one browser acceptance scenario');
-const protocol = selectTestnetProtocol(process.env.ANS_TESTNET_PROTOCOL, []);
-const dir = resolve(process.env.TESTNET_STATE_DIR ?? join(homedir(), '.local/share/ans/testnet-v5.2.1'));
-const walletDir = protocol === '5' ? resolve(process.env.TESTNET_V5_STATE_DIR ?? join(homedir(), '.local/share/ans/testnet-v5-5.2.1')) : protocol === '4' ? resolve(process.env.TESTNET_V4_STATE_DIR ?? join(homedir(), '.local/share/ans/testnet-v4-5.2.1')) : dir;
+const protocol = selectTestnetProtocol(process.env.FOG_TESTNET_PROTOCOL, []);
+const dir = resolve(process.env.TESTNET_STATE_DIR ?? join(homedir(), '.local/share/fog/testnet-v5.2.1'));
+const walletDir = protocol === '5' ? resolve(process.env.TESTNET_V5_STATE_DIR ?? join(homedir(), '.local/share/fog/testnet-v5-5.2.1')) : protocol === '4' ? resolve(process.env.TESTNET_V4_STATE_DIR ?? join(homedir(), '.local/share/fog/testnet-v4-5.2.1')) : dir;
 const repoRoot = fileURLToPath(new URL('../../', import.meta.url));
 const rel = relative(repoRoot, dir);
 assert.ok(isAbsolute(rel) || rel === '..' || rel.startsWith('../'), 'Keep private browser profiles outside the repository');
@@ -97,9 +97,9 @@ try {
   else {
     const tokenHeader = randomBytes(32).toString('hex');
     const rpc = createSafeJsonRpcServer<Wallet>(wallet, WalletSchema, {
-      corsAllowedOrigins: [walletOrigin], corsAllowedHeaders: ['content-type', 'x-ans-wallet-token'], maxBodySizeBytes: '8mb',
+      corsAllowedOrigins: [walletOrigin], corsAllowedHeaders: ['content-type', 'x-fog-wallet-token'], maxBodySizeBytes: '8mb',
       middlewares: [async (ctx: { method: string; headers: Record<string, unknown>; status: number }, next: () => Promise<unknown>) => {
-        if (ctx.method !== 'OPTIONS' && ctx.headers['x-ans-wallet-token'] !== tokenHeader) { ctx.status = 403; return; }
+        if (ctx.method !== 'OPTIONS' && ctx.headers['x-fog-wallet-token'] !== tokenHeader) { ctx.status = 403; return; }
         await next();
       }],
     });
@@ -134,8 +134,8 @@ try {
       if (r.url().startsWith(walletOrigin)) console.error('Wallet resource failed:', new URL(r.url()).pathname, r.resourceType(), r.failure()?.errorText);
     });
     await page.evaluateOnNewDocument((origin, cfg) => {
-      if (location.origin === origin) Object.assign(window, { __ANS_WALLET_TEST_CONFIG__: cfg });
-      else localStorage.setItem('ans:locale', 'en');
+      if (location.origin === origin) Object.assign(window, { __FOG_WALLET_TEST_CONFIG__: cfg });
+      else localStorage.setItem('fog:locale', 'en');
     }, walletOrigin, { rpc: `http://127.0.0.1:${address.port}`, token: tokenHeader, appOrigin,
       chainId: String(info.l1ChainId), rollupVersion: String(info.rollupVersion) });
     // Finish the wallet's first dependency optimization before its discovery timeout begins.
@@ -160,7 +160,7 @@ try {
       assert.equal(deployment.registry, registry, 'Preview points at another registry');
       assert.equal(deployment.chainId, String(info.l1ChainId));
       assert.equal(deployment.version, String(info.rollupVersion));
-      await click('ANS Test Wallet', 30000);
+      await click('Fog Test Wallet', 30000);
       const frame = await page.waitForFrame(f => f.url().startsWith(walletOrigin));
       await frame.waitForFunction(() => !!document.querySelector('#verification')?.textContent);
       const emoji = await frame.$eval('#verification', e => e.textContent);
@@ -206,9 +206,9 @@ try {
       await click('Disconnect wallet');
       await page.waitForFunction(() => !document.querySelector('select[aria-label="Wallet account"]'));
       await click('Find wallets again');
-      await click('ANS Test Wallet', 30000);
+      await click('Fog Test Wallet', 30000);
       await page.waitForFunction(() => document.querySelector<HTMLDetailsElement>('.web-wallet-panel')?.open === true);
-      await click('Cancel'); await click('ANS Test Wallet', 30000);
+      await click('Cancel'); await click('Fog Test Wallet', 30000);
       const retryFrame = await page.waitForFrame(f => f.url().startsWith(walletOrigin));
       await retryFrame.waitForFunction(() => !!document.querySelector('#verification')?.textContent);
       const retryEmoji = await retryFrame.$eval('#verification', e => e.textContent);

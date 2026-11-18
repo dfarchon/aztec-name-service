@@ -29,7 +29,7 @@ export function prepareV8Rehearsal(reservations: { categories: Record<string, st
     ['propose-forward-again', 1], ['execute-forward', 1], ['post-upgrade-business-writes', null],
     ['propose-rollback', 1], ['execute-rollback', 1], ['settle-and-readback', null],
   ].map(([operation, transactions]) => ({ operation, transactions, measuredFeeJuice: null, status: 'unmeasured' }));
-  return { schema: 'ans-v8-rehearsal-plan/1', offline: true, publicExecutionAllowed: false,
+  return { schema: 'fog-v8-rehearsal-plan/1', offline: true, publicExecutionAllowed: false,
     checkpointDirectory, exactReleases: { root: metadata.v8.classId, successor: metadata.v8Rehearsal.classId, allowRehearsalSuccessor: true }, independentSuite: ['NameRegistryV8', 'NameRegistrarLaunch', 'NameResolver', 'new owner/treasury accounts'],
     reservations: { count: labels.length, hash, batches: Math.ceil(labels.length / 32) },
     cases: V8_REHEARSAL_CASES, operations,
@@ -37,7 +37,7 @@ export function prepareV8Rehearsal(reservations: { categories: Record<string, st
       beforeBootstrap: 'Use v8BoundDeployment(owner); read back instance.deployer and administrator with assertV8DeploymentOwner before further transactions. Persist the bound owner with the deployment checkpoint.' },
     waits: { applicationSeconds: 86400, protocolSeconds: 86400, forwardAndRollbackMinimumSeconds: 345600 },
     budget: { maximumFeeJuice: '350', maximumSepoliaEth: '0.006', estimate: null,
-      decision: 'Owner approved 350 FJ (150 A + 150 B + 50 C, minted free on Sepolia FeeAssetHandler) and 0.006 Sepolia ETH ceiling; per-step fresh sampling and isolated ans-signer boundary required' },
+      decision: 'Owner approved 350 FJ (150 A + 150 B + 50 C, minted free on Sepolia FeeAssetHandler) and 0.006 Sepolia ETH ceiling; per-step fresh sampling and isolated fog-signer boundary required' },
     recovery: 'Persist hash before broadcast. Known hash means track only. Ambiguous/no hash means stop. Never auto-resend or duplicate bridge through SSH. Bounded bridge proven-block recovery only.',
   };
 }
@@ -74,5 +74,5 @@ export function evaluateV8RehearsalBudget(requiredOperations: string[], measurem
   return { readOnly: true, fundingAuthorized: false, publicExecutionAuthorized: false, status, missingMeasurements: missing,
     measuredFeeJuiceBaseUnits: String(total), estimatedSepoliaWei: estimatedSepoliaWei === undefined ? null : String(estimatedSepoliaWei),
     maximumFeeJuice: '350', maximumSepoliaEth: '0.006',
-    next: 'Isolated ans-signer dry-run verifies fresh real-proof/network identity/balance/fee evidence before explicit --send --confirm. Stop/report any overrun before funding; no automatic resend or budget increase.' };
+    next: 'Isolated fog-signer dry-run verifies fresh real-proof/network identity/balance/fee evidence before explicit --send --confirm. Stop/report any overrun before funding; no automatic resend or budget increase.' };
 }

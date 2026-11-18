@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { AnsError, runTx, trackTx, type AnsContext, type TxUpdate } from '../src/index.js';
+import { FogError, runTx, trackTx, type FogContext, type TxUpdate } from '../src/index.js';
 import type { ContractFunctionInteraction } from '@aztec-labs/aztec.js/contracts';
 import type { AztecNode } from '@aztec-labs/aztec.js/node';
 import { TxHash, TxStatus } from '@aztec-labs/aztec.js/tx';
@@ -60,7 +60,7 @@ for (const [kind, classInstance] of [
       },
       registrationTarget: select,
       registrationContract: async (expected?: string) => (await select(expected)).contract,
-    } as unknown as AnsContext;
+    } as unknown as FogContext;
     const { quote } = await renew(ctx, { name: label, duration });
     assert.equal(select.mock.callCount(), 1);
     assert.equal(call.mock.callCount(), 1);
@@ -76,7 +76,7 @@ test('unknown receipt statuses never count as a successful transaction', async (
   const updates: TxUpdate[] = [];
   await assert.rejects(trackTx(nodeWithReceipt(['unexpected-status']), hash, {
     timeoutMs: 10, pollMs: 1, onUpdate: u => updates.push(u),
-  }), (e: AnsError) => e.code === 'unknown_tx_state' && e.txHash === hash);
+  }), (e: FogError) => e.code === 'unknown_tx_state' && e.txHash === hash);
   assert.ok(!updates.some(u => ['included', 'confirmed', 'proven'].includes(u.state)));
 });
 
@@ -94,21 +94,21 @@ test('a transaction removed after a reorg eventually becomes dropped instead of 
   t.mock.method(Date, 'now', () => (now += 7000));
   await assert.rejects(trackTx(nodeWithReceipt([TxStatus.PROPOSED, TxStatus.DROPPED]), hash, {
     timeoutMs: 120000, pollMs: 1,
-  }), (e: AnsError) => e.code === 'dropped' && e.txHash === hash);
+  }), (e: FogError) => e.code === 'dropped' && e.txHash === hash);
 });
 
 test('mined execution reverts are failures at every finality level', async () => {
   for (const status of [TxStatus.PROPOSED, TxStatus.CHECKPOINTED, TxStatus.PROVEN, TxStatus.FINALIZED]) {
     await assert.rejects(trackTx(nodeWithReceipt([status], true), hash),
-      (e: AnsError) => e.code === 'reverted' && e.txHash === hash);
+      (e: FogError) => e.code === 'reverted' && e.txHash === hash);
   }
   assert.equal((await trackTx(nodeWithReceipt([TxStatus.FINALIZED]), hash, { waitFor: 'proven' })).state, 'proven');
 });
 
 test('a wallet transport failure cannot be reported as a reverted transaction', async () => {
   const updates: TxUpdate[] = [];
-  const ctx = { reader: { modular: false }, account: {}, signer: {}, assertWalletNetwork: async () => {}, queue: {run: (f: () => Promise<unknown>) => f()} } as unknown as AnsContext;
-  const interaction = { send: async () => { throw new AnsError('network', 'fetch failed', undefined, 'known-hash'); } } as unknown as ContractFunctionInteraction;
+  const ctx = { reader: { modular: false }, account: {}, signer: {}, assertWalletNetwork: async () => {}, queue: {run: (f: () => Promise<unknown>) => f()} } as unknown as FogContext;
+  const interaction = { send: async () => { throw new FogError('network', 'fetch failed', undefined, 'known-hash'); } } as unknown as ContractFunctionInteraction;
   await assert.rejects(runTx(ctx, interaction, { onUpdate: u => updates.push(u) }), /fetch failed/);
   assert.equal(updates.at(-1)?.state, 'unknown');
   assert.equal(updates.at(-1)?.txHash, 'known-hash');
@@ -116,7 +116,7 @@ test('a wallet transport failure cannot be reported as a reverted transaction', 
 
 test('wallet rejection is cancellation rather than an unknown broadcast', async () => {
   const updates: TxUpdate[] = [];
-  const ctx = { reader: { modular: false }, account: {}, signer: {}, assertWalletNetwork: async () => {}, queue: {run: (f: () => Promise<unknown>) => f()} } as unknown as AnsContext;
+  const ctx = { reader: { modular: false }, account: {}, signer: {}, assertWalletNetwork: async () => {}, queue: {run: (f: () => Promise<unknown>) => f()} } as unknown as FogContext;
   const interaction = { send: async () => { throw new Error('User rejected the request'); } } as unknown as ContractFunctionInteraction;
   await assert.rejects(runTx(ctx, interaction, { onUpdate: u => updates.push(u) }));
   assert.equal(updates.at(-1)?.state, 'cancelled');
@@ -125,13 +125,13 @@ test('wallet rejection is cancellation rather than an unknown broadcast', async 
 test('an optional preflight transport failure cannot imply an unknown broadcast before send', async () => {
   let sends = 0;
   const updates: TxUpdate[] = [];
-  const ctx = { reader: { modular: false }, account: {}, signer: {}, assertWalletNetwork: async () => {}, queue: {run: (f: () => Promise<unknown>) => f()} } as unknown as AnsContext;
+  const ctx = { reader: { modular: false }, account: {}, signer: {}, assertWalletNetwork: async () => {}, queue: {run: (f: () => Promise<unknown>) => f()} } as unknown as FogContext;
   const interaction = {
-    simulate: async () => { throw new AnsError('network', 'simulation unavailable'); },
+    simulate: async () => { throw new FogError('network', 'simulation unavailable'); },
     send: async () => { sends++; throw new Error('must not send'); },
   } as unknown as ContractFunctionInteraction;
   await assert.rejects(runTx(ctx, interaction, { preflight: true, onUpdate: u => updates.push(u) }),
-    (e: AnsError) => e.code === 'network');
+    (e: FogError) => e.code === 'network');
   assert.equal(sends, 0);
   assert.ok(!updates.some(u => u.state === 'unknown' || u.state === 'submitted'));
 });
@@ -139,28 +139,28 @@ test('an optional preflight transport failure cannot imply an unknown broadcast 
 
 test('modular writes refresh wallet metadata and fail closed before signing an unknown upgrade', async () => {
   let sends=0, refreshes=0;
-  const ctx={account:{},signer:{},reader:{modular:true,node:nodeWithReceipt([TxStatus.CHECKPOINTED])},queue:{run:(f:()=>Promise<unknown>)=>f()},ensureRegistered:async()=>{refreshes++;}} as unknown as AnsContext;
+  const ctx={account:{},signer:{},reader:{modular:true,node:nodeWithReceipt([TxStatus.CHECKPOINTED])},queue:{run:(f:()=>Promise<unknown>)=>f()},ensureRegistered:async()=>{refreshes++;}} as unknown as FogContext;
   const interaction={send:async()=>{sends++;assert.equal(refreshes,1);return {txHash:hash};}} as unknown as ContractFunctionInteraction;
   await runTx(ctx,interaction);assert.equal(sends,1);
-  ctx.ensureRegistered=async()=>{throw new AnsError('wrong_deployment','unsupported class');};
-  await assert.rejects(runTx(ctx,interaction),(e:AnsError)=>e.code==='wrong_deployment');assert.equal(sends,1);
+  ctx.ensureRegistered=async()=>{throw new FogError('wrong_deployment','unsupported class');};
+  await assert.rejects(runTx(ctx,interaction),(e:FogError)=>e.code==='wrong_deployment');assert.equal(sends,1);
 });
 
 test('a wallet that disconnects mid-send reports an unknown broadcast, not a revert', async () => {
   const updates: TxUpdate[] = [];
-  const ctx = { reader: { modular: false }, account: {}, signer: {}, assertWalletNetwork: async () => {}, queue: {run: (f: () => Promise<unknown>) => f()} } as unknown as AnsContext;
+  const ctx = { reader: { modular: false }, account: {}, signer: {}, assertWalletNetwork: async () => {}, queue: {run: (f: () => Promise<unknown>) => f()} } as unknown as FogContext;
   const interaction = { send: async () => { throw new Error('Wallet disconnected'); } } as unknown as ContractFunctionInteraction;
-  await assert.rejects(runTx(ctx, interaction, { onUpdate: u => updates.push(u) }), (e: AnsError) => e.code === 'unknown_tx_state');
+  await assert.rejects(runTx(ctx, interaction, { onUpdate: u => updates.push(u) }), (e: FogError) => e.code === 'unknown_tx_state');
   assert.equal(updates.at(-1)?.state, 'unknown');
 });
 
 test('wallet simulation and contract failures before broadcast remain plain failures', async () => {
   class SimulationError extends Error {}
-  const ctx = { reader: { modular: false }, account: {}, signer: {}, assertWalletNetwork: async () => {}, queue: {run: (f: () => Promise<unknown>) => f()} } as unknown as AnsContext;
+  const ctx = { reader: { modular: false }, account: {}, signer: {}, assertWalletNetwork: async () => {}, queue: {run: (f: () => Promise<unknown>) => f()} } as unknown as FogContext;
   for (const thrown of [new SimulationError('Balance of 1 below 2'), new Error('Assertion failed: Balance too low'), new Error('name not available')]) {
     const updates: TxUpdate[] = [];
     const interaction = { send: async () => { throw thrown; } } as unknown as ContractFunctionInteraction;
-    await assert.rejects(runTx(ctx, interaction, { onUpdate: u => updates.push(u) }), (e: AnsError) => e.code !== 'unknown_tx_state');
+    await assert.rejects(runTx(ctx, interaction, { onUpdate: u => updates.push(u) }), (e: FogError) => e.code !== 'unknown_tx_state');
     assert.equal(updates.at(-1)?.state, 'reverted');
   }
 });
@@ -170,9 +170,9 @@ const taggedReadError = () => new Error('Request timeout on the free plan', {
 });
 async function failedSend(error: unknown) {
   const updates: TxUpdate[] = [];
-  const ctx = { reader: { modular: false }, account: {}, signer: {}, assertWalletNetwork: async () => {}, queue: { run: (fn: () => Promise<unknown>) => fn() } } as unknown as AnsContext;
+  const ctx = { reader: { modular: false }, account: {}, signer: {}, assertWalletNetwork: async () => {}, queue: { run: (fn: () => Promise<unknown>) => fn() } } as unknown as FogContext;
   const interaction = { send: async () => { throw error; } } as unknown as ContractFunctionInteraction;
-  await assert.rejects(runTx(ctx, interaction, { onUpdate: (u) => updates.push(u) }), (e: AnsError) => e.code === 'network');
+  await assert.rejects(runTx(ctx, interaction, { onUpdate: (u) => updates.push(u) }), (e: FogError) => e.code === 'network');
   return updates;
 }
 test('runTx: a node read failure tagged without aztec_sendTx is a retryable network error, not unknown', async () => {
@@ -199,7 +199,7 @@ test('runTx: all nested markers must be nonempty reads, including cyclic aggrega
 test('a call that cannot be encoded locally fails before the broadcast marker and never reaches the wallet', async () => {
   const order: string[] = [], updates: TxUpdate[] = [];
   // A confirming node, so a regression that does reach send fails at once instead of polling for a receipt.
-  const ctx = { reader: { modular: false, node: nodeWithReceipt([TxStatus.CHECKPOINTED]) }, account: {}, signer: {}, assertWalletNetwork: async () => {}, queue: {run: (f: () => Promise<unknown>) => f()} } as unknown as AnsContext;
+  const ctx = { reader: { modular: false, node: nodeWithReceipt([TxStatus.CHECKPOINTED]) }, account: {}, signer: {}, assertWalletNetwork: async () => {}, queue: {run: (f: () => Promise<unknown>) => f()} } as unknown as FogContext;
   // What the live site hit: bb.js could not fetch its WASM while hashing the function selector.
   const interaction = {
     getFunctionCall: async () => { order.push('encode'); throw new TypeError('Failed to fetch'); },
@@ -207,7 +207,7 @@ test('a call that cannot be encoded locally fails before the broadcast marker an
   } as unknown as ContractFunctionInteraction;
   await assert.rejects(
     runTxOutcome(ctx, interaction, { onUpdate: u => updates.push(u), beforeBroadcast: async () => { order.push('marker'); } }),
-    (e: AnsError) => e.code === 'network',
+    (e: FogError) => e.code === 'network',
   );
   assert.deepEqual(order, ['encode']);
   assert.equal(updates.length, 0);
@@ -215,7 +215,7 @@ test('a call that cannot be encoded locally fails before the broadcast marker an
 
 test('the call is encoded before the broadcast marker, then sent', async () => {
   const order: string[] = [];
-  const ctx = { reader: { modular: false, node: nodeWithReceipt([TxStatus.CHECKPOINTED]) }, account: {}, signer: {}, assertWalletNetwork: async () => {}, queue: {run: (f: () => Promise<unknown>) => f()} } as unknown as AnsContext;
+  const ctx = { reader: { modular: false, node: nodeWithReceipt([TxStatus.CHECKPOINTED]) }, account: {}, signer: {}, assertWalletNetwork: async () => {}, queue: {run: (f: () => Promise<unknown>) => f()} } as unknown as FogContext;
   const interaction = {
     getFunctionCall: async () => { order.push('encode'); return {}; },
     send: async () => { order.push('send'); return { txHash: hash }; },
@@ -234,9 +234,9 @@ test('host beforeSend validation runs inside shared queue after identity and can
     reader: { modular: false },
     assertWalletNetwork: async () => { order.push('identity'); },
     queue: { run: async (f: () => Promise<unknown>) => { order.push('queue'); return f(); } },
-  } as unknown as AnsContext;
+  } as unknown as FogContext;
   const call = { send: async () => { order.push('send'); throw new Error('must not send'); } } as unknown as ContractFunctionInteraction;
-  await assert.rejects(runTx(ctx, call, { onUpdate: u => updates.push(u) }), (e: AnsError) => e.cause === failure);
+  await assert.rejects(runTx(ctx, call, { onUpdate: u => updates.push(u) }), (e: FogError) => e.cause === failure);
   assert.deepEqual(order, ['queue', 'identity', 'fee-check']);
   assert.equal(updates.length, 0);
 });

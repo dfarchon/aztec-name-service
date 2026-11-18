@@ -1,7 +1,7 @@
 import { chainAddressKey, validateChainAddress } from "../core/records.js";
 import type { AztecAddress } from "@aztec-labs/aztec.js/addresses";
 
-import { AnsError, toAnsError } from "../core/errors.js";
+import { FogError, toFogError } from "../core/errors.js";
 import { nodeOf } from "../core/hash.js";
 import {
   type Label,
@@ -171,7 +171,7 @@ export async function resolvePrimary(
   try {
     label = reader.extended ? normalizeName(await reader.getPublishedName(primary.node, snapshot), { allowSubnames: true }) : unpackLabel(published.packedLabel, published.labelLen);
   } catch (e) {
-    const error = toAnsError(e);
+    const error = toFogError(e);
     if (error.code !== "corrupt_data" && error.code !== "invalid_argument") throw error;
     return { status: "label_unavailable", node: primary.node, snapshot };
   }
@@ -191,7 +191,7 @@ export async function resolvePrimary(
 
 export type BatchEntry =
   | PrimaryResolution
-  | { status: "error"; error: AnsError };
+  | { status: "error"; error: FogError };
 
 /**
  * Resolves many addresses against one snapshot. Duplicates are resolved once; a failure of one address is reported
@@ -204,7 +204,7 @@ export async function resolvePrimaryMany(
 ): Promise<Map<string, BatchEntry>> {
   const concurrency = opts.concurrency ?? 8;
   if (!Number.isSafeInteger(concurrency) || concurrency < 1)
-    throw new AnsError("invalid_argument", "concurrency must be a positive integer");
+    throw new FogError("invalid_argument", "concurrency must be a positive integer");
   if (addresses.length === 0) return new Map();
   const snapshot = opts.snapshot ?? (await reader.snapshot());
   const unique = [...new Map(addresses.map((a) => [a.toString(), a])).values()];
@@ -216,7 +216,7 @@ export async function resolvePrimaryMany(
       try {
         out.set(a.toString(), await resolvePrimary(reader, a, snapshot));
       } catch (e) {
-        const error = toAnsError(e);
+        const error = toFogError(e);
         if (error.code === "network") networkFailures++;
         out.set(a.toString(), { status: "error", error });
       }
@@ -229,7 +229,7 @@ export async function resolvePrimaryMany(
     ),
   );
   if (unique.length > 0 && networkFailures === unique.length) {
-    throw new AnsError("network", "node unreachable for every address");
+    throw new FogError("network", "node unreachable for every address");
   }
   return out;
 }

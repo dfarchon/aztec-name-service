@@ -74,7 +74,7 @@ export function WalletConnection() {
           chainId: new Fr(s.reader.deployment.chainId),
           version: new Fr(s.reader.deployment.rollupVersion),
         },
-        appId: "ans-public-names",
+        appId: "fog-public-names",
         // Nulo asks the user to approve the connection during discovery; keep the SDK's 60 s window.
         timeout: 60000,
         onWalletDiscovered: (p) => {
@@ -97,7 +97,7 @@ export function WalletConnection() {
     if (provider.type === "web" && webWalletPanel.current) webWalletPanel.current.open = true;
     try {
       const connection =
-        await provider.establishSecureChannel("ans-public-names",
+        await provider.establishSecureChannel("fog-public-names",
           provider.type === "web" ? { container: webWalletHost.current } : undefined);
       attempt.current = connection;
       const { hashToEmoji } = await import("@aztec-labs/wallet-sdk/crypto");
@@ -112,7 +112,7 @@ export function WalletConnection() {
   };
   /** Wallet setup never sends a transaction, so show which step failed and the wallet's own message. */
   const walletError = (e: unknown) => {
-    console.error("[ANS wallet] connection failed", e);
+    console.error("[Fog wallet] connection failed", e);
     if (e instanceof WalletStepError) {
       const raw = e.cause instanceof Error ? e.cause.message : String(e.cause);
       return `${translate("Wallet connection failed at step:")} ${e.step}. ${raw.split("\n")[0].slice(0, 240)}`;

@@ -1,7 +1,7 @@
 import { AztecAddress } from '@aztec-labs/aztec.js/addresses';
 
-import { AnsError } from '../core/errors.js';
-import type { AnsContext } from '../wallet/context.js';
+import { FogError } from '../core/errors.js';
+import type { FogContext } from '../wallet/context.js';
 import {
   assertAcceptedQuote,
   type FeeQuote,
@@ -15,21 +15,21 @@ export { inspectHolding, type Holding, type NameRef } from './holding.js';
 
 /** Sets the single public Aztec address for the current registration. */
 export async function setAddress(
-  ctx: AnsContext,
+  ctx: FogContext,
   args: { name: NameRef; address: AztecAddress },
   opts?: TxOptions,
 ) {
   if (args.address.isZero())
-    throw new AnsError('invalid_argument', 'use clearAddress to remove a record');
+    throw new FogError('invalid_argument', 'use clearAddress to remove a record');
   return writeAddress(ctx, args.name, args.address, opts);
 }
 
-export async function clearAddress(ctx: AnsContext, args: { name: NameRef }, opts?: TxOptions) {
+export async function clearAddress(ctx: FogContext, args: { name: NameRef }, opts?: TxOptions) {
   return writeAddress(ctx, args.name, AztecAddress.ZERO, opts);
 }
 
 async function writeAddress(
-  ctx: AnsContext,
+  ctx: FogContext,
   name: NameRef,
   address: AztecAddress,
   opts?: TxOptions,
@@ -55,7 +55,7 @@ async function writeAddress(
 
 /** Extends the lease (allowed while active or in grace) and pays the exact pro-rata fee. */
 export async function renew(
-  ctx: AnsContext,
+  ctx: FogContext,
   args: {
     name: NameRef;
     duration: bigint;
@@ -68,7 +68,7 @@ export async function renew(
   const h = await inspectHolding(ctx, args.name);
   assertHoldingAccess(h, 'owner', true);
   if (h.label.parent)
-    throw new AnsError('invalid_argument', 'subname leases are controlled by their parent owner');
+    throw new FogError('invalid_argument', 'subname leases are controlled by their parent owner');
   const quote = await getFeeQuote(ctx.reader, {
     operation: 'renew',
     expiresAt: h.record.expiresAt,
@@ -79,7 +79,7 @@ export async function renew(
     snapshot: h.snapshot,
   });
   if (quote.renewableAt !== undefined && h.snapshot.timestamp < quote.renewableAt)
-    throw new AnsError('renewal_too_early', `renewable from chain timestamp ${quote.renewableAt}`);
+    throw new FogError('renewal_too_early', `renewable from chain timestamp ${quote.renewableAt}`);
   assertAcceptedQuote(quote, args.acceptedQuote);
   const feeNonce = newFeeNonce();
   const authWitness = await buildFeeAuthorization(ctx, { ...quote, feeNonce });

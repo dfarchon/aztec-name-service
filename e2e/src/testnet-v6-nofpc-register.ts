@@ -5,10 +5,10 @@ import { join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { getSchnorrAccountContractAddress } from '@aztec-labs/accounts/schnorr';
 import {
-  AnsContext, RegistryReader, checkRegistration, deserializePlan, getAvailability,
+  FogContext, RegistryReader, checkRegistration, deserializePlan, getAvailability,
   getFeeQuote, prepareRegistration, resolveAddress, serializePlan, setAddress,
   submitCommit, submitRegistration, trackTx, waitUntilRegistrable,
-} from '@ans/sdk';
+} from '@fog/sdk';
 import { AztecAddress } from '@aztec-labs/aztec.js/addresses';
 import { NO_FROM } from '@aztec-labs/aztec.js/account';
 import { Contract, NO_WAIT } from '@aztec-labs/aztec.js/contracts';
@@ -37,7 +37,7 @@ import {
   type RegisterStep, type PublicReceipt,
 } from './testnet-v6-nofpc-state.js';
 
-type UserKeys = { schema: 'ans-v6-nofpc-user/1'; network: 'testnet-v6'; toolchainVersion: '6.0.0'; user: AccountKeys };
+type UserKeys = { schema: 'fog-v6-nofpc-user/1'; network: 'testnet-v6'; toolchainVersion: '6.0.0'; user: AccountKeys };
 export function userDeploymentOptions(user: AztecAddress, claim: BridgeClaim, classPublished: boolean) {
   assert(claim.complete && claim.recipient === user.toString() && claim.network === 'testnet-v6' &&
     claim.messageHash && claim.leafIndex !== undefined, 'Complete user bridge claim required for deployment');
@@ -56,7 +56,7 @@ export async function initUser(c: RegisterOptions) {
     }
     const k = randomKeys();
     const address = (await getSchnorrAccountContractAddress(k.signingKey, k.salt, k.secret)).toString();
-    const keys: UserKeys = { schema: 'ans-v6-nofpc-user/1', network: 'testnet-v6', toolchainVersion: '6.0.0',
+    const keys: UserKeys = { schema: 'fog-v6-nofpc-user/1', network: 'testnet-v6', toolchainVersion: '6.0.0',
       user: { address, secret: k.secret.toString(), salt: k.salt.toString(), signingKey: k.signingKey.toString() } };
     const file = await open(join(c.stateDir, 'user-keys.json'), 'wx', 0o600);
     try { await file.chmod(0o600); await file.writeFile(JSON.stringify(keys) + '\n'); await file.sync(); }
@@ -66,7 +66,7 @@ export async function initUser(c: RegisterOptions) {
 }
 async function loadUser(dir: string) {
   const k = await readRegisterJson<UserKeys>(join(dir, 'user-keys.json'));
-  assert(k?.schema === 'ans-v6-nofpc-user/1' && k.network === 'testnet-v6' && k.toolchainVersion === '6.0.0', 'User keys required; run --init-user first');
+  assert(k?.schema === 'fog-v6-nofpc-user/1' && k.network === 'testnet-v6' && k.toolchainVersion === '6.0.0', 'User keys required; run --init-user first');
   const a = k.user;
   assert.equal((await getSchnorrAccountContractAddress(Fq.fromString(a.signingKey), Fr.fromString(a.salt), Fr.fromString(a.secret))).toString(), a.address, 'User key address mismatch');
   return a;
@@ -129,7 +129,7 @@ export async function main(argv = process.argv.slice(2), deps = { createNode: cr
     const keys = await loadUser(c.stateDir), user = AztecAddress.fromStringUnsafe(keys.address);
     let state = await readRegisterJson<RegisterState>(join(c.stateDir, 'register-state.json'));
     const balance = () => readFeeJuiceBalance(rawNode, user).then(String);
-    if (!state) state = { schema: 'ans-v6-nofpc-register/1', binding: manifestBinding(manifest),
+    if (!state) state = { schema: 'fog-v6-nofpc-register/1', binding: manifestBinding(manifest),
       confirmation: registerConfirmation(c, manifest), user: keys.address, name: c.name!, identity: network,
       transactions: {}, records: {}, done: [], feeJuice: { before: await balance() } };
     const s = state;
@@ -162,7 +162,7 @@ export async function main(argv = process.argv.slice(2), deps = { createNode: cr
     assert.deepEqual(classIds, manifest.classIds, 'Manifest artifacts mismatch');
     // The repository fixture token has the same mint/transfer interface, but a distinct frozen class.
     // Scope its registration to this manifest without expanding the SDK consumer token boundary.
-    const ctx = new class extends AnsContext {
+    const ctx = new class extends FogContext {
       override async registerFeeToken(address: AztecAddress) {
         await this.assertWalletNetwork();
         assert.equal(address.toString(), manifest.feeToken, 'Unexpected fee asset');
@@ -224,7 +224,7 @@ export async function main(argv = process.argv.slice(2), deps = { createNode: cr
         assert(amount > 0n, 'Token funding changed; inspect checkpoint');
         // Never persist deployer keys in the user's wallet store.
         funderWallet = await EmbeddedWallet.create(node, { ephemeral: true, pxe: { proverEnabled: true } });
-        const funderCtx = new AnsContext(reader, { wallet: funderWallet, account: AztecAddress.fromStringUnsafe(manifest.owner) });
+        const funderCtx = new FogContext(reader, { wallet: funderWallet, account: AztecAddress.fromStringUnsafe(manifest.owner) });
         return funderCtx.queue.run(async () => {
           await identity(); await funderCtx.assertWalletNetwork();
           const ownerKeys = (await readKeys(join(c.funderStateDir!, 'keys.json'), 'testnet-v6')).owner;

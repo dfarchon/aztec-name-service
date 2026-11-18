@@ -4,7 +4,7 @@
   "maxRenewAhead": "0",
   "reservedListHash": "d3b5a6f138526e410311b4577f41bdcab0d24186405f4c51841f2906551028aa",
   "reservedVerified": true,
-  "schema": "ans-deployment-v6/1",
+  "schema": "fog-deployment-v6/1",
   "network": "testnet-v6",
   "aztecVersion": "6.0.0",
   "protocol": 6,

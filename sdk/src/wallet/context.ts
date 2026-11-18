@@ -21,13 +21,13 @@ import { RegistryUpgradeTestContract } from '../artifacts/RegistryUpgradeTest.js
 import { registryProtocols } from '../core/registry-protocol.js';
 import type { Snapshot } from '../core/types.js';
 import type { RegistryReader } from '../client/reader.js';
-import { AnsError } from '../core/errors.js';
+import { FogError } from '../core/errors.js';
 import { ExecutionQueue } from './queue.js';
 import { FEE_TOKEN_CLASS_ID } from '../client/fee-token.js';
 import { assertWalletNetwork } from './network.js';
 
 /** An existing wallet plus the account acting in it. The SDK never receives keys. */
-export type AnsSigner = {
+export type FogSigner = {
   wallet: Wallet;
   account: AztecAddress;
   /** Network fee payment, e.g. a sponsored FPC. Omit to let the wallet pay from the account's fee juice. */
@@ -50,12 +50,12 @@ const registryArtifacts = new Map<string, ContractArtifact>([
 ]);
 
 /** Reader + signer. Write operations and wallet-local utilities go through here. */
-export class AnsContext {
+export class FogContext {
   readonly queue: ExecutionQueue;
 
   constructor(
     readonly reader: RegistryReader,
-    readonly signer: AnsSigner,
+    readonly signer: FogSigner,
   ) {
     let q = queues.get(signer.wallet);
     if (!q) queues.set(signer.wallet, (q = new ExecutionQueue()));
@@ -82,20 +82,20 @@ export class AnsContext {
       const state = await this.reader.getCoreUpgradeState();
       assertUpgradeInclusionMargin(state);
       if (state.currentClass !== this.reader.classId)
-        throw new AnsError('wrong_deployment', 'core class changed after artifact registration; retry with refreshed artifacts');
+        throw new FogError('wrong_deployment', 'core class changed after artifact registration; retry with refreshed artifacts');
     }
   }
 
   /** Same wallet and deployment, different account (e.g. the game account next to the name holder). */
-  as(account: AztecAddress, fee = this.signer.fee): AnsContext {
-    return new AnsContext(this.reader, { ...this.signer, account, fee });
+  as(account: AztecAddress, fee = this.signer.fee): FogContext {
+    return new FogContext(this.reader, { ...this.signer, account, fee });
   }
 
   extendedContract() {
     if (this.reader.classId === registryProtocols.v8.classId) return NameRegistryV8Contract.at(this.reader.registry, this.wallet);
     if (this.reader.classId === registryProtocols.v8Rehearsal.classId) return NameRegistryV8RehearsalContract.at(this.reader.registry, this.wallet);
     if (!this.reader.extended)
-      throw new AnsError('invalid_argument', 'this feature requires registry V4');
+      throw new FogError('invalid_argument', 'this feature requires registry V4');
     if (this.reader.classId === registryProtocols.v7.classId)
       return NameRegistryV7Contract.at(this.reader.registry, this.wallet);
     if (this.reader.classId === registryProtocols.v6.classId)
@@ -134,7 +134,7 @@ export class AnsContext {
     const config = await this.reader.getConfig();
     const address = config.registrar!;
     if (expected && address.toString() !== expected)
-      throw new AnsError('fee_changed', 'registrar changed; prepare a new registration plan');
+      throw new FogError('fee_changed', 'registrar changed; prepare a new registration plan');
     if (config.launch) {
       await this.registerArtifact(address, NameRegistrarLaunchContract.artifact);
       return { kind: 'registrarLaunch', contract: NameRegistrarLaunchContract.at(address, this.wallet) };
@@ -156,7 +156,7 @@ export class AnsContext {
 
   private async registerArtifact(address: AztecAddress, artifact: ContractArtifact) {
     const instance = await this.reader.node.getContract(address);
-    if (!instance) throw new AnsError('wrong_deployment', `no contract at ${address}`);
+    if (!instance) throw new FogError('wrong_deployment', `no contract at ${address}`);
     await this.wallet.registerContract(instance, artifact);
   }
 
@@ -166,7 +166,7 @@ export class AnsContext {
     await this.assertWalletNetwork();
     const instance = await this.reader.node.getContract(address);
     if (instance?.currentContractClassId.toString() !== FEE_TOKEN_CLASS_ID)
-      throw new AnsError('unsupported', 'fee asset is not the supported standard Token');
+      throw new FogError('unsupported', 'fee asset is not the supported standard Token');
     const { TokenContractArtifact } = await import('@aztec-labs/noir-contracts.js/Token');
     await this.wallet.registerContract(instance, TokenContractArtifact);
   }
@@ -183,15 +183,15 @@ export class AnsContext {
       : registryProtocols.legacy.classId;
     const artifact = registryArtifacts.get(classId);
     if (!artifact)
-      throw new AnsError('wrong_deployment', 'registry class has no supported wallet artifact');
+      throw new FogError('wrong_deployment', 'registry class has no supported wallet artifact');
     if (isV8Class(classId)) {
       const state = await this.reader.getCoreUpgradeState();
       assertUpgradeInclusionMargin(state);
-      if (state.currentClass !== classId) throw new AnsError('wrong_deployment', 'core class changed during artifact selection; retry before sending');
+      if (state.currentClass !== classId) throw new FogError('wrong_deployment', 'core class changed during artifact selection; retry before sending');
       const instance = await this.reader.node.getContract(this.reader.registry, BlockNumber(state.snapshot.blockNumber));
-      if (!instance || instance.currentContractClassId.toString() !== classId) throw new AnsError('wrong_deployment', 'core artifact and snapshot differ');
+      if (!instance || instance.currentContractClassId.toString() !== classId) throw new FogError('wrong_deployment', 'core artifact and snapshot differ');
       await this.wallet.registerContract(instance, artifact);
-      if (!await this.reader.isCanonical(state.snapshot)) throw new AnsError('wrong_deployment', 'artifact snapshot reorged');
+      if (!await this.reader.isCanonical(state.snapshot)) throw new FogError('wrong_deployment', 'artifact snapshot reorged');
     } else await this.registerArtifact(this.reader.registry, artifact);
     if (this.reader.modular) {
       const snap = await this.reader.snapshot();

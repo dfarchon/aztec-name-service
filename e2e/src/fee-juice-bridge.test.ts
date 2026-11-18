@@ -19,7 +19,7 @@ const args = [
   '--network',
   'local',
   '--state-dir',
-  '/tmp/ans-bridge-unit',
+  '/tmp/fog-bridge-unit',
   '--l1-rpc-url',
   'http://127.0.0.1:8545',
   '--amount',
@@ -37,7 +37,7 @@ test('bridge rejects mainnet, credentials, queries, fragments and non-loopback l
   assert.throws(() => parseBridgeArgs([...args, '--amount', '2']), /duplicate/);
 });
 test('bridge rejects loose key permissions, symlinks and outside-directory keys', async (t) => {
-  const dir = await mkdtemp(join(tmpdir(), 'ans-bridge-file-'));
+  const dir = await mkdtemp(join(tmpdir(), 'fog-bridge-file-'));
   t.after(() => rm(dir, { recursive: true, force: true }));
   const key = join(dir, 'dummy.json');
   await writeFile(key, '{}', { mode: 0o600 });
@@ -52,7 +52,7 @@ test('bridge rejects loose key permissions, symlinks and outside-directory keys'
   await assert.rejects(assertKeyFile(join(dir, 'other'), key), /inside state directory/);
 });
 test('explicit L1 key can fund a separate testnet user state but must stay private', async (t) => {
-  const dir = await mkdtemp(join(tmpdir(), 'ans-bridge-external-key-'));
+  const dir = await mkdtemp(join(tmpdir(), 'fog-bridge-external-key-'));
   t.after(() => rm(dir, { recursive: true, force: true }));
   const userDir = join(dir, 'user'), ownerDir = join(dir, 'owner');
   await mkdir(userDir, { mode: 0o700 }); await mkdir(ownerDir, { mode: 0o700 });
@@ -73,7 +73,7 @@ test('explicit L1 key can fund a separate testnet user state but must stay priva
   await assert.rejects(assertKeyFile(userDir, join(ownerDir, 'link'), true), /regular/);
 });
 test('external key rejects mutable/symlink ancestors and reads only its validated descriptor after replacement', async t => {
-  const root = await mkdtemp(join(tmpdir(), 'ans-key-ancestors-'));
+  const root = await mkdtemp(join(tmpdir(), 'fog-key-ancestors-'));
   t.after(() => rm(root, { recursive: true, force: true }));
   const ancestor = join(root, 'ancestor'), parent = join(ancestor, 'private');
   await mkdir(parent, { recursive: true, mode: 0o700 });
@@ -96,7 +96,7 @@ test('external key rejects mutable/symlink ancestors and reads only its validate
   } finally { await file.close(); }
 });
 test('explicit recipient requires private bridge state before key access or network calls', async t => {
-  const root = await mkdtemp(join(tmpdir(), 'ans-bridge-state-'));
+  const root = await mkdtemp(join(tmpdir(), 'fog-bridge-state-'));
   t.after(() => rm(root, { recursive: true, force: true }));
   await assertBridgeStateDirectory(root, true);
   for (const mode of [0o755, 0o777]) {
@@ -107,7 +107,7 @@ test('explicit recipient requires private bridge state before key access or netw
   }
 });
 test('bridge atomic save ignores planted temporary symlinks and replaces final symlinks without following', async t => {
-  const root = await mkdtemp(join(tmpdir(), 'ans-bridge-atomic-'));
+  const root = await mkdtemp(join(tmpdir(), 'fog-bridge-atomic-'));
   t.after(() => rm(root, { recursive: true, force: true }));
   const target = join(root, 'public-sentinel.txt'), path = join(root, 'synthetic-checkpoint.json');
   await writeFile(target, 'unchanged');
@@ -122,7 +122,7 @@ test('bridge atomic save ignores planted temporary symlinks and replaces final s
   assert.deepEqual((await readdir(root)).sort(), ['public-sentinel.txt', 'synthetic-checkpoint.json', 'synthetic-checkpoint.json.tmp']);
 });
 test('explicit recipient exception refuses both deployer markers by existence only, including dangling symlinks', async t => {
-  const root = await mkdtemp(join(tmpdir(), 'ans-bridge-markers-'));
+  const root = await mkdtemp(join(tmpdir(), 'fog-bridge-markers-'));
   t.after(() => rm(root, { recursive: true, force: true }));
   for (const marker of ['keys.json', 'state.json']) {
     const path = join(root, marker);
@@ -139,7 +139,7 @@ test('explicit recipient exception refuses both deployer markers by existence on
   await assertBridgeStateDirectory(root, true);
 });
 test('bridge persists private claim before first fake send and checkpoints hash before forwarding', async (t) => {
-  const dir = await mkdtemp(join(tmpdir(), 'ans-bridge-order-'));
+  const dir = await mkdtemp(join(tmpdir(), 'fog-bridge-order-'));
   t.after(() => rm(dir, { recursive: true, force: true }));
   const path = join(dir, 'bridge.json');
   const state = await createBridgeCheckpoint(path, {
@@ -183,7 +183,7 @@ test('pending or reverted L1 hash cannot trigger a resend', async () => {
   assert.equal((await pendingReceipt(hash, async () => ({ status: 'success' }))).status, 'success');
 });
 test('offline L1 init stdout contains only public address and refuses overwrite', async (t) => {
-  const dir = await mkdtemp(join(tmpdir(), 'ans-bridge-init-'));
+  const dir = await mkdtemp(join(tmpdir(), 'fog-bridge-init-'));
   t.after(() => rm(dir, { recursive: true, force: true }));
   const cmd = [
     '--import',

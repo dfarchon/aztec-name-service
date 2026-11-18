@@ -8,7 +8,7 @@ import type { RegistryReader } from "../client/reader.js";
 import { nodeFromPacked } from "../core/hash.js";
 import { unpackLabel } from "../core/label.js";
 import { nameStatus, type NameStatus } from "../core/lifecycle.js";
-import { AnsError } from "../core/errors.js";
+import { FogError } from "../core/errors.js";
 
 export type RegistryEventName = keyof typeof NameRegistryContract.events;
 export async function fetchEvents<T>(
@@ -66,7 +66,7 @@ export async function listOwnedNames(
       c.chainId !== String(reader.deployment.chainId) ||
       c.rollupVersion !== String(reader.deployment.rollupVersion))
   ) {
-    throw new AnsError(
+    throw new FogError(
       "wrong_deployment",
       "name cursor belongs to another account or deployment",
     );
@@ -78,7 +78,7 @@ export async function listOwnedNames(
   if (c) {
     const block = await reader.node.getBlockData(BlockNumber(c.block));
     if (!block || block.blockHash.toString() !== c.hash)
-      throw new AnsError("conflict", "chain changed; restart name discovery");
+      throw new FogError("conflict", "chain changed; restart name discovery");
     snap.timestamp = BigInt(block.header.globalVariables.timestamp);
   }
   const candidates = new Map<bigint, string>();
@@ -98,7 +98,7 @@ export async function listOwnedNames(
       );
       const node = reader.extended ? BigInt(event.node) : await nodeFromPacked(label.packed, label.len);
       if (node !== BigInt(event.node))
-        throw new AnsError(
+        throw new FogError(
           "corrupt_data",
           "registration label does not match node",
         );
@@ -124,7 +124,7 @@ export async function listOwnedNames(
     }
   }
   if (!(await reader.isCanonical(snap)))
-    throw new AnsError("conflict", "chain changed; restart name discovery");
+    throw new FogError("conflict", "chain changed; restart name discovery");
   return {
     names,
     status: after ? ("partial" as const) : ("complete" as const),
@@ -155,20 +155,20 @@ export type SubnamesCursor = {
 
 /** Discover direct children without reading unrelated registrations. Continuations retain the same snapshot. */
 export async function listSubnames(reader: RegistryReader, parent: bigint, opts: { cursor?: SubnamesCursor; maxPages?: number } = {}) {
-  if (!reader.extended) throw new AnsError('invalid_argument', 'subnames require registry V4');
+  if (!reader.extended) throw new FogError('invalid_argument', 'subnames require registry V4');
   const maxPages = opts.maxPages ?? 4;
   if (!Number.isSafeInteger(maxPages) || maxPages < 1)
-    throw new AnsError('invalid_argument', 'maxPages must be a positive integer');
+    throw new FogError('invalid_argument', 'maxPages must be a positive integer');
   const c = opts.cursor;
   if (c && (c.parent !== String(parent) || c.registry !== reader.registry.toString() ||
     c.chainId !== String(reader.deployment.chainId) || c.rollupVersion !== String(reader.deployment.rollupVersion)))
-    throw new AnsError('wrong_deployment', 'subname cursor belongs to another parent or deployment');
+    throw new FogError('wrong_deployment', 'subname cursor belongs to another parent or deployment');
   const latest = await reader.snapshot();
   const snapshot = c ? { ...latest, blockNumber: c.block, blockHash: c.hash } : latest;
   if (c) {
     const block = await reader.node.getBlockData(BlockNumber(c.block));
     if (!block || block.blockHash.toString() !== c.hash)
-      throw new AnsError('conflict', 'chain changed; restart subname discovery');
+      throw new FogError('conflict', 'chain changed; restart subname discovery');
     snapshot.timestamp = BigInt(block.header.globalVariables.timestamp);
   }
   const candidates = new Set<bigint>();
@@ -191,7 +191,7 @@ export async function listSubnames(reader: RegistryReader, parent: bigint, opts:
     const record = await reader.getName(node, snapshot);
     names.push({ name: await reader.getPublishedName(node, snapshot), node, generation: record.generation, expiresAt: record.expiresAt, status: nameStatus(record, snapshot.timestamp) });
   }
-  if (!await reader.isCanonical(snapshot)) throw new AnsError('conflict', 'chain changed; reload subnames');
+  if (!await reader.isCanonical(snapshot)) throw new FogError('conflict', 'chain changed; reload subnames');
   return { names, complete: !after, snapshot, cursor: after ? {
     parent: String(parent), registry: reader.registry.toString(),
     chainId: String(reader.deployment.chainId), rollupVersion: String(reader.deployment.rollupVersion),

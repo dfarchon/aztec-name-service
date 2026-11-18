@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import type { RegistryReader, RegistryConfig } from '@ans/sdk/read';
+import type { RegistryReader, RegistryConfig } from '@fog/sdk/read';
 import { articles, articleToMarkdown, groups, sectionsFor, summaries, type Article, type DocBlock } from '../docs-content';
 import { Card, CopyValue } from '../components';
 import { FeeAmount } from '../fees';
@@ -97,14 +97,14 @@ export function DocsPage({ article, help=false }: { article?: string; help?: boo
  const selected = articles.find(a=>a.id===article), needle=query.trim().toLowerCase();
  const visible = articles.filter(a=>(!help || a.group==='help') && searchIndex.get(a.id)!.includes(needle));
  useEffect(() => { setQuery(''); if(mobileNavigation.current) mobileNavigation.current.open=false; window.scrollTo(0,0); }, [article,help]);
- const navigation = <><a className="doc-home-link" href="#/docs">ANS documentation</a><label className="doc-search"><span>{t('Search documentation')}</span><input type="search" value={query} onChange={e=>setQuery(e.target.value)} placeholder="Search articles…" /></label><nav className="doc-sidebar-nav" aria-label={t('Documentation navigation')}>{groups.map(group=>{
+ const navigation = <><a className="doc-home-link" href="#/docs">Fog documentation</a><label className="doc-search"><span>{t('Search documentation')}</span><input type="search" value={query} onChange={e=>setQuery(e.target.value)} placeholder="Search articles…" /></label><nav className="doc-sidebar-nav" aria-label={t('Documentation navigation')}>{groups.map(group=>{
   const entries=visible.filter(a=>a.group===group.id);
   return entries.length ? <div className="doc-nav-group" key={group.id}><h2>{group.title}</h2>{entries.map(a=><a href={`#/docs/${a.id}`} aria-current={selected?.id===a.id?'page':undefined} className={selected?.id===a.id?'active':''} key={a.id}>{a.title}</a>)}</div> : null;
  })}</nav>{!visible.length && <p className="muted" role="status">{t('No matching articles.')}</p>}<a className="doc-sidebar-status" href="#/status">{t('View service status')} ↗</a></>;
  return <div className={`documentation ${selected?'has-article':''}`}>
   <aside className="doc-sidebar">{navigation}</aside><details className="doc-mobile-navigation" ref={mobileNavigation}><summary>Browse documentation</summary>{navigation}</details>
   {selected ? <ArticleView key={selected.id} article={selected} /> : <div className="doc-index">
-   <header className="doc-index-header"><span className="doc-kicker">{help?'Help and recovery': 'AZTEC NAME SERVICE'}</span><h1>{article?'Article not found':help?'Get back on track.':'Your name. Your next step.'}</h1><p className="doc-lead">{article?'Choose a guide below or search the documentation.':help?'Find the right receipt, wallet or recovery step.':'Guides for your first name and everything you build with it.'}</p></header>
+   <header className="doc-index-header"><span className="doc-kicker">{help?'Help and recovery': 'FOG NAMES'}</span><h1>{article?'Article not found':help?'Get back on track.':'Your name. Your next step.'}</h1><p className="doc-lead">{article?'Choose a guide below or search the documentation.':help?'Find the right receipt, wallet or recovery step.':'Guides for your first name and everything you build with it.'}</p></header>
    {!help && !needle && <div className="doc-entry-grid">{['getting-started','sdk','pricing'].map((id,i)=><a className="doc-entry" href={`#/docs/${id}`} key={id}><span className="doc-entry-number">0{i+1}</span><strong>{articles.find(a=>a.id===id)!.title}</strong><span>{summaries[id]}</span><span className="doc-entry-arrow" aria-hidden="true">↗</span></a>)}</div>}
    {groups.map(group=>{const entries=visible.filter(a=>a.group===group.id);return entries.length ? <section className="doc-category" key={group.id}><header><h2>{group.title}</h2><p>{group.description}</p></header><div className="doc-category-links">{entries.map(a=><a href={`#/docs/${a.id}`} key={a.id}><span><strong>{a.title}</strong><small>{summaries[a.id]}</small></span><span aria-hidden="true">→</span></a>)}</div></section> : null;})}
    {!visible.length && <p role="status">{t('No matching articles.')}</p>}

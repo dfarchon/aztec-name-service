@@ -6,12 +6,12 @@ import { exerciseExtensions } from './extensions.js';
 import { writeFile } from 'node:fs/promises';
 import pricing from '../../deployments/aztec-pricing.json' with { type: 'json' };
 import {
-  AnsContext, RegistryReader, NameRegistryContract, NameRegistryV5Contract, NameRegistrarContract, NameResolverContract,
+  FogContext, RegistryReader, NameRegistryContract, NameRegistryV5Contract, NameRegistrarContract, NameResolverContract,
   getAvailability, prepareRegistration, submitCommit, submitRegistration, checkRegistration, setAddress, setPrimary,
   resolveAddress, resolvePrimary, listOwnedNames, buildFeeAuthorization, renew, setResolver, migrateName,
   type RegistrationPlan,
   createRegistrationFlow, getFeeReadiness, configureModules, setAdministrator,
-} from '@ans/sdk';
+} from '@fog/sdk';
 import { getInitialTestAccountsData } from '@aztec-labs/accounts/testing';
 import { AztecAddress } from '@aztec-labs/aztec.js/addresses';
 import { Fr } from '@aztec-labs/aztec.js/fields';
@@ -21,7 +21,7 @@ import { TokenContract, TokenContractArtifact } from '@aztec-labs/noir-contracts
 import { newWallet, randomKeys, sponsoredFpc } from './common.js';
 
 const url = process.env.NODE_URL ?? 'http://127.0.0.1:8082';
-const adminUrl = process.env.ANS_DEBUG_URL ?? url;
+const adminUrl = process.env.FOG_DEBUG_URL ?? url;
 if (!['localhost','127.0.0.1'].includes(new URL(url).hostname) || !['localhost','127.0.0.1'].includes(new URL(adminUrl).hostname)) throw new Error('This rehearsal is local-only');
 const node = createAztecNodeClient(url);
 const info = await node.getNodeInfo();
@@ -38,17 +38,17 @@ try {
   const admin=(await wallet.createSchnorrInitializerlessAccount(keys.secret,keys.salt,keys.signingKey)).address;
   const newAccount=async()=>{const k=randomKeys();return (await wallet.createSchnorrInitializerlessAccount(k.secret,k.salt,k.signingKey)).address;};
   const alice=await newAccount(),bob=await newAccount(),treasury=await newAccount();
-  const {contract:token}=await TokenContract.deploy(wallet,admin,'ANS Fee','ANSF',6).send({from:admin,fee});
+  const {contract:token}=await TokenContract.deploy(wallet,admin,'Fog Fee','FOGF',6).send({from:admin,fee});
   await token.methods.mint_to_private(alice,PRICE*30n).send({from:admin,fee});
   const {contract:legacy}=await NameRegistryContract.deploy(wallet,token.address,treasury,PRICE,1).send({from:admin,fee});
   const legacyReader=await RegistryReader.connect(node,legacy.address);
-  const oldOwner=new AnsContext(legacyReader,{wallet,account:alice,fee});
+  const oldOwner=new FogContext(legacyReader,{wallet,account:alice,fee});
   const oldTarget=oldOwner.as(bob);
   const mature=async(reader:RegistryReader,plan:RegistrationPlan)=>{
     await debug.warpL2TimeAtLeastBy(70);
     assert.equal((await checkRegistration(reader,plan,0n)).state,'ready_to_register');
   };
-  const register=async(ctx:AnsContext,name:string)=>{
+  const register=async(ctx:FogContext,name:string)=>{
     let plan=await prepareRegistration(ctx,{name,duration:YEAR});
     ({plan}=await submitCommit(ctx,plan));await mature(ctx.reader,plan);await submitRegistration(ctx,plan);return plan;
   };
@@ -61,7 +61,7 @@ try {
   const {contract:resolver}=await NameResolverContract.deploy(wallet,core.address).send({from:admin,fee});
   await core.methods.bootstrap(registrar.address,resolver.address).send({from:admin,fee});
   let reader=await RegistryReader.connect(node,core.address);
-  let owner=new AnsContext(reader,{wallet,account:alice,fee}), target=owner.as(bob);
+  let owner=new FogContext(reader,{wallet,account:alice,fee}), target=owner.as(bob);
   await owner.ensureRegistered({feeToken:{address:token.address,artifact:TokenContractArtifact}});
   const balance=async(a:AztecAddress)=>BigInt((await token.methods.balance_of_private(a).simulate({from:a})).result as bigint);
   check('reader recognizes V5 and exact module fee policy',(await reader.getConfig()).registrar?.equals(registrar.address));
@@ -93,7 +93,7 @@ try {
   await rejected('module initialization cannot repeat',()=>core.methods.bootstrap(nextRegistrar.address,resolver.address).send({from:admin,fee}));
   await rejected('another account cannot initialize modules',()=>core.methods.bootstrap(nextRegistrar.address,resolver.address).send({from:alice,fee}));
   const retiredPlan=await prepareRegistration(owner,{name:'obsolete-policy',duration:YEAR});
-  const administrator = new AnsContext(reader,{wallet,account:admin,fee});
+  const administrator = new FogContext(reader,{wallet,account:admin,fee});
   await rejected('another account cannot configure modules directly',()=>core.methods.configure_modules(1,nextRegistrar.address,resolver.address).send({from:alice,fee}));
   await configureModules(administrator,{registrar:nextRegistrar.address,resolver:resolver.address});
   const pricedCore=core,pricedRegistrar=nextRegistrar,pricedResolver=resolver;
@@ -103,14 +103,14 @@ try {
   await rejected('old plan cannot ask for another payment',()=>submitRegistration(owner,retiredPlan));
   const nextPolicy=await reader.getConfig();
   check('live reader refreshes the token and 18-decimal price instead of returning cached fees',nextPolicy.annualPrice===aztecPrice&&nextPolicy.feeToken.equals(pricingToken.address)&&nextPolicy.priceVersion===2);
-  const paymentQuote=await import('@ans/sdk').then(sdk=>sdk.getFeeQuote(reader,{operation:'register',duration:YEAR}));
+  const paymentQuote=await import('@fog/sdk').then(sdk=>sdk.getFeeQuote(reader,{operation:'register',duration:YEAR}));
   const readiness=await getFeeReadiness(owner,paymentQuote);
   check('SDK preflight automatically registers the switched asset and reads its private balance',readiness.ready&&readiness.token?.decimals===18&&readiness.token?.symbol==='mAZTEC');
   const held=await getAvailability(reader,'modular-name');
   const renewalBalance=await pricingBalance(alice),renewalTreasury=await pricingBalance(treasury),legacyTokenBalance=await balance(alice);
   await renew(owner,{name:'modular-name',duration:YEAR});
   check('AZTEC-denominated mock renewal debits and credits exactly 10^18 units',renewalBalance-await pricingBalance(alice)===aztecPrice&&await pricingBalance(treasury)-renewalTreasury===aztecPrice);
-  check('renewal after the fee switch does not debit the old ANSF token',await balance(alice)===legacyTokenBalance);
+  check('renewal after the fee switch does not debit the old FOGF token',await balance(alice)===legacyTokenBalance);
   const registrationBalance=await pricingBalance(alice),registrationTreasury=await pricingBalance(treasury);
   const savedPlans=new Map<string,RegistrationPlan>();
   const flow=createRegistrationFlow(owner,{load:async key=>savedPlans.get(key),save:async(key,plan)=>{savedPlans.set(key,{...plan});}});
@@ -152,7 +152,7 @@ try {
     }
     await debug.warpL2TimeAtLeastBy(seconds);
   };
-  if (process.env.ANS_EXTENSIONS === '1') await exerciseExtensions(owner,target,warpAfterFinality,check);
+  if (process.env.FOG_EXTENSIONS === '1') await exerciseExtensions(owner,target,warpAfterFinality,check);
   await exerciseLaunchFlow(node,debug,wallet,admin,alice,bob,treasury,fee,check);
   await exerciseV7Flow(node,debug,wallet,admin,alice,bob,fee,warpAfterFinality,check);
   await setAdministrator(administrator,bob);
@@ -161,6 +161,6 @@ try {
   await configureModules(nextAdministrator,{registrar:pricedRegistrar.address,resolver:pricedResolver.address});
   check('administrator handoff is immediate and reads back',(await reader.getAdministrator())?.equals(bob));
   const report={completedAt:new Date().toISOString(),nodeUrl:url,realProofs:false,registry:pricedCore.address.toString(),legacy:legacy.address.toString(),registrar:pricedRegistrar.address.toString(),resolver:pricedResolver.address.toString(),holderResolver:nextResolver.address.toString(),feeToken:pricingToken.address.toString(),previousFeeToken:token.address.toString(),configurationMode:"administrator",administrator:bob.toString(),pricingTest:{mock:true,symbol:'mAZTEC',decimals:pricing.decimals,annualPrice:String(aztecPrice)},sponsoredFpc:fpc.instance.address.toString(),checks};
-  await writeFile(process.env.ANS_EXTENSIONS === '1' ? '/tmp/ans-v5-local-report.json' : '/tmp/ans-modular-local-report.json',JSON.stringify(report,null,2)+'\n');
+  await writeFile(process.env.FOG_EXTENSIONS === '1' ? '/tmp/fog-v5-local-report.json' : '/tmp/fog-modular-local-report.json',JSON.stringify(report,null,2)+'\n');
   console.log(`ALL ${checks.length} MODULAR LOCAL CHECKS PASSED`);
 } finally {await wallet.stop();}

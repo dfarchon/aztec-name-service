@@ -3,12 +3,12 @@ import type { Wallet } from '@aztec-labs/aztec.js/wallet';
 import type { ContractArtifact } from '@aztec-labs/aztec.js/abi';
 import type { ContractInstanceWithAddress } from '@aztec-labs/stdlib/contract';
 import type { RegistryReader } from '../client/reader.js';
-import { AnsError } from '../core/errors.js';
-import { AnsContext } from './context.js';
+import { FogError } from '../core/errors.js';
+import { FogContext } from './context.js';
 import { assertWalletNetwork } from './network.js';
 
 /** Connect an authorized account, checking deployment and sponsor before any signing. */
-export async function connectAns(
+export async function connectFog(
   reader: RegistryReader,
   options: {
     wallet: Wallet;
@@ -23,10 +23,10 @@ export async function connectAns(
     String(reader.deployment.chainId) !== expected.chainId ||
     String(reader.deployment.rollupVersion) !== expected.rollupVersion
   )
-    throw new AnsError('wrong_deployment', 'unexpected registry or network identity');
+    throw new FogError('wrong_deployment', 'unexpected registry or network identity');
   await assertWalletNetwork(options.wallet, reader.deployment);
   if (!(await options.wallet.getAccounts()).some((account) => account.item.equals(options.account)))
-    throw new AnsError('invalid_argument', 'account is not authorized by this wallet');
+    throw new FogError('invalid_argument', 'account is not authorized by this wallet');
   let fee;
   let sponsor: { instance: ContractInstanceWithAddress; artifact: ContractArtifact } | undefined;
   if (options.sponsoredFpc) {
@@ -38,11 +38,11 @@ export async function connectAns(
       getContractClassFromArtifact(SponsoredFPCContractArtifact),
     ]);
     if (!instance?.currentContractClassId.equals(artifactClass.id))
-      throw new AnsError('wrong_deployment', 'sponsor contract class does not match this SDK');
+      throw new FogError('wrong_deployment', 'sponsor contract class does not match this SDK');
     fee = { paymentMethod: new SponsoredFeePaymentMethod(options.sponsoredFpc) };
     sponsor = { instance, artifact: SponsoredFPCContractArtifact };
   }
-  const ctx = new AnsContext(reader, { wallet: options.wallet, account: options.account, fee });
+  const ctx = new FogContext(reader, { wallet: options.wallet, account: options.account, fee });
   await ctx.queue.run(async () => {
     await ctx.assertWalletNetwork();
     if (sponsor) await ctx.wallet.registerContract(sponsor.instance, sponsor.artifact);

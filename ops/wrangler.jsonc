@@ -1,6 +1,6 @@
 {
   "$schema": "../node_modules/wrangler/config-schema.json",
-  "name": "ans-testnet",
+  "name": "fog-testnet",
   "main": "src/worker.ts",
   "compatibility_date": "2026-10-08",
   "workers_dev": true,
@@ -15,8 +15,8 @@
   "d1_databases": [
     {
       "binding": "DB",
-      "database_name": "ans-testnet-monitor",
-      "database_id": "a6f1e2a2-7bd0-4c18-85fa-74d74c7b7e15"
+      "database_name": "fog-testnet-monitor",
+      "database_id": "3948d0b4-bcde-42be-901f-519370c48612"
     }
   ],
   "ratelimits": [
@@ -36,7 +36,7 @@
     "RPC_URL": "https://aztec-testnet.drpc.org",
     "REGISTRY": "0x2d4dcccfab0afa50d15d4ec3fd7c3ef4beac112a0379bb51102ffd8a18969bd7",
     "SPONSORED_FPC": "0x2d8fff82a3b0c15d0a89169e7d8d043e079ab94d52031f1de1e4972ebad169d3",
-    "SITE_URL": "https://ans-testnet.huantian233.workers.dev",
+    "SITE_URL": "https://fog-testnet.huantian233.workers.dev",
     "CHAIN_ID": "11155111",
     "ROLLUP_VERSION": "679261766",
     "ROLLUP": "0x1f435a7f2da358caf887a470faeee7d5d5f4efba",
@@ -46,7 +46,7 @@
   "services": [
     {
       "binding": "MONITOR",
-      "service": "ans-testnet-monitor"
+      "service": "fog-testnet-monitor"
     }
   ]
 }

@@ -1,11 +1,11 @@
 import { feeJuiceError } from "./fee-juice-error.js";
 import { dateLocale, translate } from "./i18n.js";
 import {
-  type AnsError,
+  type FogError,
   type NameStatus,
-  toAnsError,
+  toFogError,
   type TxState,
-} from "@ans/sdk/read";
+} from "@fog/sdk/read";
 import type { AztecAddress } from "@aztec-labs/aztec.js/addresses";
 
 export const shortAddr = (a: AztecAddress | string) => {
@@ -48,7 +48,7 @@ export const txStateText: Record<TxState, string> = {
   unknown: "Status unknown. Check again shortly.",
 };
 
-const errorText: Partial<Record<AnsError["code"], string>> = {
+const errorText: Partial<Record<FogError["code"], string>> = {
   invalid_name: "Invalid name format",
   network: "Unable to read the network. Try again.",
   not_administrator: "This account cannot configure the registry.",
@@ -80,9 +80,9 @@ export function errorMessage(e: unknown): string {
   if (feeError) return translate("Insufficient Fee Juice for {account}. Balance: {balance} wei. Bridge Fee Juice from L1; it is not the registration token.", { account: feeError.account, balance: String(feeError.balance) });
   if (e instanceof Error && /^(Cannot (read|save)|Wallet account changed|Another tab)/.test(e.message))
     return e.message;
-  const err = toAnsError(e);
+  const err = toFogError(e);
   // Wallet setup and client exceptions are not evidence that a transaction executed or charged a fee.
-  if (err.code === "reverted" && (!(e instanceof Error) || e.name !== "AnsError"))
+  if (err.code === "reverted" && (!(e instanceof Error) || e.name !== "FogError"))
     return "The action did not complete. If you have a transaction hash, check its status before retrying.";
   return errorText[err.code] ?? err.message;
 }

@@ -1,4 +1,4 @@
-export type AnsErrorCode =
+export type FogErrorCode =
   | "invalid_name"
   | "invalid_argument"
   | "wrong_deployment"
@@ -27,21 +27,21 @@ export type AnsErrorCode =
   | "corrupt_data";
 
 /** Every SDK failure carries a stable code; UIs branch on the code, never on message text. */
-export class AnsError extends Error {
+export class FogError extends Error {
   constructor(
-    public readonly code: AnsErrorCode,
+    public readonly code: FogErrorCode,
     message: string,
     public readonly cause?: unknown,
     /** Set when a transaction was already sent: callers resume tracking it instead of resending. */
     public readonly txHash?: string,
   ) {
     super(message);
-    this.name = "AnsError";
+    this.name = "FogError";
   }
 }
 
 /** Contract assertion messages (see main.nr / logic.nr) and the code each one maps to. */
-const CONTRACT_MESSAGES: [string, AnsErrorCode][] = [
+const CONTRACT_MESSAGES: [string, FogErrorCode][] = [
   ["generation or revision mismatch", "conflict"],
   ["not record editor", "not_holder"],
   ["parent not active", "not_active"],
@@ -119,16 +119,16 @@ const REJECT_PATTERNS = [
   /cancelled by user/i,
 ];
 
-/** Maps any thrown value (contract revert, transport failure, wallet rejection) to an AnsError. */
-export function toAnsError(e: unknown): AnsError {
-  if (e instanceof AnsError) return e;
+/** Maps any thrown value (contract revert, transport failure, wallet rejection) to an FogError. */
+export function toFogError(e: unknown): FogError {
+  if (e instanceof FogError) return e;
   const message = e instanceof Error ? e.message : String(e);
   for (const [needle, code] of CONTRACT_MESSAGES) {
-    if (message.includes(needle)) return new AnsError(code, needle, e);
+    if (message.includes(needle)) return new FogError(code, needle, e);
   }
   if (REJECT_PATTERNS.some((p) => p.test(message)))
-    return new AnsError("wallet_rejected", "rejected in wallet", e);
+    return new FogError("wallet_rejected", "rejected in wallet", e);
   if (isTransportFailure(e))
-    return new AnsError("network", "node unreachable", e);
-  return new AnsError("reverted", message.split("\n")[0].slice(0, 200), e);
+    return new FogError("network", "node unreachable", e);
+  return new FogError("reverted", message.split("\n")[0].slice(0, 200), e);
 }

@@ -1,9 +1,9 @@
 import assert from 'node:assert/strict';
 import { AztecAddress } from '@aztec-labs/aztec.js/addresses';
-import { acceptTransfer, getAvailability, inspectHolding, issueSubname, listOwnedNames, normalizeName, offerTransfer, resolveAddress, resolveChainAddress, resolvePrimary, revokeSubname, renew, setAddress, setChainAddress, setManager, setPrimary, setTextRecord, type AnsContext } from '@ans/sdk';
+import { acceptTransfer, getAvailability, inspectHolding, issueSubname, listOwnedNames, normalizeName, offerTransfer, resolveAddress, resolveChainAddress, resolvePrimary, revokeSubname, renew, setAddress, setChainAddress, setManager, setPrimary, setTextRecord, type FogContext } from '@fog/sdk';
 
 /** Real local-chain calls, including direct contract attempts that bypass SDK authorization checks. */
-export async function exerciseExtensions(owner: AnsContext, recipient: AnsContext, warp: (seconds: number) => Promise<unknown>, check: (name: string, value: unknown) => void, registryLabel = 'V5') {
+export async function exerciseExtensions(owner: FogContext, recipient: FogContext, warp: (seconds: number) => Promise<unknown>, check: (name: string, value: unknown) => void, registryLabel = 'V5') {
   const name = 'modular-name', reader = owner.reader, core = owner.extendedContract();
   const send = { from: recipient.account, fee: recipient.signer.fee };
   const reject = async (label: string, action: () => Promise<unknown>) => { await assert.rejects(action); check(label, true); };
@@ -16,16 +16,16 @@ export async function exerciseExtensions(owner: AnsContext, recipient: AnsContex
   await reject('SDK editor cannot issue a subname', () => issueSubname(recipient, { parent: name, label: 'forbidden', owner: recipient.account, expiresAt: h.record.expiresAt }));
   await reject('SDK editor cannot renew the owner lease', () => renew(recipient, { name, duration: 31536000n }));
   check('editor role reads back', (await reader.getManager(h.node,h.record.generation,await reader.snapshot())).equals(recipient.account));
-  await setTextRecord(recipient,{name,key:'description',value:'Hello, 世界'});
+  await setTextRecord(recipient,{name,key:'description',value:'Hello, café €'});
   await setChainAddress(recipient,{name,chain:'eip155:1',address:'0x1234567890123456789012345678901234567890'});
   check('multi-chain address resolves from fresh on-chain records',await resolveChainAddress(reader,name,'eip155:1')==='0x1234567890123456789012345678901234567890');
-  check('UTF-8 profile round trips',(await reader.getTextRecords(h.node,h.record.generation,await reader.snapshot())).description==='Hello, 世界');
+  check('UTF-8 profile round trips',(await reader.getTextRecords(h.node,h.record.generation,await reader.snapshot())).description==='Hello, café €');
   await setAddress(recipient,{name,address:recipient.account});await setPrimary(recipient,{name});
   check('editor can set forward address; recipient confirms primary',(await resolvePrimary(reader,recipient.account)).status==='verified');
   h=await inspectHolding(owner,name);
   await reject('editor cannot offer transfer directly',()=>core.methods.offer_transfer(h.node,h.record.generation,h.record.revision,owner.account).send(send));
   await reject('stale revision cannot overwrite records',()=>core.methods.set_manager(h.node,h.record.generation,h.record.revision-1,AztecAddress.ZERO).send({from:owner.account,fee:owner.signer.fee}));
-  await reject('record byte limit enforced by SDK',()=>setTextRecord(owner,{name,key:'description',value:'界'.repeat(83)}));
+  await reject('record byte limit enforced by SDK',()=>setTextRecord(owner,{name,key:'description',value:'€'.repeat(83)}));
   await setTextRecord(owner,{name,key:'description',value:''});
   check('cleared record is omitted',(await reader.getTextRecords(h.node,h.record.generation,await reader.snapshot())).description===undefined);
   const expiry=h.record.expiresAt-86400n;

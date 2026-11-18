@@ -23,7 +23,7 @@ export function within(root: string, path: string) {
 }
 export function assertPrivateDir(path: string, network: V6Network, home = homedir(), repo = REPO, feePayment: Config['feePayment'] = V6_PROFILES[network].feePayment) {
   if (within(repo, path)) throw new Error('State must remain outside the repository');
-  const base = join(home, '.local/share/ans');
+  const base = join(home, '.local/share/fog');
   for (const other of ['local', 'testnet', 'mainnet']) {
     const own = network === 'testnet-v6' ? 'testnet' : network;
     if (other !== own && within(join(base, `${other}-aztec6-6.0.0`), path)) throw new Error('Local, testnet and mainnet state directories must differ');
@@ -81,7 +81,7 @@ export function parseOptions(argv: string[], env: { home?: string; repo?: string
   const treasury = values.get('treasury')?.toLowerCase();
   if (treasury && (!/^0x[0-9a-f]{64}$/.test(treasury) || (token !== 'none' && BigInt(treasury) === 0n) || BigInt(treasury) >= 21888242871839275222246405745257275088548364400416034343698204186575808495617n)) throw new Error('A valid nonzero --treasury AztecAddress is required');
   const home = env.home ?? homedir(), repo = env.repo ?? REPO;
-  const stateDir = resolve(values.get('state-dir') ?? join(home, `.local/share/ans/${network === 'testnet-v6' ? 'testnet' : network}-aztec6-6.0.0`));
+  const stateDir = resolve(values.get('state-dir') ?? join(home, `.local/share/fog/${network === 'testnet-v6' ? 'testnet' : network}-aztec6-6.0.0`));
   assertPrivateDir(stateDir, network, home, repo, feePayment);
   if ((network === 'mainnet' || (network === 'testnet-v6' && feePayment === 'fee-juice')) && !values.has('manifest-out')) throw new Error('Manifest output must be explicit outside deployments');
   const manifestOut = resolve(values.get('manifest-out') ?? (network === 'local' ? join(stateDir, 'deployment-v6.json') : join(repo, 'deployments/testnet-v6.json')));
@@ -119,7 +119,7 @@ export function parseInitKeysArgs(argv: string[], env: { home?: string; repo?: s
   const network = values.get('--network');
   if (!values.has('--init-keys') || (network !== 'local' && network !== 'testnet-v6')) throw new Error('--network local|testnet-v6 is required');
   const home = env.home ?? homedir(), repo = env.repo ?? REPO;
-  const stateDir = resolve(values.get('--state-dir') ?? join(home, `.local/share/ans/${network === 'local' ? 'local' : 'testnet'}-aztec6-6.0.0`));
+  const stateDir = resolve(values.get('--state-dir') ?? join(home, `.local/share/fog/${network === 'local' ? 'local' : 'testnet'}-aztec6-6.0.0`));
   const assertPath = (path: string) => {
     assertPrivateDir(path, network, home, repo);
     if (within(path, repo)) throw new Error('State must not contain repository');
@@ -139,7 +139,7 @@ export function configHash(policy: Policy): string {
 }
 /** Whitelist projection: keys, salts and wallet data cannot enter public output. */
 export function buildManifest(c: Config, p: Policy, identity: { chainId: string; rollupVersion: string; rollup: string }, a: Record<string, string>, classIds: Record<string, string>, transactions: Record<string, string>, deployedAt: string): Manifest {
-  return { ...(p.registrar==='launch'?{minPublicLength:p.minPublicLength,initialPaused:p.initialPaused,maxRenewAhead:p.maxRenewAhead,reservedListHash:p.reservedListHash,reservedVerified:true}:{}), schema: 'ans-deployment-v6/1', network: c.network, aztecVersion: '6.0.0', protocol: c.registryVersion, ...(c.registryVersion===7?{registryVersion:7}:{}), nodeUrl: c.nodeUrl, ...identity, realProofs: V6_PROFILES[c.network].realProofs, ...(c.feePayment === 'fee-juice' ? { feePayment: 'fee-juice' as const, sponsoredFpc: null } : { sponsoredFpc: a.sponsoredFpc }), registry: a.registry, resolver: a.resolver, registrar: a.registrar, registrarKind: p.registrar, legacy: ZERO, feeToken: a.token, feeTokenSource: p.token, feeTokenClassId: classIds.token, feeSymbol: p.tokenSymbol, feeDecimals: p.decimals, treasury: p.treasury, annualPrice: p.annualPrice, lengthPrices: p.lengthPrices, priceVersion: p.priceVersion, classIds: { registry: classIds.registry, resolver: classIds.resolver, registrar: classIds.registrar, token: classIds.token }, owner: a.owner, transactions: Object.fromEntries(Object.entries(transactions).filter(([step])=>deploymentSteps(c).includes(step)||(c.registrar==='launch'&&/^seed-reserved-[0-9]+$/.test(step)))), generator: 'e2e/src/deploy-v6.ts', deployedAt };
+  return { ...(p.registrar==='launch'?{minPublicLength:p.minPublicLength,initialPaused:p.initialPaused,maxRenewAhead:p.maxRenewAhead,reservedListHash:p.reservedListHash,reservedVerified:true}:{}), schema: 'fog-deployment-v6/1', network: c.network, aztecVersion: '6.0.0', protocol: c.registryVersion, ...(c.registryVersion===7?{registryVersion:7}:{}), nodeUrl: c.nodeUrl, ...identity, realProofs: V6_PROFILES[c.network].realProofs, ...(c.feePayment === 'fee-juice' ? { feePayment: 'fee-juice' as const, sponsoredFpc: null } : { sponsoredFpc: a.sponsoredFpc }), registry: a.registry, resolver: a.resolver, registrar: a.registrar, registrarKind: p.registrar, legacy: ZERO, feeToken: a.token, feeTokenSource: p.token, feeTokenClassId: classIds.token, feeSymbol: p.tokenSymbol, feeDecimals: p.decimals, treasury: p.treasury, annualPrice: p.annualPrice, lengthPrices: p.lengthPrices, priceVersion: p.priceVersion, classIds: { registry: classIds.registry, resolver: classIds.resolver, registrar: classIds.registrar, token: classIds.token }, owner: a.owner, transactions: Object.fromEntries(Object.entries(transactions).filter(([step])=>deploymentSteps(c).includes(step)||(c.registrar==='launch'&&/^seed-reserved-[0-9]+$/.test(step)))), generator: 'e2e/src/deploy-v6.ts', deployedAt };
 }
 export function deploymentPlan(c: Config, p: Policy, identity: { chainId: string; rollupVersion: string; rollup: string }, addresses: Record<string, string>, classIds: Record<string, string>, addressNotice = 'No keys generated; owner/deployer and contract addresses are pending formal local key generation') {
   return { dryRun: true, network: c.network, registryVersion: c.registryVersion, nodeUrl: c.nodeUrl, identity, policy: p, confirm: c.network !== 'local' ? confirmation(c) : null, addressNotice, addresses: Object.fromEntries(['owner', 'treasury', 'token', 'registry', 'resolver', 'registrar', 'sponsoredFpc'].map(k => [k, addresses[k]])), classIds: Object.fromEntries(['registry', 'resolver', 'registrar', 'token'].map(k => [k, classIds[k]])), steps: ['preflight', ...deploymentSteps(c), 'readback', 'manifest'] };

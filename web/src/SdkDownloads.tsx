@@ -6,7 +6,7 @@ type Download = { url: string; sha256: string };
 type Manifest = { sdkVersion: string; sourceRelease: string; sdk: Download; starter: Download };
 function validDownload(d: Download) {
   return (
-    /^\/downloads\/sdk\/ans-(sdk|consumer)-[a-zA-Z0-9.-]+\.(tgz|zip)$/.test(d?.url) &&
+    /^\/downloads\/sdk\/fog-(sdk|consumer)-[a-zA-Z0-9.-]+\.(tgz|zip)$/.test(d?.url) &&
     /^[a-f0-9]{64}$/.test(d?.sha256)
   );
 }
@@ -74,7 +74,7 @@ export function SdkDownloads() {
             <a href="/downloads/sdk/manifest.json">{t('Deployment and package manifest')}</a>
           </details>
           <pre className="code-sample">
-            <code>{`unzip ${manifest.starter.url.split('/').pop()}\ncd ans-consumer\nnpm install\nnpm run check\nnpm run doctor\nnpm run read\nnpm run dev`}</code>
+            <code>{`unzip ${manifest.starter.url.split('/').pop()}\ncd fog-consumer\nnpm install\nnpm run check\nnpm run doctor\nnpm run read\nnpm run dev`}</code>
           </pre>
         </>
       ) : (

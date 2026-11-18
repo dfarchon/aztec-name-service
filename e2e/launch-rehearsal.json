@@ -1,5 +1,5 @@
 {
-  "schema": "ans-v7-launch-rehearsal/1",
+  "schema": "fog-v7-launch-rehearsal/1",
   "network": "testnet-v6",
   "registryVersion": 7,
   "registrarKind": "launch",

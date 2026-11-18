@@ -3,7 +3,7 @@ import test from 'node:test';
 import { AztecAddress } from '@aztec-labs/aztec.js/addresses';
 import { Fr } from '@aztec-labs/aztec.js/fields';
 import type { AztecNode } from '@aztec-labs/aztec.js/node';
-import { deserializePlan, serializePlan } from '@ans/sdk';
+import { deserializePlan, serializePlan } from '@fog/sdk';
 import config from '../launch-rehearsal.json' with { type: 'json' };
 import { rehearsalPlan, type RehearsalConfig } from './launch-rehearsal-plan.js';
 import { sendRehearsal, rehearsalSendDependencies } from './launch-rehearsal-send.js';
@@ -281,7 +281,7 @@ function fixture() {
     },
     seedUnsent: () => {
       saved = {
-        schema: 'ans-v7-rehearsal-checkpoint/1',
+        schema: 'fog-v7-rehearsal-checkpoint/1',
         binding: plan.configHash,
         owner: owner.toString(),
         recipient: recipient.toString(),

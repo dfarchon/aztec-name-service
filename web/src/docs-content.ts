@@ -39,8 +39,8 @@ export const articles: Article[] = [
     title: 'Register your first name',
     body: [
       'Search for a name, connect an Aztec wallet, and review the lease and exact fee. Root labels use 3–31 ASCII letters, digits or hyphens; no leading or trailing hyphen, no "--" and no "0x" prefix.',
-      `You need a desktop browser with an Aztec 6 wallet extension, such as Nulo for Chrome or Firefox (open source, not independently audited; mobile wallets are not supported yet). Install it from the official listing linked at nulo.sh, unlock it and switch its network to Aztec Testnet; Nulo starts on Aztec mainnet. When you connect, the wallet asks to let ANS read your account, sign payment authorizations and use the ANS contracts. Approve it; if a name uses its own resolver, or the Registrar changes, the wallet asks again for that contract only. If the wallet asks for network details, enter: node ${deployment.nodeUrl}, chain ID ${deployment.chainId} and rollup version ${deployment.rollupVersion}. The chain ID identifies Ethereum Sepolia, the public test network that Aztec Testnet settles on; the rollup version identifies the current Aztec Testnet release. Both must match exactly, otherwise ANS stops before any transaction so nothing is sent to the wrong network.`,
-      `Registration on this test deployment is free: the Registrar has no payment token, so there is nothing to buy, approve or hold. Public names need at least ${testMinLength} characters; shorter names show Not yet available and reserved names show Reserved. Network fees are paid by a shared sponsor contract, so you do not need Fee Juice either. See “Which token do I need?” for AZTEC, mAZTEC, ANSF and Fee Juice.`,
+      `You need a desktop browser with an Aztec 6 wallet extension, such as Nulo for Chrome or Firefox (open source, not independently audited; mobile wallets are not supported yet). Install it from the official listing linked at nulo.sh, unlock it and switch its network to Aztec Testnet; Nulo starts on Aztec mainnet. When you connect, the wallet asks to let Fog read your account, sign payment authorizations and use the Fog contracts. Approve it; if a name uses its own resolver, or the Registrar changes, the wallet asks again for that contract only. If the wallet asks for network details, enter: node ${deployment.nodeUrl}, chain ID ${deployment.chainId} and rollup version ${deployment.rollupVersion}. The chain ID identifies Ethereum Sepolia, the public test network that Aztec Testnet settles on; the rollup version identifies the current Aztec Testnet release. Both must match exactly, otherwise Fog stops before any transaction so nothing is sent to the wrong network.`,
+      `Registration on this test deployment is free: the Registrar has no payment token, so there is nothing to buy, approve or hold. Public names need at least ${testMinLength} characters; shorter names show Not yet available and reserved names show Reserved. Network fees are paid by a shared sponsor contract, so you do not need Fee Juice either. See “Which token do I need?” for AZTEC, mAZTEC, FOGF and Fee Juice.`,
       'Registration has two transactions: first a commit (a sealed fingerprint that hides which name you want, so nobody can grab it first), then the registration after about one minute. Keep the registration plan until the second transaction is confirmed. If interrupted, open Register again and resume the saved plan.',
       'After registration, open Manage, set an Aztec address, then connect that address’s wallet to confirm its primary name. Registration alone does not set a receiving address.',
     ],
@@ -51,7 +51,7 @@ export const articles: Article[] = [
     title: 'Pricing and payment assets',
     body: [
       `Registration and renewal will be priced in AZTEC. Shorter names cost more: the provisional annual rate is ${aztecPrice3} AZTEC for 3 characters, ${aztecPrice4} AZTEC for 4 characters and ${aztecAnnualPrice} AZTEC for 5 or more, for one to five whole years. Renewals use the same tier. This is the target policy; AZTEC collection is not active on this test deployment. Today the test deployment is free: no registration or renewal fee for any length, with one-year leases. The Register page always shows the exact on-chain quote.`,
-      'AZTEC is the official 18-decimal Ethereum token. Fee Juice is network fee credit obtained by depositing AZTEC; it cannot be transferred to a registration treasury. ANSF is an older project test token from earlier deployments. Receiving Fee Juice does not fund any registration payment; see “Which token do I need?”.',
+      'AZTEC is the official 18-decimal Ethereum token. Fee Juice is network fee credit obtained by depositing AZTEC; it cannot be transferred to a registration treasury. FOGF is an older project test token from earlier deployments. Receiving Fee Juice does not fund any registration payment; see “Which token do I need?”.',
       'The payment asset must be verified on the connected network before AZTEC collection can start. A website update or a token with the same symbol cannot change the active Registrar. The payment screen continues to show the current on-chain quote and token address.',
       `When the connected module is NameRegistrarLaunch, public registration uses a live minimum length (initial default 7), reserved-name list and pause switch. A launch lease and each renewal are exactly 365 days. Free means no registration-token transfer or authorization; Fee Juice or sponsorship still pays network fees. Short names show Not yet available, reserved names show Reserved, and a pause blocks only public registration. The current test deployment uses a free NameRegistrarLaunch with a public minimum of ${testMinLength} characters; this does not announce a mainnet deployment.`,
       'The administrator selects the active Registrar directly. A confirmed change takes effect immediately. Review the current token, treasury and exact quote before authorizing payment; prepare a new plan if its policy changed.',
@@ -63,8 +63,8 @@ export const articles: Article[] = [
     title: 'Which token do I need?',
     body: [
       'You need no token to register on this test deployment. Its Registrar is free: it has no payment token, so registration creates no token authorization and reads no private balance. A shared sponsor contract pays the network fees.',
-      'AZTEC is the official token and the planned pricing currency; it is not accepted here. mAZTEC is the 18-decimal test stand-in that the previous paid test deployment charged; it is no longer needed. ANSF is an older 6-decimal ANS test token from earlier deployments. Fee Juice is Aztec network fee credit; you do not need it because the sponsor pays network fees, and it can never pay a registration fee.',
-      `There is nothing to obtain: free registration needs no faucet, balance or request channel, so treat any site offering ANS test tokens for this deployment as unrelated. The testnet-v6 manifest records the payment token as ${deployment.feeToken} (none). Names registered on the previous paid test deployment are not carried over.`,
+      'AZTEC is the official token and the planned pricing currency; it is not accepted here. mAZTEC is the 18-decimal test stand-in that the previous paid test deployment charged; it is no longer needed. FOGF is an older 6-decimal Fog test token from earlier deployments. Fee Juice is Aztec network fee credit; you do not need it because the sponsor pays network fees, and it can never pay a registration fee.',
+      `There is nothing to obtain: free registration needs no faucet, balance or request channel, so treat any site offering Fog test tokens for this deployment as unrelated. The testnet-v6 manifest records the payment token as ${deployment.feeToken} (none). Names registered on the previous paid test deployment are not carried over.`,
     ],
   },
   {
@@ -72,11 +72,11 @@ export const articles: Article[] = [
     group: 'help',
     title: 'Plain-language glossary',
     body: [
-      'Name: your readable ANS name, like alice.fog. Every name ends in .fog (Fully Obfuscated Glyph); you register only the part before it. It is not an internet domain or website address. Primary name: the one name your account shows by default; it is only shown when the name also points back to your address, so nobody can claim to be you.',
+      'Name: your readable Fog name, like alice.fog. Every name ends in .fog (Fully Obfuscated Glyph); you register only the part before it. It is not an internet domain or website address. Primary name: the one name your account shows by default; it is only shown when the name also points back to your address, so nobody can claim to be you.',
       'Commit: the first registration step. It records a sealed fingerprint of your request so nobody can see or front-run the name; after about one minute you send the actual registration.',
       'Sponsored fee payer (FPC): a shared contract that pays Aztec network fees for you, so you do not need Fee Juice. It does not pay the registration fee.',
       'Registrar: the contract that takes the registration fee and creates or renews names. Resolver: the contract that stores where a name points, such as its Aztec address and profile records.',
-      'Generation and revision: internal counters ANS uses so an old or stale action cannot change a name. Generation changes on registration or accepted transfer. V7 keeps holder changes and editor writes on separate revision counters; V6 shares one counter. If you see a mismatch, reload and try again.',
+      'Generation and revision: internal counters Fog uses so an old or stale action cannot change a name. Generation changes on registration or accepted transfer. V7 keeps holder changes and editor writes on separate revision counters; V6 shares one counter. If you see a mismatch, reload and try again.',
       'Generating proof: Aztec transactions are private, so your browser builds a cryptographic proof before sending. This can take a minute and uses a lot of CPU; keep the tab open. Dropped by network: the network discarded the transaction; nothing was charged, and you can retry.',
     ],
   },
@@ -125,11 +125,11 @@ export const articles: Article[] = [
     body: [
       'Use Node 24.12 or newer. Download and extract the starter below; it includes the SDK package, example code and public testnet configuration. The SDK is distributed as a versioned download and is not published on public npm.',
       'Keep the Aztec 6.0.0 dependency versions and overrides in the application’s root package.json. Overrides from the SDK package do not apply to your application. Audit the installed dependencies after integration.',
-      'Names display as alice.fog, but the SDK, contracts and routes use the bare label alice. Strip the suffix from user input with normalizeName(input, { suffix: NAME_SUFFIX }) and show names with formatName(label). Import public read APIs from @ans/sdk/read; no wallet connection or proving runtime is required. Keep wallet execution imports behind user actions. resolveAddress returns the address and the block snapshot used for the read. Pass that snapshot to resolvePrimary to verify both directions at the same block.',
+      'Names display as alice.fog, but the SDK, contracts and routes use the bare label alice. Strip the suffix from user input with normalizeName(input, { suffix: NAME_SUFFIX }) and show names with formatName(label). Import public read APIs from @fog/sdk/read; no wallet connection or proving runtime is required. Keep wallet execution imports behind user actions. resolveAddress returns the address and the block snapshot used for the read. Pass that snapshot to resolvePrimary to verify both directions at the same block.',
     ],
     code: `import { createAztecNodeClient } from '@aztec-labs/aztec.js/node';
 import { AztecAddress } from '@aztec-labs/aztec.js/addresses';
-import { RegistryReader, resolveAddress, resolvePrimary } from '@ans/sdk/read';
+import { RegistryReader, resolveAddress, resolvePrimary } from '@fog/sdk/read';
 
 const reader = await RegistryReader.connect(
   createAztecNodeClient('${deployment.nodeUrl}', { maxBatchSize: 3 }),
@@ -146,8 +146,8 @@ if (result.status === 'resolved') {
     group: 'developer',
     title: 'Wallet integration and registration',
     body: [
-      'Confirm the wallet’s secure channel and select an authorized account, then call connectAns. It checks the chain, rollup, registry, account authorization and sponsor contract class, and registers the required contract artifacts with the wallet. It returns an AnsContext for subsequent writes.',
-      'Record updates use the AnsContext returned by connectAns. The SDK reads the current registration generation and revision before each write: generation identifies the current registration, and revision identifies its latest changes. If either changed before submission, re-read the record before retrying.',
+      'Confirm the wallet’s secure channel and select an authorized account, then call connectFog. It checks the chain, rollup, registry, account authorization and sponsor contract class, and registers the required contract artifacts with the wallet. It returns an FogContext for subsequent writes.',
+      'Record updates use the FogContext returned by connectFog. The SDK reads the current registration generation and revision before each write: generation identifies the current registration, and revision identifies its latest changes. If either changed before submission, re-read the record before retrying.',
     ],
     code: profileExample,
   },
@@ -158,7 +158,7 @@ if (result.status === 'resolved') {
     body: [
       'A deployment is identified by its chain, rollup, registry address and contract class. Check these values on Status before connecting a wallet. The table below lists supported features by protocol version.',
       'V6 preserves name transfers, editors, subnames and profile records on Aztec 6. Module configuration takes effect after confirmation; administrator handover requires nomination and acceptance. This fresh testnet deployment has no legacy registry and imports or reserves no old names.',
-      'The values below are read from the connected node: registry, contract class and protocol features. Protocol features identifies the ANS contract version verified by class ID, separately from the Aztec rollup version. The SDK connects only to recognized contract classes. For an unknown class, verify the deployment and SDK version before continuing.',
+      'The values below are read from the connected node: registry, contract class and protocol features. Protocol features identifies the Fog contract version verified by class ID, separately from the Aztec rollup version. The SDK connects only to recognized contract classes. For an unknown class, verify the deployment and SDK version before continuing.',
     ],
   },
   {
@@ -215,12 +215,12 @@ export type DocSection = { id: string; title: string; blocks: DocBlock[] };
 export const groups: { id: Article['group']; title: string; description: string }[] = [
   {
     id: 'guide',
-    title: 'Using ANS',
+    title: 'Using Fog',
     description: 'Register, manage and share your name.',
   },
   {
     id: 'developer',
-    title: 'Build with ANS',
+    title: 'Build with Fog',
     description: 'Resolve names and connect your application.',
   },
   {
@@ -283,7 +283,7 @@ export function sectionsFor(article: Article): DocSection[] {
       blocks: [
         {
           type: 'paragraph',
-          text: 'Before preparing a plan or sending commit, the quote needs at least 300 chain seconds remaining: 60 minimum commit age, 60 reveal margin and 180 proving, inclusion and checkpoint slack. COMMIT_QUOTE_MARGIN is 300n and REVEAL_MARGIN is 60n; insufficient lifetime returns quote_expired before wallet submission. Read config.launch and eligibility(name, snapshot) through @ans/sdk/read. Results are open, too_short, reserved or paused. The SDK rechecks before commit and reveal, and rejects non-year leases. A free quote creates no token AuthWit and reads no token balance. Public policy reads reserve nothing; encrypted recovery stores secrets and transaction hashes, while ownership and policy remain chain state. Unknown RPC or wallet errors never clear a saved transaction hash.',
+          text: 'Before preparing a plan or sending commit, the quote needs at least 300 chain seconds remaining: 60 minimum commit age, 60 reveal margin and 180 proving, inclusion and checkpoint slack. COMMIT_QUOTE_MARGIN is 300n and REVEAL_MARGIN is 60n; insufficient lifetime returns quote_expired before wallet submission. Read config.launch and eligibility(name, snapshot) through @fog/sdk/read. Results are open, too_short, reserved or paused. The SDK rechecks before commit and reveal, and rejects non-year leases. A free quote creates no token AuthWit and reads no token balance. Public policy reads reserve nothing; encrypted recovery stores secrets and transaction hashes, while ownership and policy remain chain state. Unknown RPC or wallet errors never clear a saved transaction hash.',
         },
         {
           type: 'code',
@@ -323,7 +323,7 @@ export function sectionsFor(article: Article): DocSection[] {
   if (article.id === 'pricing')
     sections[3].blocks.push({
       type: 'paragraph',
-      text: 'The v3 content-policy reservation file (schema ans-reserved-labels/1) contains 325 canonical labels, retaining all original v2 276 and adding 49, all at least 7 characters, grouped into Aztec, ANS, system, ecosystem, Noir, corporate, AI, payments and consumer identities. The loader rejects invalid and duplicate labels before hashing the sorted flat list. Support/official compounds are our anti-impersonation policy, not claims of an official company service. Reservation does not imply endorsement, ownership, partnership or trademark rights; Noir ecosystem inclusion does not establish deployment on Aztec. Short public names remain closed. Mainnet admin and treasury hold a placeholder address with an adminPlaceholder marker; a placeholder must be replaced before launch.',
+      text: 'The v3 content-policy reservation file (schema fog-reserved-labels/1) contains 325 canonical labels, retaining all original v2 276 and adding 49, all at least 7 characters, grouped into Aztec, Fog, system, ecosystem, Noir, corporate, AI, payments and consumer identities. The loader rejects invalid and duplicate labels before hashing the sorted flat list. Support/official compounds are our anti-impersonation policy, not claims of an official company service. Reservation does not imply endorsement, ownership, partnership or trademark rights; Noir ecosystem inclusion does not establish deployment on Aztec. Short public names remain closed. Mainnet admin and treasury hold a placeholder address with an adminPlaceholder marker; a placeholder must be replaced before launch.',
     });
   if (article.id === 'getting-started') {
     sections[0].blocks.push({
@@ -398,7 +398,7 @@ export function sectionsFor(article: Article): DocSection[] {
       rows: [
         ['AZTEC', 'Official Ethereum token; target registration currency'],
         ['mAZTEC', '18-decimal test stand-in, if enabled; no official AZTEC backing'],
-        ['ANSF', 'Original 6-decimal ANS test payment token'],
+        ['FOGF', 'Original 6-decimal Fog test payment token'],
         ['Fee Juice', 'Network gas credit; cannot pay the registration treasury'],
       ],
     });
@@ -451,7 +451,7 @@ export function sectionsFor(article: Article): DocSection[] {
   if (article.id === 'sdk') {
     sections[2].blocks.push({
       type: 'paragraph',
-      text: 'For repeated primary-name display, import Resolver from @ans/sdk/read. The memory cache deduplicates concurrent queries and checks cached block hashes for reorgs. Its default TTL is 30 seconds, capped by the name’s expiry. Invalidate it when switching accounts or deployments; payment checks use fresh chain reads. Owned-name pagination cursors include the chain and rollup version. Restart discovery without a cursor if an older saved cursor lacks that identity.',
+      text: 'For repeated primary-name display, import Resolver from @fog/sdk/read. The memory cache deduplicates concurrent queries and checks cached block hashes for reorgs. Its default TTL is 30 seconds, capped by the name’s expiry. Invalidate it when switching accounts or deployments; payment checks use fresh chain reads. Owned-name pagination cursors include the chain and rollup version. Restart discovery without a cursor if an older saved cursor lacks that identity.',
     });
     sections[0].blocks.push({
       type: 'table',
@@ -489,7 +489,7 @@ export function sectionsFor(article: Article): DocSection[] {
       },
       {
         type: 'paragraph',
-        text: 'The initial browser page imports @ans/sdk/read. Wallet discovery and registration load on user actions. The shared bundle-budget.ts build check limits initial JavaScript to 400 kB gzip and rejects eagerly loaded ANS execution artifacts; the build writes its measurements to bundle-budget.json.',
+        text: 'The initial browser page imports @fog/sdk/read. Wallet discovery and registration load on user actions. The shared bundle-budget.ts build check limits initial JavaScript to 400 kB gzip and rejects eagerly loaded Fog execution artifacts; the build writes its measurements to bundle-budget.json.',
       },
     );
     sections[2].blocks.push(
@@ -542,7 +542,7 @@ export function sectionsFor(article: Article): DocSection[] {
       type: 'steps',
       items: [
         'Discover a compatible wallet in the current browser. Compare the connection symbols with the wallet and confirm the secure channel.',
-        'Select an account returned by wallet.getAccounts and pass it to connectAns with the deployment configuration. The SDK checks the wallet’s chainId and rollup version against the reader before registering contracts.',
+        'Select an account returned by wallet.getAccounts and pass it to connectFog with the deployment configuration. The SDK checks the wallet’s chainId and rollup version against the reader before registering contracts.',
         'Keep one registration flow active per account. When switching accounts or networks, create a new context and load plans for that account and deployment.',
       ],
     });
@@ -590,7 +590,7 @@ export function sectionsFor(article: Article): DocSection[] {
                 'Application memory',
               ],
               [
-                'AnsContext',
+                'FogContext',
                 'Reader, wallet and authorized account; submits writes',
                 'Application memory',
               ],
@@ -769,7 +769,7 @@ export function sectionsFor(article: Article): DocSection[] {
         items: [
           'The current administrator calls configureModules to select Registrar and default Resolver, effective after confirmation. V5 uses setAdministrator for direct handover. V6/V7 require nominate_administrator and accept_administrator through their matching bindings; the SDK setAdministrator helper rejects both.',
           'Payment changes preserve name records but invalidate obsolete quotes and unconsumed plans. A new default Resolver applies to subsequent names; existing names retain their selected Resolver.',
-          'The mainnet template targets protocol 7, retaining schema ans-deployment-v6/1, minPublicLength 7, the v3 content-policy reserved hash (list schema ans-reserved-labels/1) and maxRenewAhead 31536000. Readiness rejects the adminPlaceholder marker, protocol 6 on mainnet and any other launch renewal horizon. No mainnet deployment is implied.',
+          'The mainnet template targets protocol 7, retaining schema fog-deployment-v6/1, minPublicLength 7, the v3 content-policy reserved hash (list schema fog-reserved-labels/1) and maxRenewAhead 31536000. Readiness rejects the adminPlaceholder marker, protocol 6 on mainnet and any other launch renewal horizon. No mainnet deployment is implied.',
           'A new implementation has a new contract address. The current V6 deployment starts fresh with legacy set to zero; names on the old rollup are not migrated, reserved or snapshotted.',
           'For historical deployments with an explicitly configured legacy registry, holders may migrate root names during their lease or 30-day grace period, preserving owner, expiry and default address. Configure editors, profiles and subnames on the destination and confirm reverse consent again. These legacy migration rules do not apply to the fresh V6 testnet.',
           'A website release does not change the active contract class.',
@@ -832,13 +832,13 @@ export function articleToMarkdown(article: Article): string {
           lines.push(
             ...block.items.map(
               (link) =>
-                `- [${link.title}](${link.href.startsWith('#/') ? `https://ans-testnet.huantian233.workers.dev/${link.href}` : link.href})`,
+                `- [${link.title}](${link.href.startsWith('#/') ? `https://fog-testnet.huantian233.workers.dev/${link.href}` : link.href})`,
             ),
           );
           break;
         case 'downloads':
           lines.push(
-            `[${'Download SDK and runnable starter'}](https://ans-testnet.huantian233.workers.dev/#/docs/sdk)`,
+            `[${'Download SDK and runnable starter'}](https://fog-testnet.huantian233.workers.dev/#/docs/sdk)`,
             '',
             '```sh',
             'npm install',
@@ -861,7 +861,7 @@ export function articleToMarkdown(article: Article): string {
           break;
         case 'fees':
           lines.push(
-            `[${'Read the current on-chain quote and payment token'}](https://ans-testnet.huantian233.workers.dev/#/docs/pricing)`,
+            `[${'Read the current on-chain quote and payment token'}](https://fog-testnet.huantian233.workers.dev/#/docs/pricing)`,
             '',
             'This export has no live price snapshot. Check the on-chain quote before paying.',
           );

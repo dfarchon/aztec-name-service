@@ -1,5 +1,5 @@
 import { MAX_LABEL_LEN, MIN_LABEL_LEN } from "./constants.js";
-import { AnsError } from "./errors.js";
+import { FogError } from "./errors.js";
 
 /** A label in the exact form the contract accepts. */
 export type Label = {
@@ -15,7 +15,7 @@ export type Label = {
 };
 
 /**
- * Display suffix of every ANS name (".fog", Fully Obfuscated Glyph). It is presentation only: contracts hash and store
+ * Display suffix of every Fog name (".fog", Fully Obfuscated Glyph). It is presentation only: contracts hash and store
  * the bare label, so `alice.fog` is the root label `alice`. SDK calls that take a name expect the canonical label.
  */
 export const NAME_SUFFIX = ".fog";
@@ -51,13 +51,13 @@ export function normalizeName(
     s = s.slice(0, -opts.suffix.length);
   if (opts.allowSubnames && s.includes(".")) {
     const parts = s.split(".");
-    if (parts.length > 5) throw new AnsError("invalid_name", "at most four subname levels are supported");
+    if (parts.length > 5) throw new FogError("invalid_name", "at most four subname levels are supported");
     let result = normalizeName(parts.pop()!);
     while (parts.length) { const leaf = normalizeName(parts.pop()!); result = { ...leaf, label: `${leaf.label}.${result.label}`, parent: result }; }
     return result;
   }
   if (s.includes("."))
-    throw new AnsError(
+    throw new FogError(
       "invalid_name",
       "subnames and unknown suffixes are not supported",
     );
@@ -69,7 +69,7 @@ export function normalizeName(
 export function labelFromCanonical(label: string): Label {
   const len = label.length;
   if (len < MIN_LABEL_LEN || len > MAX_LABEL_LEN) {
-    throw new AnsError(
+    throw new FogError(
       "invalid_name",
       `label must be ${MIN_LABEL_LEN}–${MAX_LABEL_LEN} characters`,
     );
@@ -78,10 +78,10 @@ export function labelFromCanonical(label: string): Label {
   for (let i = 0; i < len; i++) {
     const c = label.charCodeAt(i);
     if (!(isLower(c) || isDigit(c) || c === HYPHEN)) {
-      throw new AnsError("invalid_name", 'only a-z, 0-9 and "-" are allowed');
+      throw new FogError("invalid_name", 'only a-z, 0-9 and "-" are allowed');
     }
     if (c === HYPHEN && (i === 0 || i === len - 1)) {
-      throw new AnsError("invalid_name", 'label cannot start or end with "-"');
+      throw new FogError("invalid_name", 'label cannot start or end with "-"');
     }
     bytes[i] = c;
   }
@@ -95,9 +95,9 @@ export function labelFromCanonical(label: string): Label {
  */
 export function assertRegistrableLabel(label: Label) {
   if (label.label.startsWith("0x"))
-    throw new AnsError("invalid_name", 'label cannot start with "0x"');
+    throw new FogError("invalid_name", 'label cannot start with "0x"');
   if (label.label.includes("--"))
-    throw new AnsError("invalid_name", 'label cannot contain "--"');
+    throw new FogError("invalid_name", 'label cannot contain "--"');
 }
 
 export function packBytes(bytes: number[]): bigint {
@@ -114,7 +114,7 @@ export function unpackLabel(packed: bigint, len: number): Label {
     packed < 0n ||
     packed >= 1n << 248n
   ) {
-    throw new AnsError("corrupt_data", "packed label out of range");
+    throw new FogError("corrupt_data", "packed label out of range");
   }
   const bytes = new Array<number>(MAX_LABEL_LEN).fill(0);
   let rest = packed;
@@ -123,11 +123,11 @@ export function unpackLabel(packed: bigint, len: number): Label {
     rest >>= 8n;
   }
   if (bytes.slice(len).some((b) => b !== 0))
-    throw new AnsError("corrupt_data", "packed label has non-zero padding");
+    throw new FogError("corrupt_data", "packed label has non-zero padding");
   try {
     return labelFromCanonical(String.fromCharCode(...bytes.slice(0, len)));
   } catch {
-    throw new AnsError("corrupt_data", "packed label is not canonical");
+    throw new FogError("corrupt_data", "packed label is not canonical");
   }
 }
 
@@ -137,7 +137,7 @@ export function unpackLabel(packed: bigint, len: number): Label {
  */
 export function asciiTagToField(tag: string): bigint {
   if (tag.length === 0 || tag.length > 31 || !/^[\x21-\x7e]+$/.test(tag)) {
-    throw new AnsError(
+    throw new FogError(
       "invalid_argument",
       "tag must be 1–31 printable ASCII characters",
     );

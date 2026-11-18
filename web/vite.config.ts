@@ -38,7 +38,7 @@ export default defineConfig(({ command, mode }) => {
   parseRpcConfig(env, parseNetworkConfig(env).network);
   return {
   // Parallel local/testnet previews need separate optimizer caches. Different env hashes otherwise load two Fr classes.
-  cacheDir: process.env.ANS_VITE_CACHE_DIR || undefined,
+  cacheDir: process.env.FOG_VITE_CACHE_DIR || undefined,
   worker: { format: 'es' },
   plugins: [
     initialBundleBudget(),

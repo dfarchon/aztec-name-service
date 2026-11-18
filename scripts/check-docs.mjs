@@ -70,10 +70,6 @@ assert.ok(
   codeBlocks('README.md').some((block) => block.trim() === resolverTrustExample.trim()),
   'README resolver example must match documentation source',
 );
-assert.deepEqual(
-  codeBlocks('examples/consumer/README.md'),
-  codeBlocks('examples/consumer/README.zh-CN.md'),
-);
 console.log(
   `Checked ${articles.length} English articles and matching README examples; ${snippets} TypeScript snippets${destination ? ' staged for consumer compilation' : ''}`,
 );

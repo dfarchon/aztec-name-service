@@ -3,8 +3,8 @@ import { mkdir, writeFile } from 'node:fs/promises';
 import puppeteer from 'puppeteer-core';
 
 const base=process.env.BASE ?? 'http://127.0.0.1:5274';
-const feeLabel=process.env.ANS_FEE_LABEL ?? '1 mAZTEC';
-const output=process.env.ANS_DOCS_REPORT_DIR ?? '/tmp/ans-docs-review';
+const feeLabel=process.env.FOG_FEE_LABEL ?? '1 mAZTEC';
+const output=process.env.FOG_DOCS_REPORT_DIR ?? '/tmp/fog-docs-review';
 await mkdir(output,{recursive:true});
 const browser=await puppeteer.launch({executablePath:process.env.CHROME_PATH??'/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',headless:true,args:['--no-sandbox']});
 const page=await browser.newPage(), errors=[],checks=[];

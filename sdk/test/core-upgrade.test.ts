@@ -8,7 +8,7 @@ import metadata from '../src/artifacts/modular-metadata.json' with { type: 'json
 import { hashWithSeparator } from '../src/core/hash.js';
 import { readCoreUpgrade, assertUpgradeInclusionMargin } from '../src/client/core-upgrade.js';
 import type { Snapshot } from '../src/core/types.js';
-import { AnsContext } from '../src/wallet/context.js';
+import { FogContext } from '../src/wallet/context.js';
 import type { RegistryReader } from '../src/client/reader.js';
 import type { Wallet } from '@aztec-labs/aztec.js/wallet';
 import { runTxOutcome } from '../src/transactions/tx.js';
@@ -94,7 +94,7 @@ test('reused V8 context refuses registration and send at 900s without an unknown
     getChainInfo: async () => { assert(inQueue); return { chainId: new Fr(31337n), version: new Fr(1n) }; },
     registerContract: async () => { assert(inQueue); registrations++; },
   } as unknown as Wallet;
-  const ctx = new AnsContext(reader, { wallet, account: registry });
+  const ctx = new FogContext(reader, { wallet, account: registry });
   const interaction = { send: async () => { assert(inQueue); sends++; return { txHash: TxHash.random() }; }, simulate: async () => { margin = 900n; } } as any;
   const run = ctx.queue.run.bind(ctx.queue);
   ctx.queue.run = task => run(async () => { inQueue = true; try { return await task(); } finally { inQueue = false; } });

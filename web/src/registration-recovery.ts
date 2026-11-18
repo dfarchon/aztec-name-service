@@ -1,4 +1,4 @@
-import type { RegistrationCheck, RegistrationPlan } from '@ans/sdk';
+import type { RegistrationCheck, RegistrationPlan } from '@fog/sdk';
 
 /** Hash parsing stays wallet-free so recovery controls do not load aztec.js. */
 export function parseTxHash(input: string): string | undefined {

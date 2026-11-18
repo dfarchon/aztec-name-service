@@ -16,8 +16,8 @@ import {
   type Holding,
   type AddressResolution,
   type FeeQuote,
-  toAnsError,
-} from "@ans/sdk";
+  toFogError,
+} from "@fog/sdk";
 import { AztecAddress } from "@aztec-labs/aztec.js/addresses";
 import { useEffect, useState } from "react";
 import { NeedsAccount } from "../App";
@@ -180,7 +180,7 @@ export function ManagePage({ name }: { name: string }) {
                     { name, address: address! },
                     { onUpdate },
                   ).catch(error => {
-                    if (toAnsError(error).code === "fee_changed") done();
+                    if (toFogError(error).code === "fee_changed") done();
                     throw error;
                   });
                   done();
@@ -235,7 +235,7 @@ export function ManagePage({ name }: { name: string }) {
                     },
                     { onUpdate },
                   ).catch(error => {
-                    if (toAnsError(error).code === "fee_changed") refreshQuote(n => n + 1);
+                    if (toFogError(error).code === "fee_changed") refreshQuote(n => n + 1);
                     throw error;
                   });
                   done();

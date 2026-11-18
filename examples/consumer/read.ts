@@ -1,6 +1,6 @@
 import { createAztecNodeClient } from '@aztec-labs/aztec.js/node';
 import { AztecAddress } from '@aztec-labs/aztec.js/addresses';
-import { RegistryReader, resolveAddress, resolvePrimary, AnsError } from '@ans/sdk/read';
+import { RegistryReader, resolveAddress, resolvePrimary, FogError } from '@fog/sdk/read';
 import deployment from './deployment.json' with { type: 'json' };
 
 const reader = await RegistryReader.connect(
@@ -11,7 +11,7 @@ if (
   String(reader.deployment.chainId) !== deployment.chainId ||
   String(reader.deployment.rollupVersion) !== deployment.rollupVersion
 )
-  throw new AnsError('wrong_deployment', 'Unexpected testnet identity');
+  throw new FogError('wrong_deployment', 'Unexpected testnet identity');
 const name = process.argv[2] ?? 'alice';
 const address = await resolveAddress(reader, name);
 const primary =

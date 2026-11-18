@@ -1,7 +1,7 @@
 import { createAztecNodeClient } from '@aztec-labs/aztec.js/node';
 import { AztecAddress } from '@aztec-labs/aztec.js/addresses';
-import { RegistryReader, readFeeTokenMetadata, AnsError } from '@ans/sdk/read';
-import { getFeeQuote } from '@ans/sdk';
+import { RegistryReader, readFeeTokenMetadata, FogError } from '@fog/sdk/read';
+import { getFeeQuote } from '@fog/sdk';
 import deployment from './deployment.json' with { type: 'json' };
 
 const reader = await RegistryReader.connect(
@@ -12,7 +12,7 @@ if (
   String(reader.deployment.chainId) !== deployment.chainId ||
   String(reader.deployment.rollupVersion) !== deployment.rollupVersion
 )
-  throw new AnsError('wrong_deployment', 'Unexpected testnet identity');
+  throw new FogError('wrong_deployment', 'Unexpected testnet identity');
 // A 5+ character quote shows the base price; tiered Registrars also report 3- and 4-character prices.
 const quote = await getFeeQuote(reader, {
   operation: 'register',
@@ -29,7 +29,7 @@ if (
   sponsor?.currentContractClassId.toString() !==
   '0x233391319da4f9877f724afd66d93a2d0dbb4a288f41e99093dbb30f41ee3335'
 )
-  throw new AnsError('wrong_deployment', 'Unexpected sponsor contract class');
+  throw new FogError('wrong_deployment', 'Unexpected sponsor contract class');
 console.log(
   JSON.stringify(
     {

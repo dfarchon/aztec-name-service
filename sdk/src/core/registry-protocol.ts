@@ -2,7 +2,7 @@ import { Fr } from '@aztec-labs/aztec.js/fields';
 import legacy from '../artifacts/read-metadata.json' with { type: 'json' };
 import modular from '../artifacts/modular-metadata.json' with { type: 'json' };
 import { PROTOCOL_VERSION } from './constants.js';
-import { AnsError } from './errors.js';
+import { FogError } from './errors.js';
 
 // Class identity, capabilities and storage layout travel together. No contract artifacts in public reads.
 function protocol(
@@ -37,6 +37,6 @@ const byClass = new Map(Object.values(registryProtocols).map((p) => [p.classId, 
 export function registryProtocol(classId: string) {
   const result = byClass.get(classId);
   if (!result)
-    throw new AnsError('wrong_deployment', 'contract class does not match this SDK version');
+    throw new FogError('wrong_deployment', 'contract class does not match this SDK version');
   return result;
 }

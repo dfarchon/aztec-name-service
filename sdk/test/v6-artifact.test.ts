@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { registryProtocol, registryProtocols } from '../src/core/registry-protocol.js';
-import { AnsContext } from '../src/wallet/context.js';
+import { FogContext } from '../src/wallet/context.js';
 import type { RegistryReader } from '../src/client/reader.js';
 import { NameRegistryV6Contract } from '../src/artifacts/NameRegistryV6.js';
 import metadata from '../src/artifacts/modular-metadata.json' with { type: 'json' };
@@ -74,7 +74,7 @@ test('V6 wallet selection registers and executes the exact V6 artifact', async (
       registered.push(artifact);
     },
   } as unknown as Wallet;
-  const ctx = new AnsContext(reader, { wallet, account: registry });
+  const ctx = new FogContext(reader, { wallet, account: registry });
   assert.equal(ctx.contract().artifact, NameRegistryV6Contract.artifact);
   assert.equal(ctx.extendedContract().artifact, NameRegistryV6Contract.artifact);
   await ctx.ensureRegistered();

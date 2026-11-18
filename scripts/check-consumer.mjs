@@ -7,7 +7,7 @@ import { join } from 'node:path';
 import { packageConsumer } from './package-consumer.mjs';
 import { assertV6ManifestFile } from './deployment-config.mjs';
 
-const temporary = mkdtempSync(join(tmpdir(), 'ans-independent-consumer-'));
+const temporary = mkdtempSync(join(tmpdir(), 'fog-independent-consumer-'));
 try {
   const output = join(temporary, 'downloads');
   const release = execFileSync('git', ['rev-parse', '--short', 'HEAD'], {
@@ -28,7 +28,7 @@ try {
     '-d',
     temporary,
   ]);
-  const cwd = join(temporary, 'ans-consumer');
+  const cwd = join(temporary, 'fog-consumer');
   assert.deepEqual(JSON.parse(readFileSync(join(cwd, 'deployment.json'), 'utf8')), deployment);
   assert.deepEqual(JSON.parse(readFileSync(join(cwd, 'pricing.json'), 'utf8')), manifest.pricing);
   assert.equal(existsSync(join(cwd, 'fee-switch.json')), false);
@@ -39,8 +39,8 @@ try {
     manifest.deployment,
     JSON.parse(readFileSync('deployments/testnet-v6.json', 'utf8')),
   );
-  assert.ok(['ANSF', 'mAZTEC', 'FREE'].includes(manifest.deployment.feeSymbol));
-  assert.equal(manifest.deployment.feeDecimals, manifest.deployment.feeSymbol === 'ANSF' ? 6 : 18);
+  assert.ok(['FOGF', 'mAZTEC', 'FREE'].includes(manifest.deployment.feeSymbol));
+  assert.equal(manifest.deployment.feeDecimals, manifest.deployment.feeSymbol === 'FOGF' ? 6 : 18);
   execFileSync('npm', ['install', '--no-fund', '--no-audit'], { cwd, stdio: 'pipe' });
   // Exercise the published JavaScript in plain Node, without tsx or bundler transforms.
   execFileSync(
@@ -51,11 +51,11 @@ try {
       `
     import assert from 'node:assert/strict';
     import { AztecAddress } from '@aztec-labs/aztec.js/addresses';
-    import { Resolver, parseWithBigInt, stringifyWithBigInt } from '@ans/sdk/read';
-    import { connectAns } from '@ans/sdk';
-    import { NameRegistryV6Contract } from '@ans/sdk/contracts/v6';
-    import { NameRegistryV7Contract } from '@ans/sdk/contracts/v7';
-    assert.equal(typeof connectAns, 'function');
+    import { Resolver, parseWithBigInt, stringifyWithBigInt } from '@fog/sdk/read';
+    import { connectFog } from '@fog/sdk';
+    import { NameRegistryV6Contract } from '@fog/sdk/contracts/v6';
+    import { NameRegistryV7Contract } from '@fog/sdk/contracts/v7';
+    assert.equal(typeof connectFog, 'function');
     assert.equal(NameRegistryV6Contract.artifact.name, 'NameRegistryV6');
     assert.equal(NameRegistryV7Contract.artifact.name, 'NameRegistryV7');
     assert.deepEqual(parseWithBigInt(stringifyWithBigInt({ amount: 1000000n })), { amount: 1000000n });
@@ -83,7 +83,7 @@ try {
   execFileSync('node', ['--import', 'tsx', 'scripts/check-docs.mjs', cwd], { stdio: 'inherit' });
   execFileSync('npm', ['run', 'check'], { cwd, stdio: 'inherit' });
   execFileSync('npm', ['run', 'build'], { cwd, stdio: 'inherit' });
-  if (process.env.ANS_CONSUMER_BROWSER === '1') {
+  if (process.env.FOG_CONSUMER_BROWSER === '1') {
     const { checkConsumerBrowser } = await import('../web/scripts/consumer-browser.mjs');
     await checkConsumerBrowser(cwd);
   }
@@ -105,7 +105,7 @@ try {
       vulnerabilities: audit.metadata.vulnerabilities,
     }),
   );
-  if (process.env.ANS_CONSUMER_LIVE_READ === '1') {
+  if (process.env.FOG_CONSUMER_LIVE_READ === '1') {
     execFileSync('npm', ['run', 'doctor'], { cwd, stdio: 'inherit' });
     execFileSync('npm', ['run', 'read'], { cwd, stdio: 'inherit' });
   }

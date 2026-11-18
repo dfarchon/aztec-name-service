@@ -47,7 +47,7 @@ let rpcServer, walletServer, appServer, browser;
 try {
   const rpc = createSafeJsonRpcServer(wallet, WalletSchema, {
     corsAllowedOrigins: [walletOrigin],
-    corsAllowedHeaders: ['content-type', 'x-ans-wallet-token'],
+    corsAllowedHeaders: ['content-type', 'x-fog-wallet-token'],
     maxBodySizeBytes: '8mb',
   });
   rpcServer = createServer(rpc.getApp().callback());
@@ -70,7 +70,7 @@ try {
           return context.path.includes('external-wallet')
             ? html.replace(
                 '<script type="module"',
-                `<script>window.__ANS_WALLET_TEST_CONFIG__=${JSON.stringify(cfg)}</script><script type="module"`,
+                `<script>window.__FOG_WALLET_TEST_CONFIG__=${JSON.stringify(cfg)}</script><script type="module"`,
               )
             : html;
         },
@@ -86,7 +86,7 @@ try {
   await walletServer.listen();
   execFileSync(process.execPath, ['scripts/build-testnet.mjs'], {
     cwd: repository,
-    env: { ...process.env, ANS_PUBLIC_WALLET_URLS: walletUrl },
+    env: { ...process.env, FOG_PUBLIC_WALLET_URLS: walletUrl },
     stdio: 'inherit',
   });
   const dist = resolve(repository, 'web/dist');
@@ -192,7 +192,7 @@ try {
   await page.$eval('#unconfigured-wallet', (frame) => frame.remove());
   pass('An unconfigured cross-origin frame is blocked');
   await page.locator('#wallet-menu > summary').click();
-  await click('ANS Test Wallet');
+  await click('Fog Test Wallet');
   const matchAndConfirm = async () => {
     const element = await page.waitForSelector('.web-wallet-host iframe');
     const frame = await element.contentFrame();
@@ -214,9 +214,9 @@ try {
   });
   await click('Disconnect wallet');
   await click('Find wallets again');
-  await click('ANS Test Wallet');
+  await click('Fog Test Wallet');
   await click('Cancel');
-  await click('ANS Test Wallet');
+  await click('Fog Test Wallet');
   await matchAndConfirm();
   pass('Disconnect, cancelled connection and retry recover under the same CSP');
   await page.setViewport({ width: 390, height: 844 });
@@ -225,7 +225,7 @@ try {
   assert.deepEqual(errors, []);
   assert.equal(broadcasts, 0);
   pass('No browser runtime errors, signing or transaction broadcasts');
-  const output = process.env.ANS_SECURITY_REPORT_DIR ?? '/tmp/ans-security-smoke';
+  const output = process.env.FOG_SECURITY_REPORT_DIR ?? '/tmp/fog-security-smoke';
   await mkdir(output, { recursive: true });
   await writeFile(
     resolve(output, 'browser.json'),
@@ -238,7 +238,7 @@ try {
   console.log(`ALL ${checks.length} SECURITY BROWSER CHECKS PASSED`);
   const docs = await promisify(execFile)(process.execPath, ['web/scripts/docs-smoke.mjs'], {
     cwd: repository,
-    env: { ...process.env, BASE: appOrigin, ANS_DOCS_REPORT_DIR: resolve(output, 'docs') },
+    env: { ...process.env, BASE: appOrigin, FOG_DOCS_REPORT_DIR: resolve(output, 'docs') },
     timeout: 180000,
   });
   console.log(docs.stdout);

@@ -2,11 +2,11 @@
 import assert from 'node:assert/strict';
 import { writeFile } from 'node:fs/promises';
 import {
-  AnsContext, checkRegistration, clearAddress, clearPrimary, connectAns, deserializePlan, getAvailability, getPrivateFeeBalance,
+  FogContext, checkRegistration, clearAddress, clearPrimary, connectFog, deserializePlan, getAvailability, getPrivateFeeBalance,
   inspectHolding, listOwnedNames, NameRegistryContract, normalizeName, prepareRegistration,
   RegistryReader, renew, resolveAddress, resolvePrimary, resolvePrimaryMany, serializePlan,
   setAddress, setPrimary, submitCommit, submitRegistration, type RegistrationPlan,
-} from '@ans/sdk';
+} from '@fog/sdk';
 import { getInitialTestAccountsData } from '@aztec-labs/accounts/testing';
 import { AztecAddress } from '@aztec-labs/aztec.js/addresses';
 import { Fr } from '@aztec-labs/aztec.js/fields';
@@ -32,14 +32,14 @@ try {
   const createAccount = async () => { const k = randomKeys(); return (await wallet.createSchnorrInitializerlessAccount(k.secret, k.salt, k.signingKey)).address; };
   const gamer = await createAccount();
   const treasury = await createAccount();
-  const { contract: token } = await TokenContract.deploy(wallet, deployer, 'ANS Fee', 'ANSF', 6).send({ from: deployer, fee });
+  const { contract: token } = await TokenContract.deploy(wallet, deployer, 'Fog Fee', 'FOGF', 6).send({ from: deployer, fee });
   await token.methods.mint_to_private(alice, PRICE * 20n).send({ from: deployer, fee });
   const { contract: contract } = await NameRegistryContract.deploy(wallet, token.address, treasury, PRICE, 1).send({ from: deployer, fee });
   const reader = await RegistryReader.connect(node, contract.address);
   const deployment = { registry: contract.address.toString(), chainId: String(reader.deployment.chainId), rollupVersion: String(reader.deployment.rollupVersion) };
-  const holder = await connectAns(reader, { wallet, account: alice, deployment });
+  const holder = await connectFog(reader, { wallet, account: alice, deployment });
   // The isolated node permits this local FPC without public instance publication.
-  // Public connectAns sponsor verification remains covered separately and must not be bypassed.
+  // Public connectFog sponsor verification remains covered separately and must not be bypassed.
   holder.signer.fee = fee;
   check('SDK connects a real EmbeddedWallet with matching chain and rollup identities', holder.account.equals(alice));
   const wrongNetworkWallet = new Proxy(wallet, {
@@ -49,10 +49,10 @@ try {
       return typeof value === 'function' ? value.bind(target) : value;
     },
   });
-  await assert.rejects(connectAns(reader, { wallet: wrongNetworkWallet, account: alice, deployment }), (e: unknown) => (e as { code: string }).code === 'wrong_deployment');
+  await assert.rejects(connectFog(reader, { wallet: wrongNetworkWallet, account: alice, deployment }), (e: unknown) => (e as { code: string }).code === 'wrong_deployment');
   check('SDK rejects a wallet on another rollup before registering contracts', true);
   check('private fee read uses the real wallet account after checking its network', await getPrivateFeeBalance(holder, token.address) === PRICE * 20n);
-  const game = new AnsContext(reader, { wallet, account: gamer, fee });
+  const game = new FogContext(reader, { wallet, account: gamer, fee });
   await holder.ensureRegistered({ feeToken: { address: token.address, artifact: TokenContractArtifact } });
   await game.ensureRegistered();
   check('reader verifies deployment and immutable fees', (await reader.getConfig()).annualPrice === PRICE);
@@ -79,7 +79,7 @@ try {
   const held = await inspectHolding(holder, 'alice');
   check('public owner and automatic public label', held.isHolder && held.labelPublished && held.record.owner.equals(alice));
   check('registered name is unavailable', !(await getAvailability(reader, 'alice')).available);
-  await assert.rejects(setAddress(new AnsContext(reader, { wallet: wrongNetworkWallet, account: alice, fee }), { name: 'alice', address: gamer }), (e: unknown) => (e as { code: string }).code === 'wrong_deployment');
+  await assert.rejects(setAddress(new FogContext(reader, { wallet: wrongNetworkWallet, account: alice, fee }), { name: 'alice', address: gamer }), (e: unknown) => (e as { code: string }).code === 'wrong_deployment');
   check('SDK rejects an existing context after its wallet switches rollup', true);
   check('public event discovery returns current owner names', (await listOwnedNames(reader, alice)).names.some(n => n.name === 'alice'));
   check('another account has no owned name', (await listOwnedNames(reader, gamer)).names.length === 0);
@@ -110,7 +110,7 @@ try {
   recovered = await newWallet(node);
   await recovered.registerContract(fpc.instance, fpc.artifact);
   const restoredAddress = (await recovered.createSchnorrInitializerlessAccount(ownerKeys.secret, ownerKeys.salt, ownerKeys.signingKey)).address;
-  const restored = new AnsContext(reader, { wallet: recovered, account: restoredAddress, fee });
+  const restored = new FogContext(reader, { wallet: recovered, account: restoredAddress, fee });
   await restored.ensureRegistered();
   check('fresh wallet discovers names through public ownership', (await listOwnedNames(reader, restoredAddress)).names.some(n => n.name === 'alice'));
   await setAddress(restored, { name: 'alice', address: gamer });
@@ -119,6 +119,6 @@ try {
   const { contract: free } = await NameRegistryContract.deploy(wallet, AztecAddress.ZERO, AztecAddress.ZERO, 0, 1).send({ from: deployer, fee });
   const freeReader = await RegistryReader.connect(node, free.address);
   check('free registry is available for local demos', (await freeReader.getConfig()).annualPrice === 0n);
-  await writeFile('/tmp/ans-local-deployment.json', JSON.stringify({ nodeUrl: NODE_URL, paidRegistry: contract.address.toString(), registry: free.address.toString(), sponsoredFpc: fpc.instance.address.toString(), checks }, null, 2));
+  await writeFile('/tmp/fog-local-deployment.json', JSON.stringify({ nodeUrl: NODE_URL, paidRegistry: contract.address.toString(), registry: free.address.toString(), sponsoredFpc: fpc.instance.address.toString(), checks }, null, 2));
   console.log(`ALL ${checks} E2E CHECKS PASSED`);
 } finally { await recovered?.stop(); await wallet.stop(); }

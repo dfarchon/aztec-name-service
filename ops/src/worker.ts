@@ -54,8 +54,8 @@ async function runProbe(env: MonitorEnv, at: number, fetcher: typeof fetch) {
   try {
     const website = await fetcher(`${env.SITE_URL}/health.txt`, { cache: "no-store", signal: AbortSignal.timeout(7000) });
     const health = (await website.text()).trim();
-    const ok = env.SITE_URL.startsWith("https://") && website.ok && website.headers.get("cross-origin-opener-policy") === "same-origin" && website.headers.get("cross-origin-embedder-policy") === "credentialless" && health === `ans:${env.RELEASE}`;
-    checks.push({ name: "website", ok, detail: ok ? "HTTPS / release matches" : `HTTP ${website.status} · ${health === `ans:${env.RELEASE}` ? "release matches" : "release mismatch"} · isolation headers ${website.headers.get("cross-origin-opener-policy") === "same-origin" && website.headers.get("cross-origin-embedder-policy") === "credentialless" ? "Operational" : "Unavailable"}` });
+    const ok = env.SITE_URL.startsWith("https://") && website.ok && website.headers.get("cross-origin-opener-policy") === "same-origin" && website.headers.get("cross-origin-embedder-policy") === "credentialless" && health === `fog:${env.RELEASE}`;
+    checks.push({ name: "website", ok, detail: ok ? "HTTPS / release matches" : `HTTP ${website.status} · ${health === `fog:${env.RELEASE}` ? "release matches" : "release mismatch"} · isolation headers ${website.headers.get("cross-origin-opener-policy") === "same-origin" && website.headers.get("cross-origin-embedder-policy") === "credentialless" ? "Operational" : "Unavailable"}` });
   } catch { checks.push({ name: "website", ok: false, detail: "Unreachable" }); }
   try {
     const started = Date.now();
@@ -123,14 +123,14 @@ async function runProbe(env: MonitorEnv, at: number, fetcher: typeof fetch) {
   const stmts = [
     env.DB.prepare("INSERT INTO monitor_state(id,payload) VALUES(1,?) ON CONFLICT(id) DO UPDATE SET payload=excluded.payload").bind(JSON.stringify(result.state)),
     env.DB.prepare("INSERT OR REPLACE INTO monitor_samples(at,ok,payload) VALUES(?,?,?)").bind(at, checks.every(c => c.ok) ? 1 : 0, JSON.stringify(checks)),
-    ...result.incidents.filter(() => env.ALERT_WEBHOOK).map(e => env.DB.prepare("INSERT INTO alert_outbox(payload) VALUES(?)").bind(JSON.stringify({ service: "ANS", release: env.RELEASE, event: e }))),
+    ...result.incidents.filter(() => env.ALERT_WEBHOOK).map(e => env.DB.prepare("INSERT INTO alert_outbox(payload) VALUES(?)").bind(JSON.stringify({ service: "Fog", release: env.RELEASE, event: e }))),
     ...result.incidents.map(e => env.DB.prepare("INSERT INTO incidents(name,kind,at) VALUES(?,?,?)").bind(e.name, e.kind, e.at)),
     env.DB.prepare("DELETE FROM monitor_samples WHERE at < ?").bind(at - 7 * 86400000),
     env.DB.prepare("DELETE FROM incidents WHERE at < ?").bind(at - 90 * 86400000),
     env.DB.prepare("DELETE FROM vitals WHERE day < ?").bind(new Date(at - 30 * 86400000).toISOString().slice(0, 10)),
   ];
   await env.DB.batch(stmts);
-  for (const event of result.incidents) console.log(JSON.stringify({ event: "ans_monitor", ...event }));
+  for (const event of result.incidents) console.log(JSON.stringify({ event: "fog_monitor", ...event }));
   await deliverAlerts(env, fetcher);
   return result.state;
 }
@@ -146,10 +146,10 @@ export async function deliverAlerts(env: MonitorEnv, fetcher: typeof fetch = fet
   const rows = await env.DB.prepare("SELECT id,payload FROM alert_outbox ORDER BY id LIMIT ?").bind(ALERT_BATCH).all<{ id: number; payload: string }>();
   for (const row of rows.results) {
     try {
-      const delivered = await fetcher(env.ALERT_WEBHOOK, { method: "POST", headers: { "Content-Type": "application/json", "Idempotency-Key": `ans-monitor-${row.id}` }, body: row.payload, signal: AbortSignal.timeout(7000) });
+      const delivered = await fetcher(env.ALERT_WEBHOOK, { method: "POST", headers: { "Content-Type": "application/json", "Idempotency-Key": `fog-monitor-${row.id}` }, body: row.payload, signal: AbortSignal.timeout(7000) });
       if (!delivered.ok) throw new Error();
       await env.DB.prepare("DELETE FROM alert_outbox WHERE id=?").bind(row.id).run();
-    } catch { console.warn("ans_monitor_alert_pending"); break; }
+    } catch { console.warn("fog_monitor_alert_pending"); break; }
   }
 }
 

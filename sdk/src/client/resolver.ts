@@ -1,7 +1,7 @@
 import type { AztecAddress } from "@aztec-labs/aztec.js/addresses";
 
 import type { Snapshot } from "../core/types.js";
-import { AnsError } from "../core/errors.js";
+import { FogError } from "../core/errors.js";
 import type { RegistryReader } from "./reader.js";
 import { type BatchEntry, resolvePrimaryMany } from "./resolve.js";
 
@@ -132,7 +132,7 @@ export class Resolver {
         this.lastReorgCheck = now;
       } catch (e) {
         if (epoch === this.epoch) this.invalidate();
-        throw new AnsError("network", "cannot verify cached snapshot", e);
+        throw new FogError("network", "cannot verify cached snapshot", e);
       }
     })();
     this.reorgCheck = check;

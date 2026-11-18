@@ -5,7 +5,7 @@ import { BlockNumber, Fr } from '@aztec-labs/aztec.js/fields';
 import { MAX_LOGS_PER_TAG } from '@aztec-labs/stdlib/interfaces/api-limit';
 import type { RegistryReader } from '../src/client/reader.js';
 import type { Snapshot } from '../src/core/types.js';
-import { AnsError } from '../src/core/errors.js';
+import { FogError } from '../src/core/errors.js';
 import { listSubnames } from '../src/indexer/events.js';
 
 const owner = AztecAddress.fromBigIntUnsafe(1n);
@@ -74,10 +74,10 @@ test('subname cursors reject another parent, registry, chain or rollup and prune
   const { cursor } = await listSubnames(reader, parent, { maxPages: 1 });
   assert.ok(cursor);
   for (const changed of [{ parent: '101' }, { registry: owner.toString() }, { chainId: '1' }, { rollupVersion: '2' }]) {
-    await assert.rejects(listSubnames(reader, parent, { cursor: { ...cursor, ...changed } }), (e: AnsError) => e.code === 'wrong_deployment');
+    await assert.rejects(listSubnames(reader, parent, { cursor: { ...cursor, ...changed } }), (e: FogError) => e.code === 'wrong_deployment');
   }
   reader.node.getBlockData = async () => undefined;
-  await assert.rejects(listSubnames(reader, parent, { cursor }), (e: AnsError) => e.code === 'conflict');
+  await assert.rejects(listSubnames(reader, parent, { cursor }), (e: FogError) => e.code === 'conflict');
 });
 
 test('subname discovery verifies parent links and propagates transport/reorg failures', async () => {
@@ -85,14 +85,14 @@ test('subname discovery verifies parent links and propagates transport/reorg fai
   reader.getParent = async () => ({ parent: 999n, parentGeneration: 1, depth: 1 });
   assert.equal((await listSubnames(reader, parent)).names.length, 0);
   reader.isCanonical = async () => false;
-  await assert.rejects(listSubnames(reader, parent), (e: AnsError) => e.code === 'conflict');
-  reader.node.getPublicLogsByTags = async () => { throw new AnsError('network', 'offline'); };
-  await assert.rejects(listSubnames(reader, parent), (e: AnsError) => e.code === 'network');
+  await assert.rejects(listSubnames(reader, parent), (e: FogError) => e.code === 'conflict');
+  reader.node.getPublicLogsByTags = async () => { throw new FogError('network', 'offline'); };
+  await assert.rejects(listSubnames(reader, parent), (e: FogError) => e.code === 'network');
 });
 
 test('subname discovery rejects invalid page budgets before requesting events', async () => {
   const { reader } = fixture();
   reader.node.getPublicLogsByTags = async () => { throw new Error('unnecessary RPC'); };
   for (const maxPages of [0, -1, 1.5, NaN, Infinity])
-    await assert.rejects(listSubnames(reader, parent, { maxPages }), (e: AnsError) => e.code === 'invalid_argument');
+    await assert.rejects(listSubnames(reader, parent, { maxPages }), (e: FogError) => e.code === 'invalid_argument');
 });

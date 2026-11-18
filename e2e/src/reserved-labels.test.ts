@@ -5,13 +5,13 @@ import { loadReservedList, canonicalReservedLabels, reservedListHash, reservedBa
 const list = JSON.parse(readFileSync(new URL('../../deployments/reserved-labels.json', import.meta.url), 'utf8'));
 const baselineV2 = JSON.parse(readFileSync(new URL('./fixtures/reserved-labels-v2.json', import.meta.url), 'utf8'));
 const baseline = JSON.parse(readFileSync(new URL('./fixtures/reserved-labels-v1.json', import.meta.url), 'utf8'));
-const object = (categories: unknown, minLength = 7) => ({ schema: 'ans-reserved-labels/1', minLength, categories });
+const object = (categories: unknown, minLength = 7) => ({ schema: 'fog-reserved-labels/1', minLength, categories });
 test('reserved content policy v2 pins 276 legal labels and its canonical hash independently of category order', () => {
   const list = baselineV2;
   const labels = loadReservedList(list);
   assert.equal(labels.length, 276);
-  assert.equal(list.schema, 'ans-reserved-labels/1');
-  assert.deepEqual(Object.fromEntries(Object.entries(list.categories).map(([category, values]) => [category, (values as string[]).length])), { aztec: 72, ans: 24, system: 57, ecosystem: 103, noir: 20 });
+  assert.equal(list.schema, 'fog-reserved-labels/1');
+  assert.deepEqual(Object.fromEntries(Object.entries(list.categories).map(([category, values]) => [category, (values as string[]).length])), { aztec: 72, fog: 24, system: 57, ecosystem: 103, noir: 20 });
   assert(labels.every(label => label.length >= 7 && label.length <= 31));
   assert.equal(reservedListHash(list), 'b6d4e77d1cdc119abfec4f0060fd7235463e8ed7d85ce5e8b3e07c8bea42b147');
   assert.deepEqual(labels, canonicalReservedLabels(labels));
@@ -49,7 +49,7 @@ for (const value of [
   ['short'], ['sixsix'], ['invalid--label'], ['0x1234567'], ['-invalid'], ['invalid-'], ['Uppercase'], ['sub.name'], ['invalid_name'], ['x'.repeat(32)], [123],
   object({ first: ['reserved'], second: ['reserved'] }), object({ First: ['reserved'] }), object({ 'bad_name': ['reserved'] }), object({ first: [] }), object({}),
   object([]), object({ first: ['reserved'] }, 32), object({ first: ['reserved'] }, -1), object({ first: ['reserved'] }, 7.5),
-  { ...object({ first: ['reserved'] }), schema: 'ans-reserved-labels/2' },
+  { ...object({ first: ['reserved'] }), schema: 'fog-reserved-labels/2' },
 ]) {
   test(`reserved loader rejects invalid input ${JSON.stringify(value)}`, () => assert.throws(() => loadReservedList(value)));
 }

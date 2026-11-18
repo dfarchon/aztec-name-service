@@ -2,8 +2,8 @@ import { createAztecNodeClient } from '@aztec-labs/aztec.js/node';
 import { AztecAddress } from '@aztec-labs/aztec.js/addresses';
 import type { Wallet } from '@aztec-labs/aztec.js/wallet';
 import type { WalletProvider } from '@aztec-labs/wallet-sdk/manager';
-import { RegistryReader, toAnsError } from '@ans/sdk/read';
-import type { FeeQuote, RegistrationPlan, TxUpdate } from '@ans/sdk';
+import { RegistryReader, toFogError } from '@fog/sdk/read';
+import type { FeeQuote, RegistrationPlan, TxUpdate } from '@fog/sdk';
 import type { discoverWallets } from '../wallet-connection.js';
 import type { registrationActions } from '../registration.js';
 import type { encryptedPlanStore } from '../plan-store.js';
@@ -65,7 +65,7 @@ async function action(run: () => Promise<void>) {
   try {
     await run();
   } catch (error) {
-    const mapped = toAnsError(error);
+    const mapped = toFogError(error);
     output({
       code: mapped.code,
       message: mapped.message,
@@ -116,7 +116,7 @@ element('discover').onclick = () =>
     const { discoverWallets, connectWallet } = await import('../wallet-connection.js');
     discovery?.cancel();
     element('providers').replaceChildren();
-    discovery = discoverWallets('ans-sdk-consumer', (candidate) => {
+    discovery = discoverWallets('fog-sdk-consumer', (candidate) => {
       const button = document.createElement('button');
       button.textContent = candidate.name;
       button.onclick = () =>
@@ -125,7 +125,7 @@ element('discover').onclick = () =>
           const connected = await connectWallet(
             reader,
             candidate,
-            'ans-sdk-consumer',
+            'fog-sdk-consumer',
             (symbols) =>
               new Promise<boolean>((resolve) => {
                 element('symbols').textContent = symbols;

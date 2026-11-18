@@ -7,7 +7,7 @@ import { Fr, BlockNumber } from '@aztec-labs/aztec.js/fields';
 import { createAztecNodeClient } from '@aztec-labs/aztec.js/node';
 import { getPublicEvents, type EventCursor } from '@aztec-labs/aztec.js/events';
 import { deriveStorageSlotInMap } from '@aztec-labs/stdlib/hash';
-import { RegistryReader, NameRegistrarLaunchContract, runTx, configureModules, assertRegistrableLabel, registerCommitment, hashWithSeparator, normalizeName, nodeOf, SECONDS_PER_YEAR, type AnsContext } from '@ans/sdk';
+import { RegistryReader, NameRegistrarLaunchContract, runTx, configureModules, assertRegistrableLabel, registerCommitment, hashWithSeparator, normalizeName, nodeOf, SECONDS_PER_YEAR, type FogContext } from '@fog/sdk';
 import { executeLaunchSwitch, type SwitchState } from './launch-switch.js';
 import { loadReservedList, canonicalReservedLabels, reservedNodes, reservedBatches, reservedListHash, reservationParity, verifyReservations } from './launch-policy.js';
 
@@ -23,7 +23,7 @@ export async function planLaunchAdmin(reader:RegistryReader, action:LaunchAction
   if(action.kind==='mint') { assertRegistrableLabel(normalizeName(action.name));assert(!AztecAddress.fromStringUnsafe(action.recipient).isZero(),'Recipient required'); }
   return {dryRun:true,registry:reader.registry.toString(),registrar:config.registrar.toString(),administrator:(await reader.getAdministrator(snap))?.toString(),action};
 }
-async function target(ctx:AnsContext,address:AztecAddress) {
+async function target(ctx:FogContext,address:AztecAddress) {
   const s=await ctx.reader.snapshot();
   assert.equal(await ctx.reader.assertModule(address,'registrar',s),'registrarLaunch');
   assert((await ctx.reader.getAdministrator(s))?.equals(ctx.account),'Not current registry administrator');
@@ -31,7 +31,7 @@ async function target(ctx:AnsContext,address:AztecAddress) {
   await ctx.wallet.registerContract(instance,NameRegistrarLaunchContract.artifact);
   return NameRegistrarLaunchContract.at(address,ctx.wallet);
 }
-export async function runLaunchAdmin(ctx:AnsContext,action:LaunchAction,options:{broadcast?:boolean}={}) {
+export async function runLaunchAdmin(ctx:FogContext,action:LaunchAction,options:{broadcast?:boolean}={}) {
   const plan=await planLaunchAdmin(ctx.reader,action);
   if(!options.broadcast)return plan;
   const address=AztecAddress.fromStringUnsafe(plan.registrar);
@@ -58,7 +58,7 @@ export async function runLaunchAdmin(ctx:AnsContext,action:LaunchAction,options:
   return {...plan,dryRun:false};
 }
 /** Copy policy from a complete pinned ReservedChanged history plus the canonical list, then verify before switching. */
-export async function copyLaunchPolicy(ctx:AnsContext,to:AztecAddress,labels:string[],options:{broadcast?:boolean}={}) {
+export async function copyLaunchPolicy(ctx:FogContext,to:AztecAddress,labels:string[],options:{broadcast?:boolean}={}) {
   const snap=await ctx.reader.snapshot(),config=await ctx.reader.getConfig(snap);assert(config.launch&&config.registrar);
   const from=config.registrar;let after:EventCursor|undefined;const events:{node:bigint;reserved:boolean}[]=[];
   for(const source of [from,to]) {
@@ -84,7 +84,7 @@ export async function copyLaunchPolicy(ctx:AnsContext,to:AztecAddress,labels:str
   return {dryRun:false,verified:true,from:from.toString(),to:to.toString(),reservedListHash:reservedListHash(labels)};
 }
 /** Fresh pinned public policy and complete reservation union, including events added during copying. */
-async function readSwitchState(ctx:AnsContext,address:AztecAddress,sources:AztecAddress[],labels:string[]):Promise<SwitchState> {
+async function readSwitchState(ctx:FogContext,address:AztecAddress,sources:AztecAddress[],labels:string[]):Promise<SwitchState> {
   const snap=await ctx.reader.snapshot();
   const policy=await ctx.queue.run(async()=>{
     await ctx.assertWalletNetwork();
@@ -110,7 +110,7 @@ async function readSwitchState(ctx:AnsContext,address:AztecAddress,sources:Aztec
   return {policy,entries};
 }
 /** Pause the old instance by default; aborts expose an explicit operator recovery plan. */
-export async function switchLaunchRegistrar(ctx:AnsContext,to:AztecAddress,labels:string[],options:{broadcast?:boolean;pauseOldDuringSwitch?:boolean}={}) {
+export async function switchLaunchRegistrar(ctx:FogContext,to:AztecAddress,labels:string[],options:{broadcast?:boolean;pauseOldDuringSwitch?:boolean}={}) {
   if(!options.broadcast)return {...await copyLaunchPolicy(ctx,to,labels,options),pauseOldDuringSwitch:options.pauseOldDuringSwitch!==false,
     resumePlan:'On abort inspect active module and policy before restoring the old pause state; successful switches leave the old registrar paused.'};
   const from=(await ctx.reader.getModules()).registrar;

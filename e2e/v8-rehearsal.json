@@ -1,6 +1,6 @@
 {
   "template": true,
-  "schema": "ans-v8-upgrade-rehearsal/1",
+  "schema": "fog-v8-upgrade-rehearsal/1",
   "network": "testnet-v6",
   "aztecVersion": "6.0.0",
   "registryVersion": 8,

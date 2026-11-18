@@ -7,7 +7,7 @@
   "registry": "0x15f7fb75c4f96e6c85c96824279a563ee4b1bb4cd7a2d60d03c9c4eddc5db804",
   "testAsset": {
     "official": false,
-    "name": "ANS Mock AZTEC (test only)",
+    "name": "Fog Mock AZTEC (test only)",
     "symbol": "mAZTEC",
     "decimals": 18,
     "token": "0x212913baa4d8f6dd37e8e050c6cf02c43e4fbf7374994af0a3b5d016fb5c9e14",

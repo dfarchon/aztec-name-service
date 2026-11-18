@@ -1,8 +1,8 @@
 import { CoreUpgradeControls } from './core-upgrade';
 import { translate } from "./i18n";
 import { useEffect, useState } from 'react';
-import type { NameRecord, RegistryReader } from '@ans/sdk/read';
-import type { Holding } from '@ans/sdk';
+import type { NameRecord, RegistryReader } from '@fog/sdk/read';
+import type { Holding } from '@fog/sdk';
 import { CopyValue, TxLine, useTx } from './components';
 import { date, errorMessage } from './format';
 import { useSession } from './session';
@@ -70,7 +70,7 @@ export function NameModules({ holding, onDone, onResolverVerified }: { holding: 
       <h2>{translate("Migrate an existing name")}</h2><p>{translate("The expiry date is preserved. Confirm your primary name again after migration.")}</p>
       <dl><dt>{translate("Previous owner")}</dt><dd><CopyValue value={legacy.owner.toString()} /></dd><dt>{translate("Expires")}</dt><dd>{date(legacy.expiresAt)}</dd></dl>
       {legacy.owner.equals(ctx.account) ? <button disabled={tx.busy} onClick={() => void tx.exec('Migrate name', async onUpdate => {
-        const { migrateName } = await import('@ans/sdk');
+        const { migrateName } = await import('@fog/sdk');
         await migrateName(ctx, holding.label, { onUpdate }); onDone();
       })}>{translate("Migrate to current registry")}</button> : <p className="muted">{translate("Switch to the previous owner account.")}</p>}
     </section>}
@@ -82,7 +82,7 @@ export function NameModules({ holding, onDone, onResolverVerified }: { holding: 
           : "Unverified resolver: address records may be controlled by a third party")}</p>
         <p>{translate("Set your address and primary name again after switching.")}</p>
         <button id="use-default-resolver" disabled={tx.busy || !resolvers?.current || !resolvers.next || resolvers.current === resolvers.next} onClick={() => void tx.exec('Switch resolver', async onUpdate => {
-          const { setResolver } = await import('@ans/sdk');
+          const { setResolver } = await import('@fog/sdk');
           const snapshot = await ctx.reader.snapshot();
           const [current, modules] = await Promise.all([ctx.reader.inspectResolver(holding.node, holding.record.generation, snapshot), ctx.reader.getModules(snapshot)]);
           if (current.address.equals(modules.resolver)) { onDone(); return; }

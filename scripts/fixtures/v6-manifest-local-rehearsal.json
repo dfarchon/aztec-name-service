@@ -1,5 +1,5 @@
 {
-  "schema": "ans-deployment-v6/1",
+  "schema": "fog-deployment-v6/1",
   "network": "local",
   "aztecVersion": "6.0.0",
   "protocol": 6,

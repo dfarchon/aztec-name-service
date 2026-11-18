@@ -22,7 +22,7 @@ test('subnames are opt-in, bounded, canonical and use parent-specific nodes', as
 test('public records enforce byte limits and unambiguous padded encoding', () => {
   const key = 'address:eip155:8453'; assert.equal(decodeRecordKey(encodeRecordKey(key)), key);
   assert.throws(() => encodeRecordKey('bad key')); assert.throws(() => decodeRecordKey(1n));
-  const value = '界'.repeat(82) + 'ab'; const encoded = encodeTextValue(value); assert.equal(encoded.length, 248);
+  const value = '€'.repeat(82) + 'ab'; const encoded = encodeTextValue(value); assert.equal(encoded.length, 248);
   const words = Array.from({ length: 8 }, (_, i) => packBytes(encoded.bytes.slice(i*31,i*31+31)));
   assert.equal(decodeTextValue(words, 248), value); assert.throws(() => encodeTextValue(value+'c'));
   assert.throws(() => decodeTextValue(words, 247)); assert.throws(() => decodeTextValue([1n<<248n,...words.slice(1)],248));

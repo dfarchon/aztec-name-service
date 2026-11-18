@@ -26,7 +26,7 @@ test('monitor notifications require opt-in, ignore history and deduplicate failu
     const at = Date.now() + 100;
     const events = [{ name: 'rpc', kind: 'alert', at }, { name: 'rpc', kind: 'recovered', at: at + 1 }];
     notifyIncidents([{ name: 'website', kind: 'alert', at: 1 }, ...events], { rpc: 'RPC' });
-    assert.deepEqual(delivered, ['ANS · RPC ongoing issue', 'ANS · RPC recovered']);
+    assert.deepEqual(delivered, ['Fog · RPC ongoing issue', 'Fog · RPC recovered']);
     notifyIncidents(events, { rpc: 'RPC' }); assert.equal(delivered.length, 2);
     disableNotifications(); notifyIncidents([{ name: 'rpc', kind: 'alert', at: at + 2 }], {});
     assert.equal(delivered.length, 2);

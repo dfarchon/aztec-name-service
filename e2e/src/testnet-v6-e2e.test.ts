@@ -47,7 +47,7 @@ const fake = (id: string) => ({
   signingKey: 'SENTINEL-SIGNING',
 });
 const fresh = (): E2EState => ({
-  schema: 'ans-testnet-v6-e2e/1',
+  schema: 'fog-testnet-v6-e2e/1',
   binding: manifestBinding(manifest),
   names: testNames(),
   accounts: { user: fake('user'), recipient: fake('recipient') },
@@ -57,7 +57,7 @@ const fresh = (): E2EState => ({
   done: [],
 });
 async function fixture(t: { after: (fn: () => Promise<unknown>) => void }) {
-  const dir = await mkdtemp(join(tmpdir(), 'ans-v6-e2e-test-'));
+  const dir = await mkdtemp(join(tmpdir(), 'fog-v6-e2e-test-'));
   t.after(() => rm(dir, { recursive: true, force: true }));
   await chmod(dir, 0o700);
   return dir;
@@ -281,7 +281,7 @@ test('names have requested prefix, base36 date and randomness; short labels are 
   const n = testNames(Date.UTC(2026, 9, 28), 'abcd1234', 35);
   assert.equal(
     n.long,
-    `ans-e2e-${Math.floor(Date.UTC(2026, 9, 28) / 86400000).toString(36)}-abcd1234`,
+    `fog-e2e-${Math.floor(Date.UTC(2026, 9, 28) / 86400000).toString(36)}-abcd1234`,
   );
   assert.equal(n.short, 'a00z');
   assert(n.long.length >= 5 && n.long.length <= 31);
@@ -289,7 +289,7 @@ test('names have requested prefix, base36 date and randomness; short labels are 
   assert.equal(new Set(names.map((n) => n.long)).size, 100);
   assert(
     names.every(
-      (n) => /^ans-e2e-[a-z0-9]+-[a-z0-9]{8}$/.test(n.long) && /^a[a-z0-9]{3}$/.test(n.short),
+      (n) => /^fog-e2e-[a-z0-9]+-[a-z0-9]{8}$/.test(n.long) && /^a[a-z0-9]{3}$/.test(n.short),
     ),
   );
   assert.equal(STEPS.length, 9);
@@ -306,7 +306,7 @@ test('private checkpoint modes are 0700/0600 even under umask zero and symlinks/
     assert.equal((await stat(join(dir, 'private'))).mode & 0o777, 0o700);
     await savePrivateJson(path, fresh());
     assert.equal((await stat(path)).mode & 0o777, 0o600);
-    assert.equal((await readPrivateState(path))!.schema, 'ans-testnet-v6-e2e/1');
+    assert.equal((await readPrivateState(path))!.schema, 'fog-testnet-v6-e2e/1');
     await symlink(path, join(dir, 'link'));
     await assert.rejects(readPrivateState(join(dir, 'link')));
     await chmod(path, 0o644);

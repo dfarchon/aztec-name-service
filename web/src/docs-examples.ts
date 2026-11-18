@@ -1,8 +1,8 @@
 // CI compiles these complete modules inside the independently installed starter.
-export const profileExample = `import { type AnsContext, setTextRecord, setChainAddress } from '@ans/sdk';
+export const profileExample = `import { type FogContext, setTextRecord, setChainAddress } from '@fog/sdk';
 
 export async function updateProfile(
-  ctx: AnsContext,
+  ctx: FogContext,
   name: string,
   description: string,
   ethereumAddress: string,
@@ -14,7 +14,7 @@ export async function updateProfile(
 
 export const connectionExample = `import type { AztecAddress } from '@aztec-labs/aztec.js/addresses';
 import type { Wallet } from '@aztec-labs/aztec.js/wallet';
-import type { RegistryReader } from '@ans/sdk/read';
+import type { RegistryReader } from '@fog/sdk/read';
 import { registrationActions } from './registration.js';
 import { encryptedPlanStore } from './plan-store.js';
 import deployment from './deployment.json' with { type: 'json' };
@@ -34,7 +34,7 @@ export async function connectRegistration(
   return { flow, store, quote, readiness };
 }`;
 
-export const registrationExample = `import type { FeeQuote, RegistrationPlan, TxUpdate } from '@ans/sdk';
+export const registrationExample = `import type { FeeQuote, RegistrationPlan, TxUpdate } from '@fog/sdk';
 import type { RegistrationFlow } from './registration.js';
 
 export async function commitAcceptedPlan(
@@ -58,10 +58,10 @@ export async function finishReadyPlan(
 }`;
 
 export const configurationExample = `import type { AztecAddress } from '@aztec-labs/aztec.js/addresses';
-import { configureModules, type AnsContext } from '@ans/sdk';
+import { configureModules, type FogContext } from '@fog/sdk';
 
 export async function updateModules(
-  administrator: AnsContext,
+  administrator: FogContext,
   registrar: AztecAddress,
   defaultResolver: AztecAddress,
 ) {
@@ -74,8 +74,8 @@ export async function updateModules(
   return { tx, modules };
 }`;
 
-export const launchExample = `import type { RegistryReader } from '@ans/sdk/read';
-import { getFeeQuote } from '@ans/sdk';
+export const launchExample = `import type { RegistryReader } from '@fog/sdk/read';
+import { getFeeQuote } from '@fog/sdk';
 
 /** Read live public policy. This reserves nothing and does not open a wallet. */
 export async function inspectLaunch(reader: RegistryReader, name: string) {
@@ -91,8 +91,8 @@ export async function inspectLaunch(reader: RegistryReader, name: string) {
   return { launch: config.launch, eligibility, quote, needsTokenAuthorization: quote.fee > 0n };
 }`;
 
-export const resolverTrustExample = `import { resolveAddress, type RegistryReader } from '@ans/sdk/read';
-import { setResolver, type AnsContext } from '@ans/sdk';
+export const resolverTrustExample = `import { resolveAddress, type RegistryReader } from '@fog/sdk/read';
+import { setResolver, type FogContext } from '@fog/sdk';
 
 export async function receivingAddress(reader: RegistryReader, name: string) {
   const result = await resolveAddress(reader, name);
@@ -100,7 +100,7 @@ export async function receivingAddress(reader: RegistryReader, name: string) {
   return result.status === 'resolved' ? result.address : undefined;
 }
 
-export async function restoreDefaultResolver(ctx: AnsContext, name: string) {
+export async function restoreDefaultResolver(ctx: FogContext, name: string) {
   const modules = await ctx.reader.getModules();
   return setResolver(ctx, { name, resolver: modules.resolver });
 }`;

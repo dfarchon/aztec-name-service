@@ -1,6 +1,6 @@
 /**
  * Explicitly confirmed, real-proof V8 upgrade rehearsal executor.
- * Runs exclusively under `ans-signer` inside `/var/lib/ans-signer/testnet-v8-upgrade-rehearsal-*`.
+ * Runs exclusively under `fog-signer` inside `/var/lib/fog-signer/testnet-v8-upgrade-rehearsal-*`.
  * Persists and fsyncs exact L1/L2 transaction hashes BEFORE broadcast; saved hashes resume TRACK ONLY.
  * Exits cleanly with Asia/Taipei resume timestamps at 86,400-second application/protocol waits.
  */
@@ -39,7 +39,7 @@ import { computeSecretHash, deriveStorageSlotInMap } from '@aztec-labs/stdlib/ha
 import type { Tx } from '@aztec-labs/stdlib/tx';
 import { EmbeddedWallet } from '@aztec-labs/wallets/embedded';
 import {
-  AnsContext,
+  FogContext,
   CORE_UPGRADE_FAMILY,
   NameRegistrarLaunchContract,
   NameResolverContract,
@@ -67,8 +67,8 @@ import {
   trackTx,
   waitUntilRegistrable,
   type CoreUpgradeAction,
-} from '@ans/sdk';
-import { NameRegistryV8Contract, NameRegistryV8RehearsalContract } from '@ans/sdk/contracts/v8';
+} from '@fog/sdk';
+import { NameRegistryV8Contract, NameRegistryV8RehearsalContract } from '@fog/sdk/contracts/v8';
 import metadata from '../../sdk/src/artifacts/modular-metadata.json' with { type: 'json' };
 import reservations from '../../deployments/reserved-labels.json' with { type: 'json' };
 import { assertV8DeploymentOwner, v8BoundDeployment } from './v8-deployment.js';
@@ -113,7 +113,7 @@ type ClaimRecord = {
 };
 
 type V8RunState = {
-  schema: 'ans-v8-live-rehearsal-state/1';
+  schema: 'fog-v8-live-rehearsal-state/1';
   confirmation: string;
   l1Transactions: Record<string, Hex>;
   l1Done: string[];
@@ -174,7 +174,7 @@ export async function sendV8Rehearsal(
         };
       }
       state = {
-        schema: 'ans-v8-live-rehearsal-state/1',
+        schema: 'fog-v8-live-rehearsal-state/1',
         confirmation: config.confirmation,
         l1Transactions: {},
         l1Done: [],
@@ -189,7 +189,7 @@ export async function sendV8Rehearsal(
       };
       await savePrivateJson(statePath, state);
     }
-    assert.equal(state.schema, 'ans-v8-live-rehearsal-state/1');
+    assert.equal(state.schema, 'fog-v8-live-rehearsal-state/1');
     assert.equal(state.confirmation, config.confirmation, 'Checkpoint confirmation binding mismatch');
 
     const save = async (status = 'IN_PROGRESS', extra: Record<string, unknown> = {}) => {
@@ -198,7 +198,7 @@ export async function sendV8Rehearsal(
       const spentL2Wei = Object.values(state.l2FeesWei).reduce((a, b) => a + BigInt(b), 0n);
       await savePrivateJson(reportPath, {
         ...extra,
-        schema: 'ans-v8-live-rehearsal-report/1',
+        schema: 'fog-v8-live-rehearsal-report/1',
         status,
         confirmation: state.confirmation,
         l1FundingAddress: publicAccounts.l1FundingAddress,
@@ -724,7 +724,7 @@ export async function sendV8Rehearsal(
       allowRehearsalSuccessor: true,
     });
     await assert.rejects(() =>
-      prepareRegistration(new AnsContext(reader, { wallet: wallet!, account: holder }), {
+      prepareRegistration(new FogContext(reader, { wallet: wallet!, account: holder }), {
         name: 'upgrade-name',
         duration: YEAR,
       }),
@@ -739,7 +739,7 @@ export async function sendV8Rehearsal(
     );
 
     const makeCtx = (role: V8ActorRole, fee?: FeePaymentMethod) =>
-      new AnsContext(reader, {
+      new FogContext(reader, {
         wallet: wallet!,
         account: actors[role],
         fee: fee ? { paymentMethod: fee } : undefined,

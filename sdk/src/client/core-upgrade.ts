@@ -4,7 +4,7 @@ import type { AztecNode } from '@aztec-labs/aztec.js/node';
 import { DomainSeparator, UPDATED_CLASS_IDS_SLOT, CONTRACT_INSTANCE_REGISTRY_CONTRACT_ADDRESS } from '@aztec-labs/constants';
 import metadata from '../artifacts/modular-metadata.json' with { type: 'json' };
 import { hashWithSeparator } from '../core/hash.js';
-import { AnsError } from '../core/errors.js';
+import { FogError } from '../core/errors.js';
 import type { Snapshot } from '../core/types.js';
 
 /** All times are Unix seconds; all nonces and exact class IDs are bigint. No simulated views. */
@@ -16,7 +16,7 @@ export type CoreUpgradeState = {
   protocol: { previous: bigint; target: bigint; activationAt: bigint; delay: bigint };
 };
 export type UpgradeProfile = { allowRehearsalSuccessor?: boolean };
-const fail = (message: string): never => { throw new AnsError('wrong_deployment', message); };
+const fail = (message: string): never => { throw new FogError('wrong_deployment', message); };
 const protocolAddress = AztecAddress.fromBigIntUnsafe(BigInt(CONTRACT_INSTANCE_REGISTRY_CONTRACT_ADDRESS));
 const approvedClasses = (profile: UpgradeProfile) => [metadata.v8.classId, ...(profile.allowRehearsalSuccessor ? [metadata.v8Rehearsal.classId] : [])];
 export const isV8Class = (id: string) => id === metadata.v8.classId || id === metadata.v8Rehearsal.classId;
@@ -100,7 +100,7 @@ export async function readCoreUpgrade(node: AztecNode, registry: AztecAddress, s
 
 /** Conservative floor until public real-proof latency has been measured. Caller may require a larger margin. */
 export function assertUpgradeInclusionMargin(state: CoreUpgradeState, minimumSeconds = 900n) {
-  if (minimumSeconds < 900n) throw new AnsError('invalid_argument', 'upgrade proving/inclusion margin must be at least 900 seconds');
+  if (minimumSeconds < 900n) throw new FogError('invalid_argument', 'upgrade proving/inclusion margin must be at least 900 seconds');
   if (state.scheduled.active && state.snapshot.timestamp < state.scheduled.activationAt && state.scheduled.activationAt - state.snapshot.timestamp <= minimumSeconds)
-    throw new AnsError('unsupported', 'too close to core activation to safely prove and include; resume after activation with refreshed artifacts');
+    throw new FogError('unsupported', 'too close to core activation to safely prove and include; resume after activation with refreshed artifacts');
 }

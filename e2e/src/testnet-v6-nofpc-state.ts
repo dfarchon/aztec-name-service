@@ -5,7 +5,7 @@ import { constants } from 'node:fs';
 import { lstat, open, readFile } from 'node:fs/promises';
 import { createRequire } from 'node:module';
 import { dirname, join, resolve } from 'node:path';
-import { assertRegistrableLabel, labelFromCanonical } from '@ans/sdk';
+import { assertRegistrableLabel, labelFromCanonical } from '@fog/sdk';
 import { TxStatus } from '@aztec-labs/aztec.js/tx';
 import { PUBLIC_V6_MANIFESTS, REPO, assertPrivateDir, within, type Manifest } from './deploy-v6-plan.js';
 import { physicalPath } from './deploy-v6.js';
@@ -113,7 +113,7 @@ export type TransactionRecord = {
   userFeeJuiceBefore: string; userFeeJuiceAfter?: string;
 };
 export type RegisterState = {
-  schema: 'ans-v6-nofpc-register/1'; binding: string; confirmation: string;
+  schema: 'fog-v6-nofpc-register/1'; binding: string; confirmation: string;
   user: string; name: string; identity: { chainId: string; rollupVersion: string; rollup: string };
   transactions: Record<string, string>; records: Partial<Record<RegisterStep, TransactionRecord>>;
   done: string[]; plan?: string; funding?: { before: string; amount: string };
@@ -131,7 +131,7 @@ export async function readRegisterJson<T>(path: string): Promise<T | undefined> 
   } finally { await file.close(); }
 }
 export function validateRegisterState(s: RegisterState, m: Manifest, c: RegisterOptions, user: string, identity: RegisterState['identity']) {
-  assert(s.schema === 'ans-v6-nofpc-register/1' && s.binding === manifestBinding(m) &&
+  assert(s.schema === 'fog-v6-nofpc-register/1' && s.binding === manifestBinding(m) &&
     s.confirmation === registerConfirmation(c, m) && s.name === c.name && s.user === user,
     'Registration checkpoint binding mismatch');
   assert.deepEqual(s.identity, identity, 'Registration checkpoint network mismatch');
@@ -152,7 +152,7 @@ export function validateRegisterState(s: RegisterState, m: Manifest, c: Register
 }
 /** Explicit projection: registration plans, keys and bridge claims never enter the report. */
 export function registerReport(s: RegisterState) {
-  return { schema: 'ans-v6-nofpc-register-report/1', network: 'testnet-v6', feePayment: 'fee-juice',
+  return { schema: 'fog-v6-nofpc-register-report/1', network: 'testnet-v6', feePayment: 'fee-juice',
     realProofs: true, identity: { ...s.identity }, user: s.user, name: s.name,
     feeJuice: { before: s.feeJuice.before, after: s.feeJuice.after ?? null }, resolved: s.resolved ?? null,
     transactions: Object.fromEntries(REGISTER_STEPS.filter(k => s.records[k]).map(k => {

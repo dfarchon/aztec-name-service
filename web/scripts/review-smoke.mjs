@@ -54,7 +54,7 @@ try {
     // Resolve the same SDK module Vite imports for the registration page.
     const response = await fetch('/src/pages/Register.tsx');
     const source = await response.text();
-    const path = source.match(/from\s*["']([^"']*(?:ans_sdk|sdk\/dist\/index\.js)[^"']*)["']/)?.[1];
+    const path = source.match(/from\s*["']([^"']*(?:fog_sdk|sdk\/dist\/index\.js)[^"']*)["']/)?.[1];
     if (!path) throw new Error('SDK module path not found');
     const { prepareRegistration } = await import(path);
     const ctx = getSession().ctx;

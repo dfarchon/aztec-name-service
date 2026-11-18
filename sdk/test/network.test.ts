@@ -7,9 +7,9 @@ import type { ContractFunctionInteraction } from '@aztec-labs/aztec.js/contracts
 import { TxHash, TxStatus } from '@aztec-labs/aztec.js/tx';
 
 import {
-  AnsContext,
-  AnsError,
-  connectAns,
+  FogContext,
+  FogError,
+  connectFog,
   getPrivateFeeBalance,
   buildFeeAuthorization,
   readFeeTokenMetadata,
@@ -46,7 +46,7 @@ function fixture() {
       calls.signatures++;
     },
   } as unknown as Wallet;
-  const ctx = new AnsContext(reader, { wallet, account });
+  const ctx = new FogContext(reader, { wallet, account });
   const interaction = {
     send: async () => {
       calls.sends++;
@@ -61,12 +61,12 @@ test('connection rejects a mismatched chain or rollup before requesting accounts
     const f = fixture();
     f.identity[field] = new Fr(999);
     await assert.rejects(
-      connectAns(f.reader, {
+      connectFog(f.reader, {
         wallet: f.wallet,
         account: f.account,
         deployment: { registry: f.registry.toString(), chainId: '31337', rollupVersion: '1' },
       }),
-      (e: AnsError) => e.code === 'wrong_deployment',
+      (e: FogError) => e.code === 'wrong_deployment',
     );
     assert.deepEqual(f.calls, { accounts: 0, registrations: 0, signatures: 0, sends: 0 });
   }
@@ -76,7 +76,7 @@ test('a wallet network change prevents submission even for an existing legacy co
   const f = fixture();
   assert.equal((await runTx(f.ctx, f.interaction)).state, 'confirmed');
   f.identity.version = new Fr(2);
-  await assert.rejects(runTx(f.ctx, f.interaction), (e: AnsError) => e.code === 'wrong_deployment');
+  await assert.rejects(runTx(f.ctx, f.interaction), (e: FogError) => e.code === 'wrong_deployment');
   assert.equal(f.calls.sends, 1);
 });
 
@@ -85,7 +85,7 @@ test('network mismatch blocks private balance reads, fee authorization and artif
   f.identity.chainId = new Fr(1);
   await assert.rejects(
     getPrivateFeeBalance(f.ctx, f.registry),
-    (e: AnsError) => e.code === 'wrong_deployment',
+    (e: FogError) => e.code === 'wrong_deployment',
   );
   await assert.rejects(
     buildFeeAuthorization(f.ctx, {
@@ -94,9 +94,9 @@ test('network mismatch blocks private balance reads, fee authorization and artif
       fee: 1n,
       feeNonce: 2n,
     }),
-    (e: AnsError) => e.code === 'wrong_deployment',
+    (e: FogError) => e.code === 'wrong_deployment',
   );
-  await assert.rejects(f.ctx.ensureRegistered(), (e: AnsError) => e.code === 'wrong_deployment');
+  await assert.rejects(f.ctx.ensureRegistered(), (e: FogError) => e.code === 'wrong_deployment');
   assert.deepEqual(f.calls, { accounts: 0, registrations: 0, signatures: 0, sends: 0 });
 });
 
@@ -105,7 +105,7 @@ test('unavailable wallet identity is a network error and never reaches submissio
   f.wallet.getChainInfo = async () => {
     throw new Error('RPC temporarily unavailable');
   };
-  await assert.rejects(runTx(f.ctx, f.interaction), (e: AnsError) => e.code === 'network');
+  await assert.rejects(runTx(f.ctx, f.interaction), (e: FogError) => e.code === 'network');
   assert.equal(f.calls.sends, 0);
 });
 
@@ -122,12 +122,12 @@ test('fee metadata transport failures use stable SDK errors instead of raw RPC e
   };
   await assert.rejects(
     readFeeTokenMetadata(f.reader, f.registry, snapshot),
-    (e: AnsError) => e.code === 'network' && e.cause instanceof Error,
+    (e: FogError) => e.code === 'network' && e.cause instanceof Error,
   );
   f.reader.node.getContract = async () => undefined;
   await assert.rejects(
     readFeeTokenMetadata(f.reader, f.registry, snapshot),
-    (e: AnsError) => e.code === 'unsupported',
+    (e: FogError) => e.code === 'unsupported',
   );
 });
 
@@ -150,7 +150,7 @@ test('deferred module selection runs only inside the shared wallet queue after n
   f.identity.version = new Fr(99);
   release();
   await gate;
-  await assert.rejects(pending, (e: AnsError) => e.code === 'wrong_deployment');
+  await assert.rejects(pending, (e: FogError) => e.code === 'wrong_deployment');
   assert.equal(selections, 0);
   assert.equal(f.calls.sends, 0);
   f.identity.version = new Fr(1);
@@ -169,13 +169,13 @@ test('a module selection failure before send emits no unknown broadcast and can 
     runTx(
       f.ctx,
       () => {
-        throw new AnsError('network', 'module unavailable');
+        throw new FogError('network', 'module unavailable');
       },
       {
         onUpdate: (update) => updates.push(update.state),
       },
     ),
-    (e: AnsError) => e.code === 'network',
+    (e: FogError) => e.code === 'network',
   );
   assert.deepEqual(updates, []);
   assert.equal(f.calls.sends, 0);

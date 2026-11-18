@@ -67,7 +67,7 @@ export type Identity = {
   codeHashes: string[];
 };
 export type Binding = {
-  schema: 'ans-v8-safe-prep/1';
+  schema: 'fog-v8-safe-prep/1';
   run: string;
   identity: Identity;
   artifacts: Record<string, string>;
@@ -84,7 +84,7 @@ export type Binding = {
 };
 const hashPattern = /^[0-9a-f]{64}$/;
 export function validateBinding(binding: Binding) {
-  assert.equal(binding.schema, 'ans-v8-safe-prep/1');
+  assert.equal(binding.schema, 'fog-v8-safe-prep/1');
   assert(/^[a-z0-9-]{1,80}$/.test(binding.run));
   assert.equal(binding.reservations.count, 325);
   assert.equal(binding.reservations.batches, 11);

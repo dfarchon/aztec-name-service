@@ -95,5 +95,5 @@ try {
   const result = { checkedAt: new Date().toISOString(), wrongNetworkFixture: true, readerBlocked: true, walletBlocked: true, storageReads, broadcasts, errors };
   results.push(result); console.log(JSON.stringify(result));
   await page.close();
-  if (process.env.ANS_RESOLUTION_REPORT) await writeFile(process.env.ANS_RESOLUTION_REPORT, JSON.stringify(results, null, 2) + '\n');
+  if (process.env.FOG_RESOLUTION_REPORT) await writeFile(process.env.FOG_RESOLUTION_REPORT, JSON.stringify(results, null, 2) + '\n');
 } finally { await browser.close(); }

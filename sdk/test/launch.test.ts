@@ -7,7 +7,7 @@ import { getContractClassFromArtifact } from '@aztec-labs/stdlib/contract';
 import { RegistryReader } from '../src/client/reader.js';
 import { nodeOf } from '../src/core/hash.js';
 import { normalizeName } from '../src/core/label.js';
-import { toAnsError } from '../src/core/errors.js';
+import { toFogError } from '../src/core/errors.js';
 import { NameRegistrarLaunchContract } from '../src/artifacts/NameRegistrarLaunch.js';
 import { getFeeQuote, buildFeeAuthorization } from '../src/transactions/fees.js';
 import { prepareRegistration, submitCommit, submitRegistration } from '../src/transactions/registration.js';
@@ -91,15 +91,15 @@ test('policy changes after preparation block commit and reveal before constructi
 });
 test('launch assertion messages expose stable SDK error codes',()=>{
   for(const [message,code] of [['name reserved','name_reserved'],['name not yet available','name_not_available_yet'],['registration paused','registration_paused'],['renewal too early','renewal_too_early'],['lease must be one year','invalid_argument']] as const)
-    assert.equal(toAnsError(new Error(message)).code,code);
+    assert.equal(toFogError(new Error(message)).code,code);
 });
 
 test('wallet context selects the launch artifact and target kind',async()=>{
   const f=await fixture();
-  const {AnsContext}=await import('../src/wallet/context.js');
+  const {FogContext}=await import('../src/wallet/context.js');
   let artifact:unknown;
   const wallet={registerContract:async(_:unknown,a:unknown)=>{artifact=a;}} as any;
-  const ctx=new AnsContext(f.reader,{wallet,account:addr(5n)});
+  const ctx=new FogContext(f.reader,{wallet,account:addr(5n)});
   assert.equal((await ctx.registrationTarget(f.registrar.toString())).kind,'registrarLaunch');
   assert.equal(artifact,NameRegistrarLaunchContract.artifact);
 });

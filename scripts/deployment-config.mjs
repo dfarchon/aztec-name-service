@@ -97,7 +97,7 @@ export function v6ManifestProblems(m, { expectNetwork } = {}) {
   const check = (ok, label) => {
     if (!ok) problems.push(label);
   };
-  check(m.schema === 'ans-deployment-v6/1', 'v6 schema');
+  check(m.schema === 'fog-deployment-v6/1', 'v6 schema');
   check(m.aztecVersion === '6.0.0' && [6, 7].includes(m.protocol), 'v6 version/protocol');
   check(['local', 'testnet-v6', 'mainnet'].includes(m.network), 'v6 network');
   if (expectNetwork) check(m.network === expectNetwork, 'v6 expected network');
@@ -184,7 +184,7 @@ export function v6ManifestProblems(m, { expectNetwork } = {}) {
           : m.registrarKind === 'tiered'
             ? baseline.registrarTiered
             : baseline.registrar),
-    'v6 frozen ANS classes',
+    'v6 frozen Fog classes',
   );
   const tokenId = free
     ? zero

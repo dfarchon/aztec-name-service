@@ -189,7 +189,7 @@ export async function createBridgeCheckpoint(
   const secret = Fr.random();
   const state: BridgeState = {
     ...fields,
-    schema: 'ans-fee-juice-bridge/1',
+    schema: 'fog-fee-juice-bridge/1',
     claimSecret: secret.toString(),
     claimSecretHash: (await computeSecretHash(secret)).toString(),
   };
@@ -272,7 +272,7 @@ export async function bridgeMain(argv = process.argv.slice(2)) {
         });
       }
       if (
-        state.schema !== 'ans-fee-juice-bridge/1' ||
+        state.schema !== 'fog-fee-juice-bridge/1' ||
         state.network !== c.network ||
         state.recipient !== recipient ||
         state.amount !== String(amount) ||

@@ -27,7 +27,7 @@ export async function writeDeterministicFixtures(directory: string) {
     'Canonical absolute fresh directory required',
   );
   assert(
-    !directory.startsWith(resolve(process.env.HOME ?? '/', '.local/share/ans') + '/'),
+    !directory.startsWith(resolve(process.env.HOME ?? '/', '.local/share/fog') + '/'),
     'Historical credential tree refused',
   );
   assert.equal(await realpath(dirname(directory)), dirname(directory), 'Symlink parent refused');

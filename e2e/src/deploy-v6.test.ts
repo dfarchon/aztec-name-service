@@ -42,12 +42,12 @@ test('registrar and network are required; unknown and duplicate flags rejected',
 test('default mAZTEC official token and isolated state directory', () => {
   const c=parseArgs(base,{home:'/tmp/v6-home'});
   assert.equal(c.token,'official'); assert.equal(c.tokenName,'mAZTEC'); assert.equal(c.tokenSymbol,'mAZTEC');
-  assert.equal(c.stateDir,'/tmp/v6-home/.local/share/ans/local-aztec6-6.0.0');
+  assert.equal(c.stateDir,'/tmp/v6-home/.local/share/fog/local-aztec6-6.0.0');
   const t=parseArgs([...testnet,'--dry-run'],{home:'/tmp/v6-home'});
-  assert.equal(t.stateDir,'/tmp/v6-home/.local/share/ans/testnet-aztec6-6.0.0');
+  assert.equal(t.stateDir,'/tmp/v6-home/.local/share/fog/testnet-aztec6-6.0.0');
 });
 test('state path isolation and local manifest deployment directory are mandatory', () => {
-  for (const path of ['/tmp/repo/state','/tmp/home/.local/share/ans/testnet-v5.2.1','/tmp/home/.local/share/ans/testnet-v5-5.2.1','/tmp/home/.local/share/ans/testnet-aztec6-6.0.0']) assert.throws(()=>parseArgs([...base,'--state-dir',path],{repo:'/tmp/repo',home:'/tmp/home'}));
+  for (const path of ['/tmp/repo/state','/tmp/home/.local/share/fog/testnet-v5.2.1','/tmp/home/.local/share/fog/testnet-v5-5.2.1','/tmp/home/.local/share/fog/testnet-aztec6-6.0.0']) assert.throws(()=>parseArgs([...base,'--state-dir',path],{repo:'/tmp/repo',home:'/tmp/home'}));
   assert.throws(()=>parseArgs([...base,'--manifest-out','/tmp/repo/deployments/local.json'],{repo:'/tmp/repo'}));
 });
 test('confirmation binds exact testnet identity, token, treasury and selected policy', () => {
@@ -110,7 +110,7 @@ test('public manifest and dry plan project only public fields, never private val
   assert(!JSON.stringify(m).includes(privateValue)); assert(!JSON.stringify(deploymentPlan(c,p,identity,a,{...classIds,secret:privateValue})).includes(privateValue));
 });
 test('physical path checks catch symlinks into repository and resolve absent leaves', async t => {
-  const dir=await mkdtemp(join(realTmp,'ans-v6-path-'));t.after(()=>rm(dir,{recursive:true,force:true}));
+  const dir=await mkdtemp(join(realTmp,'fog-v6-path-'));t.after(()=>rm(dir,{recursive:true,force:true}));
   await symlink(REPO,join(dir,'repo'));
   assert.equal(await physicalPath(join(dir,'absent','leaf')),join(dir,'absent','leaf'));
   await assert.rejects(privatePaths({...parseArgs(base),stateDir:join(dir,'repo','state')}),/outside/);
@@ -119,7 +119,7 @@ test('physical path checks catch symlinks into repository and resolve absent lea
 });
 
 test('dry-run never generates keys or creates state and keeps confirmation independent of owner', async t => {
-  const dir = await mkdtemp(join(realTmp, 'ans-v6-dry-'));
+  const dir = await mkdtemp(join(realTmp, 'fog-v6-dry-'));
   t.after(() => rm(dir, { recursive: true, force: true }));
   const fpc = await sponsoredFpc(), calls: string[] = [], output: string[] = [];
   let generated = 0;
@@ -151,7 +151,7 @@ import { EmbeddedWallet } from '@aztec-labs/wallets/embedded';
 import { randomKeys } from './common.js';
 import { initKeys, readKeys, readPublicKeys, type KeysFile } from './init-keys.js';
 async function keyFixture(t: { after: (f: () => Promise<unknown>) => void }, network: 'local' | 'testnet-v6' = 'local') {
-  const dir = await mkdtemp(join(realTmp, 'ans-key-deploy-'));
+  const dir = await mkdtemp(join(realTmp, 'fog-key-deploy-'));
   t.after(() => rm(dir, { recursive: true, force: true }));
   const stateDir = join(dir, 'state');
   await initKeys(parseInitKeysArgs(['--init-keys', '--network', network, '--state-dir', stateDir]));
@@ -162,7 +162,7 @@ function noSecrets(output: string, keys: KeysFile) {
   assert(values.every(v => !output.includes(v) && !output.includes(BigInt(v).toString())), 'Private material in public output');
 }
 for (const network of ['local', 'testnet-v6'] as const) test(`init-keys ${network} creates no node and needs no confirmation`, async t => {
-  const dir = await mkdtemp(join(realTmp, 'ans-key-cli-')); t.after(() => rm(dir, {recursive:true,force:true}));
+  const dir = await mkdtemp(join(realTmp, 'fog-key-cli-')); t.after(() => rm(dir, {recursive:true,force:true}));
   let nodes = 0, fetches = 0, generated = 0; const output: string[] = [];
   t.mock.method(globalThis, 'fetch', async () => { fetches++; throw new Error('unexpected fetch'); });
   t.mock.method(console, 'log', (...args: unknown[]) => output.push(args.join(' ')));
@@ -184,20 +184,20 @@ test('init-keys rejects every deployment option, duplicates and unknown flags', 
   assert.throws(() => parseInitKeysArgs(['--init-keys']), /network/);
 });
 test('init and deploy reject generalized legacy paths and keep both v6 defaults', () => {
-  const env = {home:'/tmp/ans-injected-home',repo:'/tmp/ans-injected-repo'};
+  const env = {home:'/tmp/fog-injected-home',repo:'/tmp/fog-injected-repo'};
   for (const name of ['v2','v3','v4','v5','testnet-v5.2.1','testnet-v4-5.2.1','testnet-tiered-5.2.1','archive_v2','testnet-v3-extra','v4.1.2']) {
-    const path=join(env.home,'.local/share/ans',name,'child');
+    const path=join(env.home,'.local/share/fog',name,'child');
     assert.throws(()=>parseInitKeysArgs(['--init-keys','--network','local','--state-dir',path],env), /Legacy/);
     assert.throws(()=>parseArgs([...base,'--state-dir',path],env), /Legacy/);
   }
   for (const network of ['local','testnet-v6'] as const) {
     const parsed=parseInitKeysArgs(['--init-keys','--network',network],env);
-    assert.equal(parsed.stateDir,join(env.home,`.local/share/ans/${network==='local'?'local':'testnet'}-aztec6-6.0.0`));
+    assert.equal(parsed.stateDir,join(env.home,`.local/share/fog/${network==='local'?'local':'testnet'}-aztec6-6.0.0`));
   }
   assert.throws(()=>parseInitKeysArgs(['--init-keys','--network','local','--state-dir',env.repo],env), /outside/);
 });
 test('init rejects symlink escape into repository before generating', async t => {
-  const dir=await mkdtemp(join(realTmp,'ans-key-symlink-'));t.after(()=>rm(dir,{recursive:true,force:true}));
+  const dir=await mkdtemp(join(realTmp,'fog-key-symlink-'));t.after(()=>rm(dir,{recursive:true,force:true}));
   await symlink(REPO,join(dir,'repo'));let calls=0;
   await assert.rejects(initKeys(parseInitKeysArgs(['--init-keys','--network','local','--state-dir',join(dir,'repo','state')]), {randomKeys:()=>{calls++;return randomKeys();},randomSalt:()=>Fr.random(),now:()=>new Date()}), /outside/);
   assert.equal(calls,0);
@@ -236,7 +236,7 @@ test('keyed treasury mismatch rejects before node creation', async t => {
   assert.equal(calls,0);assert.deepEqual(await readdir(stateDir),['keys.json']);
 });
 test('new testnet state requires keys before network and missing treasury keeps original error', async t => {
-  const dir=await mkdtemp(join(realTmp,'ans-key-required-'));t.after(()=>rm(dir,{recursive:true,force:true}));let calls=0;
+  const dir=await mkdtemp(join(realTmp,'fog-key-required-'));t.after(()=>rm(dir,{recursive:true,force:true}));let calls=0;
   const c=parseArgs([...testnet,'--dry-run']);
   await assert.rejects(main([...testnet,'--state-dir',join(dir,'absent'),'--confirm',confirmation(c)],{createNode:(()=>{calls++;throw new Error('network');}) as any,randomKeys}), /Keys file required/);
   assert.equal(calls,0);
@@ -246,7 +246,7 @@ test('initial state consumes keys without random generation and local fallback r
   t.mock.method(console,'log',()=>{});const {stateDir,keys}=await keyFixture(t);
   const c=finalizeConfig(parseOptions([...base,'--state-dir',stateDir]),keys.treasury.address),identity={chainId:'31337',rollupVersion:'679261766',rollup:V6_PROFILES['testnet-v6'].rollup};let generated=0;
   const state=await buildInitialState(c,pricing,identity,c.manifestOut,treasury,keys,()=>{generated++;return randomKeys();});
-  assertCheckpointKeys(state,keys);assert.equal(generated,0);assert.equal(state.schema,'ans-deploy-v6-state/1');
+  assertCheckpointKeys(state,keys);assert.equal(generated,0);assert.equal(state.schema,'fog-deploy-v6-state/1');
   assert(JSON.stringify(state.keys.owner)===JSON.stringify({secret:keys.owner.secret,salt:keys.owner.salt,signingKey:keys.owner.signingKey}));
   assert.equal(state.config.treasury,keys.treasury.address);assert(JSON.stringify(state.salts)===JSON.stringify(keys.salts));
   const fallback=await buildInitialState({...c,treasury:undefined},pricing,identity,c.manifestOut,treasury,undefined,()=>{generated++;return randomKeys();});
@@ -323,7 +323,7 @@ test('fee-juice rehearsal requires dated isolated state and explicit manifest ou
   assert.throws(() => parseArgs([...testnet, '--fee-payment', 'fee-juice', '--dry-run']), /min-fee-juice/);
 });
 test('mainnet refuses before node creation; dry run only calls getNodeInfo', async () => {
-  const args = ['--network', 'mainnet', '--node-url', 'https://rpc.invalid', '--registrar', 'flat', '--price-version', '1', '--state-dir', '/tmp/ans-mainnet-refusal', '--manifest-out', '/tmp/mainnet-refusal.json', '--min-fee-juice', '1'];
+  const args = ['--network', 'mainnet', '--node-url', 'https://rpc.invalid', '--registrar', 'flat', '--price-version', '1', '--state-dir', '/tmp/fog-mainnet-refusal', '--manifest-out', '/tmp/mainnet-refusal.json', '--min-fee-juice', '1'];
   let calls = 0;
   await assert.rejects(main(args, { createNode: (() => { calls++; throw new Error('Must not create node'); }) as any, randomKeys }), /Mainnet blocked:.*settlement.l2Token/);
   assert.equal(calls, 0);

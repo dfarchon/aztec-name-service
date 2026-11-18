@@ -1,6 +1,6 @@
 /**
  * Isolated V8 rehearsal account generator.
- * Runs exclusively under the dedicated non-agent `ans-signer` Linux user inside `/var/lib/ans-signer`.
+ * Runs exclusively under the dedicated non-agent `fog-signer` Linux user inside `/var/lib/fog-signer`.
  * Private material is persisted only to `credentials.json` (mode 0600, no hyphen in filename, fsynced).
  * Only public addresses and metadata digests are returned or written to `public-accounts.json`.
  */
@@ -20,10 +20,10 @@ import { getContractClassFromArtifact } from '@aztec-labs/aztec.js/contracts';
 import { Fq, Fr } from '@aztec-labs/aztec.js/fields';
 import { REPO, within } from './deploy-v6-plan.js';
 
-export const SIGNER_USER = 'ans-signer';
-export const DEFAULT_SIGNER_ROOT = '/var/lib/ans-signer';
-export const V8_CREDENTIALS_SCHEMA = 'ans-v8-rehearsal-credentials/1';
-export const V8_PUBLIC_ACCOUNTS_SCHEMA = 'ans-v8-rehearsal-public-accounts/1';
+export const SIGNER_USER = 'fog-signer';
+export const DEFAULT_SIGNER_ROOT = '/var/lib/fog-signer';
+export const V8_CREDENTIALS_SCHEMA = 'fog-v8-rehearsal-credentials/1';
+export const V8_PUBLIC_ACCOUNTS_SCHEMA = 'fog-v8-rehearsal-public-accounts/1';
 
 export type V8ActorRole = 'A' | 'B' | 'C';
 export type V8PrivateActor = {
@@ -114,7 +114,7 @@ export async function assertIsolatedSignerDirectory(
   }
   assert.equal(await realpath(root), root, 'Symlink signer root refused');
   const rootStat = await lstat(root);
-  assert.equal(rootStat.uid, identity.uid, 'Signer root must be owned by ans-signer');
+  assert.equal(rootStat.uid, identity.uid, 'Signer root must be owned by fog-signer');
   assert.equal(rootStat.mode & 0o777, 0o700, 'Signer root must be mode 0700');
 
   if (requireExisting) {
@@ -274,7 +274,7 @@ export async function loadV8Credentials(
     const s = await handle.stat();
     assert(
       s.isFile() && s.nlink === 1 && s.uid === identity.uid && (s.mode & 0o777) === 0o600,
-      'Regular mode 0600 credentials.json owned by ans-signer required',
+      'Regular mode 0600 credentials.json owned by fog-signer required',
     );
     const parsed = JSON.parse(await handle.readFile('utf8')) as V8Credentials;
     assert.equal(parsed.schema, V8_CREDENTIALS_SCHEMA);

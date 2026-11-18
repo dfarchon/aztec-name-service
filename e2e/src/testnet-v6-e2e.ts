@@ -5,7 +5,7 @@ import { mkdir } from 'node:fs/promises';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import {
-  AnsContext,
+  FogContext,
   RegistryReader,
   checkRegistration,
   deserializePlan,
@@ -23,7 +23,7 @@ import {
   offerTransfer,
   acceptTransfer,
   trackTx,
-} from '@ans/sdk';
+} from '@fog/sdk';
 import { AztecAddress } from '@aztec-labs/aztec.js/addresses';
 import { Contract, NO_WAIT } from '@aztec-labs/aztec.js/contracts';
 import { Fr, Fq } from '@aztec-labs/aztec.js/fields';
@@ -87,19 +87,19 @@ export async function main() {
   const rebroadcast = parseRebroadcast(process.argv.slice(2));
   // The current testnet deployment is free; this runner mints and pays, so it targets the paid deployment it was built for.
   const manifest = loadManifest(PAID_V6_MANIFEST);
-  assert(process.env.ANS_V6_E2E_REPORT, 'ANS_V6_E2E_REPORT is required');
+  assert(process.env.FOG_V6_E2E_REPORT, 'FOG_V6_E2E_REPORT is required');
   const deploymentDir = await physicalPath(
     resolve(
-      process.env.ANS_V6_STATE_DIR ?? join(homedir(), '.local/share/ans/testnet-aztec6-6.0.0'),
+      process.env.FOG_V6_STATE_DIR ?? join(homedir(), '.local/share/fog/testnet-aztec6-6.0.0'),
     ),
   );
   const dir = await physicalPath(
     resolve(
-      process.env.ANS_V6_E2E_STATE_DIR ??
-        join(homedir(), '.local/share/ans/testnet-aztec6-6.0.0-e2e'),
+      process.env.FOG_V6_E2E_STATE_DIR ??
+        join(homedir(), '.local/share/fog/testnet-aztec6-6.0.0-e2e'),
     ),
   );
-  const reportPath = await physicalPath(resolve(process.env.ANS_V6_E2E_REPORT));
+  const reportPath = await physicalPath(resolve(process.env.FOG_V6_E2E_REPORT));
   for (const path of [deploymentDir, dir]) {
     assertPrivateDir(path, 'testnet-v6');
     assert(!within(path, REPO), 'State must not contain repository');
@@ -153,7 +153,7 @@ export async function main() {
     };
     if (!state)
       state = {
-        schema: 'ans-testnet-v6-e2e/1',
+        schema: 'fog-testnet-v6-e2e/1',
         binding: manifestBinding(manifest),
         names: testNames(),
         accounts: { user: await freshAccount(), recipient: await freshAccount() },
@@ -213,7 +213,7 @@ export async function main() {
     const { artifacts } = await v6Artifacts(manifest.feeTokenSource, manifest.registrarKind);
     assert(reader.classId === manifest.classIds.registry, 'Registry class mismatch');
     const fee = fpc.fee.fee,
-      ctx = new AnsContext(reader, { wallet, account: user, fee }),
+      ctx = new FogContext(reader, { wallet, account: user, fee }),
       other = ctx.as(recipient);
     await ctx.queue.run(async () => {
       await identity();

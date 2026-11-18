@@ -34,10 +34,10 @@ try {
   await page.locator('#wallet-menu > summary').click();
   await waitText('No compatible wallet found');
   check('wallet discovery has a retryable empty state', await page.$$eval('#wallet-menu button', buttons => buttons.some(button => button.textContent.trim() === 'Find wallets again' && !button.disabled)));
-  await page.screenshot({ path: '/tmp/ans-public-ui.png', fullPage: true });
+  await page.screenshot({ path: '/tmp/fog-public-ui.png', fullPage: true });
   await page.setViewport({width: 390, height: 844});
   check('mobile layout fits viewport', await page.evaluate(()=>document.documentElement.scrollWidth <= innerWidth));
-  await page.screenshot({ path: '/tmp/ans-public-mobile.png', fullPage: true });
+  await page.screenshot({ path: '/tmp/fog-public-mobile.png', fullPage: true });
   assert.deepEqual(errors, []);
   check('no browser runtime errors', true);
   // Follow the RPC actually used by the app, including fixtures on a non-default port.

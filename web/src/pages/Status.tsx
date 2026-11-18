@@ -72,7 +72,7 @@ export function StatusPage() {
     <details className="card"><summary>{translate("Diagnostics and performance")}</summary>
       <dl><dt>{translate("Version")}</dt><dd>{config.release}</dd><dt>{translate("RPC")}</dt><dd>{config.nodeUrl}</dd><dt>{translate("Registry")}</dt><dd>{config.registry && <CopyValue value={config.registry.toString()} />}</dd><dt>{translate("Connection latency")}</dt><dd>{s.connection?.latencyMs ?? "—"}{translate("ms")}</dd></dl>
       {health?.metrics.map(m => <p key={m.name}>{translate(m.samples === 1 ? "{name} · average {value} · {count} sample" : "{name} · average {value} · {count} samples", { name: m.name, value: `${m.average.toFixed(2)}${m.name === "CLS" ? "" : " ms"}`, count: m.samples })}</p>)}
-      <button className="ghost" onClick={() => download("ans-diagnostics.json", JSON.stringify({ release: config.release, connection: s.connection, node: config.nodeUrl, registry: config.registry?.toString(), vitals: getVitals(), monitor: health }, null, 2))}>{translate("Export diagnostics")}</button>
+      <button className="ghost" onClick={() => download("fog-diagnostics.json", JSON.stringify({ release: config.release, connection: s.connection, node: config.nodeUrl, registry: config.registry?.toString(), vitals: getVitals(), monitor: health }, null, 2))}>{translate("Export diagnostics")}</button>
       <button className="ghost" onClick={() => void boot()}>{translate("Reconnect")}</button>
     </details>
   </>;

@@ -12,7 +12,7 @@ export function placeholderOptions(argv: string[], env = process.env): Options {
     throw new Error('Only --dir-name with a local directory name is supported');
   const dirName = argv[1];
   if (dirName !== undefined && !/^[a-zA-Z0-9][a-zA-Z0-9-]{0,80}$/.test(dirName)) throw new Error('Invalid placeholder directory name');
-  return { baseDir: resolve(env.ANS_DATA_DIR ?? join(env.HOME ?? homedir(), '.local/share/ans')), dirName };
+  return { baseDir: resolve(env.FOG_DATA_DIR ?? join(env.HOME ?? homedir(), '.local/share/fog')), dirName };
 }
 const defaultDeps = {
   now: () => new Date(),
@@ -35,7 +35,7 @@ export async function generatePlaceholderAdmin(options: Options, deps = defaultD
   const account = { address, secret: keys.secret.toString(), salt: keys.salt.toString(), signingKey: keys.signingKey.toString() };
   // Preserve the existing keys-file field names and owner/treasury/salts shape. This mainnet placeholder is
   // deliberately not accepted by the local/testnet initializerless deployment runner or readiness checks.
-  const value = { schema: 'ans-v6-keys/1', toolchainVersion: '6.0.0', network: 'mainnet', createdAt: now.toISOString(),
+  const value = { schema: 'fog-v6-keys/1', toolchainVersion: '6.0.0', network: 'mainnet', createdAt: now.toISOString(),
     owner: account, treasury: { ...account }, salts: Object.fromEntries(['token', 'registry', 'resolver', 'registrar'].map(key => [key, deps.randomSalt().toString()])) };
   const fd = openSync(join(dir, 'keys.json'), 'wx', 0o600);
   try {

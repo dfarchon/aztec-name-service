@@ -1,7 +1,7 @@
 /**
  * Resumable switch of the public V5 testnet registry to the length-tiered Registrar, with real proofs.
  * Phase 1 (default) only deploys the Registrar; it changes nothing users see. Release the site, then run with
- * ANS_TIERED_CONFIGURE=1 to activate it as administrator and verify an exact 4-character charge.
+ * FOG_TIERED_CONFIGURE=1 to activate it as administrator and verify an exact 4-character charge.
  */
 import assert from 'node:assert/strict';
 import { chmod, mkdir, readFile, rename, writeFile } from 'node:fs/promises';
@@ -9,10 +9,10 @@ import { homedir } from 'node:os';
 import { isAbsolute, join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import {
-  AnsContext, RegistryReader, NameRegistrarTieredContract, checkRegistration, configureModules, deserializePlan,
+  FogContext, RegistryReader, NameRegistrarTieredContract, checkRegistration, configureModules, deserializePlan,
   getAvailability, getFeeQuote, inspectHolding, prepareRegistration, readFeeTokenMetadata, serializePlan,
   submitCommit, submitRegistration, trackTx, waitUntilRegistrable,
-} from '@ans/sdk';
+} from '@fog/sdk';
 import { AztecAddress } from '@aztec-labs/aztec.js/addresses';
 import { NO_WAIT } from '@aztec-labs/aztec.js/contracts';
 import { Fq, Fr } from '@aztec-labs/aztec.js/fields';
@@ -43,8 +43,8 @@ const privateDir = (path: string) => {
   assert(isAbsolute(rel) || rel === '..' || rel.startsWith('../'), 'State must remain outside the repository');
   return dir;
 };
-const keysDir = privateDir(process.env.TESTNET_LEGACY_STATE_DIR ?? join(homedir(), '.local/share/ans/testnet-v5.2.1'));
-const dir = privateDir(process.env.TESTNET_TIERED_STATE_DIR ?? join(homedir(), '.local/share/ans/testnet-tiered-5.2.1'));
+const keysDir = privateDir(process.env.TESTNET_LEGACY_STATE_DIR ?? join(homedir(), '.local/share/fog/testnet-v5.2.1'));
+const dir = privateDir(process.env.TESTNET_TIERED_STATE_DIR ?? join(homedir(), '.local/share/fog/testnet-tiered-5.2.1'));
 await mkdir(dir, { recursive: true, mode: 0o700 }); await chmod(dir, 0o700);
 const unlock = acquireTestnetLock(join(dir, 'runner.lock')); process.once('exit', unlock);
 const keys = JSON.parse(await readFile(join(keysDir, 'state.json'), 'utf8')) as {
@@ -132,12 +132,12 @@ try {
   await step('deploy-tiered-registrar', () => deploy.send({ from: ownerAddress, fee, wait: NO_WAIT }));
   check('tiered registrar class verified on public testnet', (await node.getContract(instance.address))?.currentContractClassId.equals(instance.currentContractClassId));
   console.log(`TIERED REGISTRAR ${instance.address}`);
-  if (process.env.ANS_TIERED_CONFIGURE !== '1') {
-    console.log('Deployed only. Release the site, then rerun with ANS_TIERED_CONFIGURE=1 to activate it.');
+  if (process.env.FOG_TIERED_CONFIGURE !== '1') {
+    console.log('Deployed only. Release the site, then rerun with FOG_TIERED_CONFIGURE=1 to activate it.');
     process.exit(0);
   }
 
-  const owner = new AnsContext(reader, { wallet, account: ownerAddress, fee });
+  const owner = new FogContext(reader, { wallet, account: ownerAddress, fee });
   await owner.ensureRegistered({ feeToken: { address: paymentToken, artifact: TokenContractArtifact } });
   await wallets[1].registerContract((await node.getContract(paymentToken))!, TokenContractArtifact);
   await step('configure-tiered', () => configureModules(owner, { registrar: instance.address, resolver: modules.resolver }, txOptions), async () => {

@@ -54,7 +54,7 @@ export function initialBundleBudget(): Plugin {
           if (chunk.type !== 'chunk') continue;
           if (executionArtifactChunks.includes(name))
             this.error(
-              'ANS execution artifacts must load only after a wallet action or a write page is opened',
+              'Fog execution artifacts must load only after a wallet action or a write page is opened',
             );
           rawBytes += Buffer.byteLength(chunk.code);
           gzipBytes += gzipSync(chunk.code).byteLength;

@@ -13,15 +13,15 @@ import { createAztecNodeClient } from '@aztec-labs/aztec.js/node';
 import { createAztecNodeDebugClient } from '@aztec-labs/stdlib/interfaces/client';
 import { loadContractArtifact } from '@aztec-labs/stdlib/abi';
 import { getInitialTestAccountsData } from '@aztec-labs/accounts/testing';
-import { NameRegistryV8Contract, NameRegistryV8RehearsalContract } from '@ans/sdk/contracts/v8';
-import { AnsContext, RegistryReader, NameRegistrarLaunchContract, NameResolverContract, prepareRegistration, createRegistrationFlow, submitCommit, submitRegistration, checkRegistration, setAddress, setPrimary, setTextRecord, setManager, issueSubname, offerTransfer, acceptTransfer, renew, normalizeName, nodeOf, resolvePrimary, resolveAddress, getFeeQuote, administerCoreUpgrade, type CoreUpgradeAction, type RegistrationPlan } from '@ans/sdk';
+import { NameRegistryV8Contract, NameRegistryV8RehearsalContract } from '@fog/sdk/contracts/v8';
+import { FogContext, RegistryReader, NameRegistrarLaunchContract, NameResolverContract, prepareRegistration, createRegistrationFlow, submitCommit, submitRegistration, checkRegistration, setAddress, setPrimary, setTextRecord, setManager, issueSubname, offerTransfer, acceptTransfer, renew, normalizeName, nodeOf, resolvePrimary, resolveAddress, getFeeQuote, administerCoreUpgrade, type CoreUpgradeAction, type RegistrationPlan } from '@fog/sdk';
 import metadata from '../../sdk/src/artifacts/modular-metadata.json' with { type: 'json' };
 import reservations from '../../deployments/reserved-labels.json' with { type: 'json' };
 import { reservedNodes, reservedBatches, canonicalReservedLabels, reservedListHash } from './launch-policy.js';
 import { newWallet, randomKeys, sponsoredFpc } from './common.js';
 
-const fixtureDirectory = process.env.ANS_V8_LOCAL_FIXTURE_DIR;
-assert(fixtureDirectory, 'explicit ANS_V8_LOCAL_FIXTURE_DIR required; prepare local-only fixtures outside repository first');
+const fixtureDirectory = process.env.FOG_V8_LOCAL_FIXTURE_DIR;
+assert(fixtureDirectory, 'explicit FOG_V8_LOCAL_FIXTURE_DIR required; prepare local-only fixtures outside repository first');
 const url = process.env.NODE_URL ?? 'http://127.0.0.1:8082';
 const anvil = process.env.ANVIL_URL ?? 'http://127.0.0.1:8547';
 for (const value of [url, anvil]) assert.equal(new URL(value).hostname, '127.0.0.1', 'strict loopback only');
@@ -61,10 +61,10 @@ try {
   const YEAR = 31536000n;
   const { contract: launch } = await NameRegistrarLaunchContract.deploy(wallet, core.address, AztecAddress.ZERO, admin, 0n, 0n, 0n, 1, 7, true, YEAR).send(opts());
   await core.methods.bootstrap(launch.address, resolver.address).send(opts());
-  await writeFile(process.env.ANS_V8_LOCAL_PUBLIC_STATE ?? '/tmp/ans-v8-public-state.json', json({ registry: String(core.address), registrar: String(launch.address), resolver: String(resolver.address), name: 'upgrade-name', administrator: String(admin), localProofDisabled: true }) + '\n', { mode: 0o600 });
+  await writeFile(process.env.FOG_V8_LOCAL_PUBLIC_STATE ?? '/tmp/fog-v8-public-state.json', json({ registry: String(core.address), registrar: String(launch.address), resolver: String(resolver.address), name: 'upgrade-name', administrator: String(admin), localProofDisabled: true }) + '\n', { mode: 0o600 });
   const reader = await RegistryReader.connect(node, core.address, { allowRehearsalSuccessor: true });
-  const owner = new AnsContext(reader, { wallet, account: alice, fee }), buyer = owner.as(bob);
-  const adminContext = () => new AnsContext(reader, { wallet, account: admin, fee });
+  const owner = new FogContext(reader, { wallet, account: alice, fee }), buyer = owner.as(bob);
+  const adminContext = () => new FogContext(reader, { wallet, account: admin, fee });
   const state = () => reader.getCoreUpgradeState();
   const rawEdge = async (from: Fr, to: Fr) => {
     const snapshot = await reader.snapshot();
@@ -281,6 +281,6 @@ try {
   await check('actual compatible rollback restores A while preserving all B business writes', (await state()).currentClass === String(A) && json(await business()) === beforeRollback);
   await setTextRecord(owner, { name: 'upgrade-name', key: 'description', value: 'written after compatible rollback' });
   await check('post-rollback private writes work; rollback never undoes transactions', (await reader.getTextRecord(await nodeOf(normalizeName('upgrade-name')), 1, 'description', await reader.snapshot())) === 'written after compatible rollback');
-  await writeFile(process.env.ANS_V8_LOCAL_PUBLIC_STATE ?? '/tmp/ans-v8-public-state.json', json({ registry: String(core.address), registrar: String(launch.address), resolver: String(resolver.address), name: 'upgrade-name', administrator: String(admin), localProofDisabled: true }) + '\n', { mode: 0o600 });
+  await writeFile(process.env.FOG_V8_LOCAL_PUBLIC_STATE ?? '/tmp/fog-v8-public-state.json', json({ registry: String(core.address), registrar: String(launch.address), resolver: String(resolver.address), name: 'upgrade-name', administrator: String(admin), localProofDisabled: true }) + '\n', { mode: 0o600 });
   await record('complete', { assertions: checks.length, localProofDisabled: true, noRealProofOrPublicReadinessClaim: true });
 } finally { await wallet.stop(); }

@@ -8,7 +8,7 @@ import { RegistryReader } from '../src/client/reader.js';
 import { resolveAddress, resolvePrimary } from '../src/client/resolve.js';
 import { nodeOf, recordKey } from '../src/core/hash.js';
 import { normalizeName } from '../src/core/label.js';
-import { AnsContext } from '../src/wallet/context.js';
+import { FogContext } from '../src/wallet/context.js';
 import { NameRegistryV7Contract } from '../src/artifacts/NameRegistryV7.js';
 import { setAddress } from '../src/transactions/holder.js';
 import { acceptTransfer, setTextRecord } from '../src/transactions/extensions.js';
@@ -49,7 +49,7 @@ async function fixture(version: 6 | 7 = 7) {
   const bind = (value: bigint) => map(layout.storage.resolvers, scope, value);
   const calls: { method: string; args: unknown[] }[] = [];
   const contract = { methods: Object.fromEntries(['set_address', 'set_text', 'accept_transfer', 'set_resolver', 'set_primary'].map(method => [method, (...args: unknown[]) => ({ send: async () => { calls.push({ method, args }); return { txHash: TxHash.random() }; } })])) };
-  const ctx = { reader, account: owner, signer: {}, queue: { run: async (fn: () => unknown) => fn() }, ensureRegistered: async () => {}, extendedContract: () => contract, contract: () => contract, addressContract: async () => contract } as unknown as AnsContext;
+  const ctx = { reader, account: owner, signer: {}, queue: { run: async (fn: () => unknown) => fn() }, ensureRegistered: async () => {}, extendedContract: () => contract, contract: () => contract, addressContract: async () => contract } as unknown as FogContext;
   return { reader, registry, defaultResolver, owner, recipient, node, scope, classes, rpc, write, bind, calls, ctx };
 }
 
@@ -98,7 +98,7 @@ for (const version of [6, 7] as const) {
 }
 
 test('V6 acceptance refuses an unverified inherited resolver unless explicitly opted in and reports it', async () => {
-  const f = await fixture(6); f.ctx = { ...f.ctx, account: f.recipient } as AnsContext;
+  const f = await fixture(6); f.ctx = { ...f.ctx, account: f.recipient } as FogContext;
   await f.bind(6n);
   await assert.rejects(acceptTransfer(f.ctx, { name: 'seventh' }), (e: any) => e.code === 'invalid_argument');
   assert.equal(f.calls.length, 0);
@@ -107,7 +107,7 @@ test('V6 acceptance refuses an unverified inherited resolver unless explicitly o
   assert.deepEqual(f.calls[0].args, [f.node, 1, 7]);
 });
 test('V7 acceptance uses holder revision and reports the automatic resolver reset', async () => {
-  const f = await fixture(); f.ctx = { ...f.ctx, account: f.recipient } as AnsContext;
+  const f = await fixture(); f.ctx = { ...f.ctx, account: f.recipient } as FogContext;
   f.reader.inspectResolver = async () => { throw new Error('V7 must reset an inherited resolver without trusting it'); };
   const result = await acceptTransfer(f.ctx, { name: 'seventh' });
   assert.equal(result.resolverReset, true); assert.equal(result.resolver, undefined);
@@ -121,7 +121,7 @@ test('holder can reset an unverified resolver; only the target binding is checke
 });
 test('V7 wallet selection uses its exact artifact and refuses the legacy one-step admin API', async () => {
   const f = await fixture();
-  const ctx = new AnsContext(f.reader, { wallet: {} as any, account: f.owner });
+  const ctx = new FogContext(f.reader, { wallet: {} as any, account: f.owner });
   assert.equal(ctx.contract().artifact, NameRegistryV7Contract.artifact);
   assert.equal(ctx.extendedContract().artifact, NameRegistryV7Contract.artifact);
   f.reader.getAdministrator = async () => f.owner;
@@ -131,7 +131,7 @@ test('V7 wallet selection uses its exact artifact and refuses the legacy one-ste
 for (const version of [6, 7] as const) {
   test(`V${version} setPrimary rejects unverified resolvers before constructing a wallet call, with explicit opt-in`, async () => {
     const f = await fixture(version);
-    f.ctx = { ...f.ctx, account: f.recipient } as AnsContext;
+    f.ctx = { ...f.ctx, account: f.recipient } as FogContext;
     await f.bind(6n);
     const contract = f.ctx.contract;
     f.ctx.contract = () => { throw new Error('must reject before constructing wallet call'); };

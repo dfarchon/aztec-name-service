@@ -38,7 +38,7 @@ export function parseRehearsalArgs(argv: string[]) {
     confirm: v.get('--confirm'),
     stateDir: resolve(
       v.get('--state-dir') ??
-        join(homedir(), '.local/share/ans/testnet-v7-launch-rehearsal-20261105'),
+        join(homedir(), '.local/share/fog/testnet-v7-launch-rehearsal-20261105'),
     ),
     nodeUrl: v.get('--node-url') ?? V6_PROFILES['testnet-v6'].nodeUrl,
     l1Rpc: v.get('--l1-rpc-url') ?? 'https://ethereum-sepolia-rpc.publicnode.com',
@@ -52,12 +52,12 @@ export const rehearsalDependencies = {
 export async function main(argv = process.argv.slice(2), deps = rehearsalDependencies) {
   process.umask(0o077);
   const c = parseRehearsalArgs(argv);
-  const root = await physicalPath(join(homedir(), '.local/share/ans'));
+  const root = await physicalPath(join(homedir(), '.local/share/fog'));
   const stateDir = await physicalPath(c.stateDir),
     rel = relative(root, stateDir);
   assert(
     rel && !rel.startsWith('..') && !rel.startsWith('/'),
-    'Rehearsal checkpoint must be a new subdirectory of ~/.local/share/ans',
+    'Rehearsal checkpoint must be a new subdirectory of ~/.local/share/fog',
   );
   assert(
     /^testnet-v7-launch-rehearsal-[a-z0-9-]+$/.test(rel),

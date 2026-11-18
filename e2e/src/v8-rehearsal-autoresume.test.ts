@@ -9,7 +9,7 @@ import { evaluateAndMaybeResume, type RehearsalReport } from './v8-rehearsal-aut
 
 function baseReport(overrides: Partial<RehearsalReport> = {}): RehearsalReport {
   return {
-    schema: 'ans-v8-live-rehearsal-report/1',
+    schema: 'fog-v8-live-rehearsal-report/1',
     status: 'WAITING_APPLICATION-SCHEDULED-CANCEL',
     stage: 'application',
     confirmation: 'v8-rehearsal:test',
@@ -30,10 +30,10 @@ function baseReport(overrides: Partial<RehearsalReport> = {}): RehearsalReport {
 }
 
 test('auto-resumer respects active runner lock, chain delay, one-shot resume and crash halt latch', async () => {
-  const root = await mkdtemp(join(tmpdir(), 'ans-v8-autoresume-'));
+  const root = await mkdtemp(join(tmpdir(), 'fog-v8-autoresume-'));
   try {
     await chmod(root, 0o700);
-    const fakeSigner = { uid: process.getuid!(), username: 'ans-signer', signerRoot: root };
+    const fakeSigner = { uid: process.getuid!(), username: 'fog-signer', signerRoot: root };
     const stateDir = join(root, 'testnet-v8-upgrade-rehearsal-20261117');
     const statusOut = join(root, 'public', 'status.json');
     await mkdir(stateDir, { mode: 0o700 });

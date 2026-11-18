@@ -26,7 +26,7 @@ for (const [label, args, expected] of [
   finally { await new Promise(resolve => server.close(resolve)); }
 });
 test('TCP Unix sockets retain their argument shape', async () => {
-  const server = net.createServer(), path = join(tmpdir(), `ans-txe-${process.pid}.sock`);
+  const server = net.createServer(), path = join(tmpdir(), `fog-txe-${process.pid}.sock`);
   server.listen({ path }); await once(server, 'listening');
   assert.equal(server.address(), path); await new Promise(resolve => server.close(resolve));
 });
@@ -73,7 +73,7 @@ test('outbound TCP connections remain available', async () => {
   finally { await new Promise(resolve => server.close(resolve)); }
 });
 test('repository launcher inherits test policy only for test and preserves existing Node options', () => {
-  const root = mkdtempSync(join(tmpdir(), 'ans-txe-launcher-'));
+  const root = mkdtempSync(join(tmpdir(), 'fog-txe-launcher-'));
   try {
     mkdirSync(join(root, 'node_modules/@aztec-labs/aztec'), { recursive: true });
     mkdirSync(join(root, 'bin'));
@@ -88,7 +88,7 @@ if (result.action === 'test') {
 `, { mode: 0o700 });
     for (const action of ['test', 'compile', 'start', 'deploy']) {
       const result = spawnSync(process.execPath, [fileURLToPath(new URL('./aztec.mjs', import.meta.url)), action], {
-        encoding: 'utf8', env: { ...process.env, ANS_AZTEC_TOOLCHAIN_DIR: root, NODE_OPTIONS: '--no-warnings' },
+        encoding: 'utf8', env: { ...process.env, FOG_AZTEC_TOOLCHAIN_DIR: root, NODE_OPTIONS: '--no-warnings' },
       });
       assert.equal(result.status, 0, result.stderr);
       const value = JSON.parse(result.stdout);

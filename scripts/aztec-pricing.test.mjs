@@ -35,7 +35,7 @@ test('Fee Juice, a padded L1 address and a same-symbol L2 token cannot activate 
   }
 });
 test('preparation preserves current fees and emits a blocked replacement without deployable token args', () => {
-  const active = { registry: 'registry', registrar: 'registrar', feeToken: 'ANSF', treasury: 'treasury', annualPrice: '1000000', priceVersion: 1 };
+  const active = { registry: 'registry', registrar: 'registrar', feeToken: 'FOGF', treasury: 'treasury', annualPrice: '1000000', priceVersion: 1 };
   const report = createAztecPricingPlan(policy, active);
   assert.equal(report.readyForDeployment, false);
   assert.equal(report.replacementRegistrar.feeToken, null);

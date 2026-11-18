@@ -2,7 +2,7 @@
 import assert from 'node:assert/strict';
 import puppeteer from 'puppeteer-core';
 const base = process.env.BASE ?? 'http://127.0.0.1:5191';
-const name = process.env.NAME ?? 'ans-muyxsdch';
+const name = process.env.NAME ?? 'fog-muyxsdch';
 const nodeUrl = process.env.NODE_URL ?? 'https://v5.testnet.rpc.aztec-labs.com';
 const browser = await puppeteer.launch({ executablePath: process.env.CHROME_PATH ?? '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome', headless: true });
 await browser.defaultBrowserContext().overridePermissions(base, ['clipboard-read', 'clipboard-write', 'clipboard-sanitized-write']);
@@ -51,13 +51,13 @@ try {
     await session.connectExternal({ getChainInfo: async () => ({ chainId: { toBigInt: () => reader.deployment.chainId }, version: { toBigInt: () => reader.deployment.rollupVersion } }), getAccounts: async () => [{ alias: 'Read-only fixture', item: account }], getContractMetadata: async () => ({}), registerContract: async () => {} }, { disconnect: async () => {}, onDisconnect: () => () => {} });
     location.hash = '/register/fee-display-fixture';
   });
-  await wait('1 ANSF'); pass('registration fee uses on-chain six-decimal metadata');
+  await wait('1 FOGF'); pass('registration fee uses on-chain six-decimal metadata');
   await page.evaluate(async () => {
     const { reader, account } = window.usability;
     const snap = await reader.snapshot('checkpointed');
     reader.getName = async () => ({ generation: 0, revision: 0, expiresAt: 0n, owner: account.constructor.ZERO });
     const source = await (await fetch('/src/pages/Register.tsx')).text();
-    const path = source.match(/from\s*["']([^"']*(?:ans_sdk|sdk\/dist\/index\.js)[^"']*)["']/)?.[1];
+    const path = source.match(/from\s*["']([^"']*(?:fog_sdk|sdk\/dist\/index\.js)[^"']*)["']/)?.[1];
     const { prepareRegistration } = await import(path);
     const { getSession, recordWriter } = window.usabilitySession;
     const plan = await prepareRegistration(getSession().ctx, { name: 'registered-fixture', duration: 31536000n });

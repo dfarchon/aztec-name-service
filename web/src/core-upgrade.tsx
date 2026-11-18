@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
-import type { CoreUpgradeState } from '@ans/sdk/read';
-import type { CoreUpgradeAction } from '@ans/sdk';
+import type { CoreUpgradeState } from '@fog/sdk/read';
+import type { CoreUpgradeAction } from '@fog/sdk';
 import { AztecAddress } from '@aztec-labs/aztec.js/addresses';
 import { useSession, liveWritesAllowed } from './session';
 import { CopyValue, TxLine, useTx } from './components';
@@ -31,7 +31,7 @@ export function CoreUpgradeControls() {
   const perform = (build: (fresh: CoreUpgradeState) => CoreUpgradeAction) => void tx.exec('Core upgrade', async onUpdate => {
     if (!ctx || !liveWritesAllowed(session.status)) throw new Error('Network not ready. Reconnect and retry.');
     const fresh = await ctx.reader.getCoreUpgradeState();
-    const { administerCoreUpgrade } = await import('@ans/sdk');
+    const { administerCoreUpgrade } = await import('@fog/sdk');
     await administerCoreUpgrade(ctx, build(fresh), { onUpdate }); refresh(value => value + 1);
   });
   const fieldTarget = () => { if (!/^0x[0-9a-fA-F]{1,64}$/.test(target)) throw new Error('Enter an exact hexadecimal class ID'); return BigInt(target); };

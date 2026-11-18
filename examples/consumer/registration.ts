@@ -1,12 +1,12 @@
 import { AztecAddress } from '@aztec-labs/aztec.js/addresses';
 import type { Wallet } from '@aztec-labs/aztec.js/wallet';
 import {
-  connectAns,
+  connectFog,
   getFeeQuote,
   createRegistrationFlow,
   type RegistrationPlanStore,
   type RegistryReader,
-} from '@ans/sdk';
+} from '@fog/sdk';
 import deployment from './deployment.json' with { type: 'json' };
 
 export type RegistrationFlow = ReturnType<typeof createRegistrationFlow>;
@@ -23,7 +23,7 @@ export async function registrationActions(
   account: AztecAddress,
   store: RegistrationPlanStore,
 ): Promise<RegistrationFlow> {
-  const ctx = await connectAns(reader, {
+  const ctx = await connectFog(reader, {
     wallet,
     account,
     deployment,

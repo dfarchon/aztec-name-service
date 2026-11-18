@@ -4,7 +4,7 @@ import { getSchnorrInitializerlessAccountContractAddress } from '@aztec-labs/acc
 import { Fr, Fq } from '@aztec-labs/aztec.js/fields';
 import { randomKeys } from './common.js';
 
-export const KEYS_SCHEMA = 'ans-v6-keys/1';
+export const KEYS_SCHEMA = 'fog-v6-keys/1';
 export type KeyNetwork = 'local' | 'testnet-v6';
 type Account = { address: string; secret: string; salt: string; signingKey: string };
 export type KeysFile = { schema: typeof KEYS_SCHEMA; toolchainVersion: '6.0.0'; network: KeyNetwork; createdAt: string; owner: Account; treasury: Account; salts: Record<'token' | 'registry' | 'resolver' | 'registrar', string> };

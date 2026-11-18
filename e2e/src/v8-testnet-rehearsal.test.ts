@@ -22,7 +22,7 @@ import {
 } from './testnet-v8-upgrade-rehearsal.js';
 
 test('isolated account generator rejects non-signer users, root, repo paths and writes 0600 files without secret leaks', async () => {
-  const root = await mkdtemp(join(tmpdir(), 'ans-signer-test-'));
+  const root = await mkdtemp(join(tmpdir(), 'fog-signer-test-'));
   await chmod(root, 0o700);
   const env = Object.fromEntries(
     Object.entries(process.env).filter(([k]) => /(?:NODE|RPC|ANVIL).*URL/i.test(k)),
@@ -35,7 +35,7 @@ test('isolated account generator rejects non-signer users, root, repo paths and 
       initV8RehearsalAccounts(stateDir, {
         identity: { uid, username: 'grokbot', signerRoot: root },
       }),
-      /ans-signer/,
+      /fog-signer/,
     );
     await assert.rejects(
       initV8RehearsalAccounts(stateDir, {
@@ -44,7 +44,7 @@ test('isolated account generator rejects non-signer users, root, repo paths and 
       /root/,
     );
     await assert.rejects(
-      initV8RehearsalAccounts('/home/grokbot/.local/share/ans/testnet-v8-upgrade-rehearsal-20261117', {
+      initV8RehearsalAccounts('/home/grokbot/.local/share/fog/testnet-v8-upgrade-rehearsal-20261117', {
         identity: { uid, username: SIGNER_USER, signerRoot: root },
       }),
       /Shared agent home/,
@@ -77,7 +77,7 @@ test('isolated account generator rejects non-signer users, root, repo paths and 
 });
 
 test('V8 rehearsal CLI dry-run verifies canonical Sepolia SHA256 hashes, Aztec identity and refuses unconfirmed send', async () => {
-  const root = await mkdtemp(join(tmpdir(), 'ans-v8-cli-test-'));
+  const root = await mkdtemp(join(tmpdir(), 'fog-v8-cli-test-'));
   await chmod(root, 0o700);
   const env = Object.fromEntries(
     Object.entries(process.env).filter(([k]) => /(?:NODE|RPC|ANVIL).*URL/i.test(k)),

@@ -1,24 +1,24 @@
 import { useEffect } from "react";
-import type { AnsContext, TxState } from "@ans/sdk";
+import type { FogContext, TxState } from "@fog/sdk";
 import { getSession, recordWriter, useSession } from "./session";
 import { errorMessage } from "./format";
 import { PENDING_TX } from "./usability";
 
-const running = new WeakMap<AnsContext, Set<string>>();
-export async function refreshTransaction(ctx: AnsContext, id: string, hash: string) {
+const running = new WeakMap<FogContext, Set<string>>();
+export async function refreshTransaction(ctx: FogContext, id: string, hash: string) {
   let active = running.get(ctx);
   if (!active) running.set(ctx, active = new Set());
   if (active.has(hash)) return;
   active.add(hash);
   try {
     const write = recordWriter(ctx);
-    const { trackTx, toAnsError } = await import("@ans/sdk");
+    const { trackTx, toFogError } = await import("@fog/sdk");
     let observed: TxState | undefined;
     try {
       const receipt = await trackTx(ctx.reader.node, hash, { timeoutMs: 15000, pollMs: 1500, waitFor: "confirmed", onUpdate: u => { observed = u.state; } });
       await write(r => ({ ...r, txs: r.txs.map(t => t.id === id || t.txHash === hash ? { ...t, state: receipt.state, error: undefined } : t) }));
     } catch (e) {
-      const err = toAnsError(e);
+      const err = toFogError(e);
       const state = err.code === "reverted" ? "reverted" : err.code === "dropped" ? "dropped" : observed ?? "unknown";
       await write(r => ({ ...r, txs: r.txs.map(t => t.id === id || t.txHash === hash ? { ...t, state, error: state === "included" ? undefined : errorMessage(e) } : t) }));
     }

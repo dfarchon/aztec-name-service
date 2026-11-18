@@ -17,7 +17,7 @@ import {
 } from './v8-safe-operator.js';
 
 // Independent identity: preflight-1 official network and canonical rollup records, cross-checked
-// against the frozen manifest. No existing ANS Registry/module address is a target.
+// against the frozen manifest. No existing Fog Registry/module address is a target.
 export const FUTURE_REHEARSAL = Object.freeze({
   chainId: 11155111,
   rollupVersion: 679261766,

@@ -1,17 +1,15 @@
-# ANS SDK integration
+# Fog Names SDK integration
 
-English · [中文](README.zh-CN.md)
-
-This starter includes SDK 0.7.0, example code and public testnet configuration. Resolve names without a wallet, then connect a wallet for registration and recovery.
+This starter includes `@fog/sdk` 0.7.0, example code and public testnet configuration. Resolve `.fog` names without a wallet, then connect a wallet for registration and recovery.
 
 ## Environment and startup
 
 - Node: 24.12 or newer.
 - Aztec packages: 6.0.0. Keep these versions in the application’s root `package.json`.
 - Dependencies: retain the root `overrides`; overrides from the SDK package do not apply to the application.
-- Distribution: the archive includes `ans-sdk.tgz`. The SDK is not published on public npm.
+- Distribution: the archive includes `fog-sdk.tgz`. The SDK is not published on public npm.
 
-Run these commands from the extracted `ans-consumer` directory:
+Run these commands from the extracted `fog-consumer` directory:
 
 ```sh
 npm install
@@ -40,13 +38,13 @@ npm run read
 | `plan-store.ts`                            | Encrypt and save plans in browser `localStorage`.       |
 | `browser/main.ts`                          | Connect the form, wallet approvals and saved plans.     |
 
-The initial browser page imports `@ans/sdk/read`. Wallet discovery and registration load on user actions. The shared `bundle-budget.ts` build check limits initial JavaScript to 400 kB gzip and rejects eagerly loaded ANS execution artifacts; the build writes its measurements to `bundle-budget.json`.
+The initial browser page imports `@fog/sdk/read`. Wallet discovery and registration load on user actions. The shared `bundle-budget.ts` build check limits initial JavaScript to 400 kB gzip and rejects eagerly loaded Fog execution artifacts; the build writes its measurements to `bundle-budget.json`.
 
-Configuration files are release snapshots. Read the active Registrar and fee quote from the chain before payment. See [Pricing and payment assets](https://ans-testnet.huantian233.workers.dev/#/docs/pricing) for the current payment token and active collection configuration.
+Configuration files are release snapshots. Read the active Registrar and fee quote from the chain before payment. See [Pricing and payment assets](https://fog-testnet.huantian233.workers.dev/#/docs/pricing) for the current payment token and active collection configuration.
 
 ## Name resolution
 
-Import public read APIs from `@ans/sdk/read`; no wallet connection or proving runtime is required. Keep wallet execution imports behind user actions. `RegistryReader.connect` connects to the node and validates the registry contract class.
+Import public read APIs from `@fog/sdk/read`; no wallet connection or proving runtime is required. Keep wallet execution imports behind user actions. `RegistryReader.connect` connects to the node and validates the registry contract class.
 
 `resolveAddress` returns a status, an address when resolved, and the block snapshot used for the read. Pass that snapshot to `resolvePrimary` to verify that the primary name resolves back to this address in the current registration generation. The runnable example is in `read.ts`.
 
@@ -54,12 +52,12 @@ Import public read APIs from `@ans/sdk/read`; no wallet connection or proving ru
 
 1. Run `npm run dev` and discover a compatible wallet in the current browser.
 2. Compare the connection symbols on the page and in the wallet, then confirm the secure channel.
-3. Approve the ANS permission request in the wallet: account reads, payment authorizations, and the Registry, active Registrar, default Resolver, payment token and sponsor contract. `requestAnsCapabilities` checks the wallet network first and names only these addresses; when a name uses its own Resolver or the Registrar changes, the wallet asks again for that contract only. An incomplete grant returns `wallet_rejected`.
-4. Select an authorized account. `connectAns` checks the chain, rollup, registry, account authorization and sponsor contract class, then registers the required contract artifacts with the wallet.
+3. Approve the Fog permission request in the wallet: account reads, payment authorizations, and the Registry, active Registrar, default Resolver, payment token and sponsor contract. `requestFogCapabilities` checks the wallet network first and names only these addresses; when a name uses its own Resolver or the Registrar changes, the wallet asks again for that contract only. An incomplete grant returns `wallet_rejected`.
+4. Select an authorized account. `connectFog` checks the chain, rollup, registry, account authorization and sponsor contract class, then registers the required contract artifacts with the wallet.
 
-`connectAns` returns an `AnsContext` containing the reader, wallet and account. It checks the wallet’s `chainId` and rollup version against the reader before registering contracts. Private balance reads, fee authorization and transaction submission recheck the wallet network inside its queue; a mismatch returns `wrong_deployment`. Reconnect after switching networks. Wallet keys remain in the wallet.
+`connectFog` returns a `FogContext` containing the reader, wallet and account. It checks the wallet’s `chainId` and rollup version against the reader before registering contracts. Private balance reads, fee authorization and transaction submission recheck the wallet network inside its queue; a mismatch returns `wrong_deployment`. Reconnect after switching networks. Wallet keys remain in the wallet.
 
-For repeated primary-name display, import `Resolver` from `@ans/sdk/read`. Its memory cache deduplicates concurrent queries and checks cached block hashes for reorgs. The default TTL is 30 seconds, capped by the name’s expiry; invalidate it when switching accounts or deployments. Payment checks still use fresh chain reads. Owned-name pagination cursors are bound to the account, registry, chain and rollup version; restart discovery with no cursor when upgrading from a pre-0.4.3 cursor.
+For repeated primary-name display, import `Resolver` from `@fog/sdk/read`. Its memory cache deduplicates concurrent queries and checks cached block hashes for reorgs. The default TTL is 30 seconds, capped by the name’s expiry; invalidate it when switching accounts or deployments. Payment checks still use fresh chain reads. Owned-name pagination cursors are bound to the account, registry, chain and rollup version; restart discovery with no cursor when upgrading from a pre-0.4.3 cursor.
 
 ## Registration data
 
@@ -97,12 +95,12 @@ For direct calls, use `getFeeReadiness(ctx, quote)` or `getPrivateFeeBalance(ctx
 
 In the browser example, enter a recovery passphrase of at least eight characters and unlock plan storage before preparing a plan. Each new transaction requires a separate wallet approval.
 
-`registrationActions` in `registration.ts` calls `connectAns` and creates the flow. The function below accepts a connected reader, confirmed wallet, authorized account, recovery passphrase and the name to register. It returns the flow, store, quote and readiness without submitting a transaction:
+`registrationActions` in `registration.ts` calls `connectFog` and creates the flow. The function below accepts a connected reader, confirmed wallet, authorized account, recovery passphrase and the name to register. It returns the flow, store, quote and readiness without submitting a transaction:
 
 ```ts
-import type { AztecAddress } from '@aztec/aztec.js/addresses';
-import type { Wallet } from '@aztec/aztec.js/wallet';
-import type { RegistryReader } from '@ans/sdk/read';
+import type { AztecAddress } from '@aztec-labs/aztec.js/addresses';
+import type { Wallet } from '@aztec-labs/aztec.js/wallet';
+import type { RegistryReader } from '@fog/sdk/read';
 import { registrationActions } from './registration.js';
 import { encryptedPlanStore } from './plan-store.js';
 import deployment from './deployment.json' with { type: 'json' };
@@ -126,7 +124,7 @@ export async function connectRegistration(
 When `readiness.ready` is true, display the quote and obtain user acceptance. Then call `commitAcceptedPlan` with that quote:
 
 ```ts
-import type { FeeQuote, RegistrationPlan, TxUpdate } from '@ans/sdk';
+import type { FeeQuote, RegistrationPlan, TxUpdate } from '@fog/sdk';
 import type { RegistrationFlow } from './registration.js';
 
 export async function commitAcceptedPlan(
@@ -170,7 +168,7 @@ Keep one active flow per account. Multiple tabs or independent application insta
 
 V4 provides `setManager`, `offerTransfer`, `acceptTransfer`, `issueSubname`, `revokeSubname`, `setTextRecord` and `setChainAddress`.
 
-Before each write, the SDK reads the current registration generation and revision. Generation identifies the current registration; revision identifies its latest changes. If either changed before submission, re-read the record before retrying. See [Ownership and editor permissions](https://ans-testnet.huantian233.workers.dev/#/docs/permissions) for the account required by each action.
+Before each write, the SDK reads the current registration generation and revision. Generation identifies the current registration; revision identifies its latest changes. If either changed before submission, re-read the record before retrying. See [Ownership and editor permissions](https://fog-testnet.huantian233.workers.dev/#/docs/permissions) for the account required by each action.
 
 ## Error handling
 
@@ -187,8 +185,8 @@ Before each write, the SDK reads the current registration generation and revisio
 `registration.ts` (`inspectLaunch`) reads public policy and a one-year quote without broadcasting. A free quote creates no token AuthWit and reads no private token balance. Eligibility is `open`, `too_short`, `reserved` or `paused`; the SDK rechecks before commit/reveal. Encrypted recovery data is separate from chain ownership, and an RPC exception is not a reverted receipt.
 
 ```typescript
-import type { RegistryReader } from '@ans/sdk/read';
-import { getFeeQuote } from '@ans/sdk';
+import type { RegistryReader } from '@fog/sdk/read';
+import { getFeeQuote } from '@fog/sdk';
 
 /** Read live public policy. This reserves nothing and does not open a wallet. */
 export async function inspectLaunch(reader: RegistryReader, name: string) {

@@ -2,7 +2,7 @@
 import assert from 'node:assert/strict';
 import puppeteer from 'puppeteer-core';
 const base = process.env.BASE ?? 'http://127.0.0.1:5195';
-const name = process.env.NAME ?? 'ans-muyxsdch';
+const name = process.env.NAME ?? 'fog-muyxsdch';
 const browser = await puppeteer.launch({ executablePath: process.env.CHROME_PATH ?? '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome', headless: true });
 const page = await browser.newPage();
 const errors = []; page.on('pageerror', error => errors.push(error.message));
@@ -31,7 +31,7 @@ try {
       await page.setViewport({ width, height: 900 });
       assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), `${width} overflows`);
       assert.ok(await page.$eval('.theme-toggle', el => el.getBoundingClientRect().height >= 44));
-      if (width === 320) await page.screenshot({ path: `/tmp/ans-english-320.png`, fullPage: true });
+      if (width === 320) await page.screenshot({ path: `/tmp/fog-english-320.png`, fullPage: true });
   }
   pass('English fits desktop and mobile with accessible appearance controls');
   await page.goto(`${base}/#/name/${name}`);

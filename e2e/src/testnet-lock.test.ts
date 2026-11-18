@@ -6,7 +6,7 @@ import test from 'node:test';
 import { acquireTestnetLock } from './testnet-lock.js';
 
 test('testnet state has one writer and a private recoverable lock', () => {
-  const dir = mkdtempSync(join(tmpdir(), 'ans-testnet-lock-'));
+  const dir = mkdtempSync(join(tmpdir(), 'fog-testnet-lock-'));
   const path = join(dir, 'lock');
   try {
     const release = acquireTestnetLock(path);

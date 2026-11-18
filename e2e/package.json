@@ -1,5 +1,5 @@
 {
-  "name": "ans-e2e",
+  "name": "fog-e2e",
   "version": "0.0.0",
   "license": "Apache-2.0",
   "private": true,
@@ -23,7 +23,7 @@
     "testnet:v8-autoresume": "tsx src/v8-rehearsal-autoresume.ts"
   },
   "dependencies": {
-    "@ans/sdk": "0.7.0",
+    "@fog/sdk": "0.7.0",
     "@aztec-foundation/l1-artifacts": "6.0.0",
     "@aztec-labs/accounts": "6.0.0",
     "@aztec-labs/aztec.js": "6.0.0",

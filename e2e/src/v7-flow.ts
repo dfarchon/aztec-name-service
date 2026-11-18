@@ -9,8 +9,8 @@ import { Fr } from '@aztec-labs/aztec.js/fields';
 import type { AztecNode } from '@aztec-labs/aztec.js/node';
 import type { EmbeddedWallet } from '@aztec-labs/wallets/embedded';
 import type { createAztecNodeDebugClient } from '@aztec-labs/stdlib/interfaces/client';
-import { AnsContext, RegistryReader, NameRegistrarLaunchContract, NameResolverContract, prepareRegistration, submitCommit, submitRegistration, checkRegistration, inspectHolding, setAddress, setResolver, setManager, setTextRecord, offerTransfer, acceptTransfer, setPrimary, resolveAddress, resolvePrimary, renew, normalizeName, nodeOf } from '@ans/sdk';
-import { NameRegistryV7Contract } from '@ans/sdk/contracts/v7';
+import { FogContext, RegistryReader, NameRegistrarLaunchContract, NameResolverContract, prepareRegistration, submitCommit, submitRegistration, checkRegistration, inspectHolding, setAddress, setResolver, setManager, setTextRecord, offerTransfer, acceptTransfer, setPrimary, resolveAddress, resolvePrimary, renew, normalizeName, nodeOf } from '@fog/sdk';
+import { NameRegistryV7Contract } from '@fog/sdk/contracts/v7';
 import { exerciseExtensions } from './extensions.js';
 
 type Debug = ReturnType<typeof createAztecNodeDebugClient>;
@@ -22,7 +22,7 @@ export async function exerciseV7Flow(node: AztecNode, debug: Debug, wallet: Embe
   const { contract: resolver } = await NameResolverContract.deploy(wallet, core.address).send({ from: admin, fee });
   const { contract: registrar } = await NameRegistrarLaunchContract.deploy(wallet, core.address, Address.ZERO, admin, 0n, 0n, 0n, 1, 7, false, YEAR).send({ from: admin, fee });
   await core.methods.bootstrap(registrar.address, resolver.address).send({ from: admin, fee });
-  const reader = await RegistryReader.connect(node, core.address), owner = new AnsContext(reader, { wallet, account: alice, fee }), buyer = owner.as(bob);
+  const reader = await RegistryReader.connect(node, core.address), owner = new FogContext(reader, { wallet, account: alice, fee }), buyer = owner.as(bob);
   await owner.ensureRegistered();
   check('V7 recognized with zero legacy and frozen launch/resolver modules', reader.deployment.protocolVersion === 7 && !(await reader.getLegacyRegistry()) && (await reader.getConfig()).launch?.maxRenewAhead === YEAR);
   const register = async (name: string) => {
@@ -71,7 +71,7 @@ export async function exerciseV7Flow(node: AztecNode, debug: Debug, wallet: Embe
   await registrar.methods.commit(commitment).send({ from: admin, fee }); await debug.warpL2TimeAtLeastBy(70);
   await registrar.methods.admin_register(label.bytes, label.len, bob, 0, expiry, secret).send({ from: admin, fee });
   check('V7 frozen launch admin mint reads current administrator', (await reader.getName(await nodeOf(label), await reader.snapshot())).owner.equals(bob));
-  if (process.env.ANS_EXTENSIONS === '1') {
+  if (process.env.FOG_EXTENSIONS === '1') {
     await register('modular-name');
     await exerciseExtensions(owner, buyer, warp, check, 'V7');
   }

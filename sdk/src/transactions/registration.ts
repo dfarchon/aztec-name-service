@@ -4,13 +4,13 @@ import { Fr } from '@aztec-labs/aztec.js/fields';
 import type { RegistryReader } from '../client/reader.js';
 import { getName } from '../client/resolve.js';
 import { MAX_COMMIT_AGE, MIN_COMMIT_AGE, REVEAL_MARGIN, COMMIT_QUOTE_MARGIN } from '../core/constants.js';
-import { AnsError } from '../core/errors.js';
+import { FogError } from '../core/errors.js';
 import { nodeOf, registerCommitment } from '../core/hash.js';
 import { assertRegistrableLabel, labelFromCanonical, type NormalizeOptions } from '../core/label.js';
 import { assertDuration, assertPolicyDuration, chargeFor, isRegistrable, nameStatus } from '../core/lifecycle.js';
 import { parseWithBigInt, stringifyWithBigInt } from '../core/seal.js';
 import type { Snapshot } from '../core/types.js';
-import type { AnsContext } from '../wallet/context.js';
+import type { FogContext } from '../wallet/context.js';
 import {
   assertAcceptedQuote,
   type FeeQuote,
@@ -62,13 +62,13 @@ async function assertPublicRegistration(reader: RegistryReader, name: string, du
   assertPolicyDuration(config, duration);
   if (!config.launch) return;
   const eligibility = await reader.eligibility(name, snapshot);
-  if (eligibility === 'paused') throw new AnsError('registration_paused', 'registration paused');
-  if (eligibility === 'too_short') throw new AnsError('name_not_available_yet', 'name not yet available');
-  if (eligibility === 'reserved') throw new AnsError('name_reserved', 'name reserved');
+  if (eligibility === 'paused') throw new FogError('registration_paused', 'registration paused');
+  if (eligibility === 'too_short') throw new FogError('name_not_available_yet', 'name not yet available');
+  if (eligibility === 'reserved') throw new FogError('name_reserved', 'name reserved');
 }
 
 export async function prepareRegistration(
-  ctx: AnsContext,
+  ctx: FogContext,
   args: {
     name: string;
     duration: bigint;
@@ -80,13 +80,13 @@ export async function prepareRegistration(
 ): Promise<RegistrationPlan> {
   const info = await getName(ctx.reader, args.name, args.normalize);
   if (info.label.parent)
-    throw new AnsError('invalid_name', 'subnames must be issued by their parent owner');
+    throw new FogError('invalid_name', 'subnames must be issued by their parent owner');
   assertRegistrableLabel(info.label);
-  if (!isRegistrable(info.status)) throw new AnsError('name_taken', `name is ${info.status}`);
+  if (!isRegistrable(info.status)) throw new FogError('name_taken', `name is ${info.status}`);
   if (ctx.reader.modular && info.record.generation === 0) {
     const old = await ctx.reader.getLegacyName(info.node, info.snapshot);
     if (old && ['active', 'grace'].includes(nameStatus(old, info.snapshot.timestamp)))
-      throw new AnsError(
+      throw new FogError(
         'migration_required',
         'legacy name is reserved for its holder; migrate it first',
       );
@@ -101,7 +101,7 @@ export async function prepareRegistration(
   });
   assertAcceptedQuote(quote, args.acceptedQuote);
   if (info.snapshot.timestamp + COMMIT_QUOTE_MARGIN > quote.quoteExpiry)
-    throw new AnsError('quote_expired', 'registration quote needs at least 300 seconds before commit');
+    throw new FogError('quote_expired', 'registration quote needs at least 300 seconds before commit');
   await assertPublicRegistration(ctx.reader, info.label.label, args.duration, info.snapshot);
   const expectedGeneration = info.nextExpectedGeneration;
   const secret = Fr.random().toBigInt();
@@ -144,23 +144,23 @@ export async function prepareRegistration(
 }
 
 function assertPlanDeployment(reader: RegistryReader, plan: RegistrationPlan) {
-  if (!plan || ![2, 3].includes(plan.v)) throw new AnsError('corrupt_data', 'unknown plan version');
+  if (!plan || ![2, 3].includes(plan.v)) throw new FogError('corrupt_data', 'unknown plan version');
   if ((plan.v === 3) !== !!reader.modular)
-    throw new AnsError('wrong_deployment', 'plan protocol differs from registry');
+    throw new FogError('wrong_deployment', 'plan protocol differs from registry');
   if (
     (plan.v === 3 && typeof plan.registrar !== 'string') ||
     (plan.v === 2 && plan.registrar !== undefined)
   )
-    throw new AnsError('corrupt_data', 'invalid registrar binding');
+    throw new FogError('corrupt_data', 'invalid registrar binding');
   if (plan.registry !== reader.registry.toString() || plan.chainId !== reader.deployment.chainId) {
-    throw new AnsError('wrong_deployment', 'plan belongs to another deployment');
+    throw new FogError('wrong_deployment', 'plan belongs to another deployment');
   }
 }
 
-function assertPlanFor(ctx: AnsContext, plan: RegistrationPlan) {
+function assertPlanFor(ctx: FogContext, plan: RegistrationPlan) {
   assertPlanDeployment(ctx.reader, plan);
   if (plan.account !== ctx.account.toString())
-    throw new AnsError('invalid_argument', 'plan belongs to another account');
+    throw new FogError('invalid_argument', 'plan belongs to another account');
 }
 
 /** Validate persisted data before a commit, status lookup or fee authorization. */
@@ -200,23 +200,23 @@ async function validatePlan(reader: RegistryReader, plan: RegistrationPlan) {
     });
     if (commitment !== plan.commitment) throw new Error('commitment does not match plan');
   } catch (e) {
-    throw new AnsError('corrupt_data', 'invalid registration plan', e);
+    throw new FogError('corrupt_data', 'invalid registration plan', e);
   }
 }
 
 /** Sends `commit`. Persist the returned plan (it carries the tx hash) before and after calling. */
-export async function submitCommit(ctx: AnsContext, plan: RegistrationPlan, opts?: TxOptions) {
+export async function submitCommit(ctx: FogContext, plan: RegistrationPlan, opts?: TxOptions) {
   const result = await submitCommitOutcome(ctx, plan, opts);
   return { plan: result.plan, tx: unwrapTxOutcome(result.tx) };
 }
 
 /** Internal flow variant; only the receipt interpreter returns a terminal failure. */
-export async function submitCommitOutcome(ctx: AnsContext, plan: RegistrationPlan, opts?: RunTxOptions) {
+export async function submitCommitOutcome(ctx: FogContext, plan: RegistrationPlan, opts?: RunTxOptions) {
   assertPlanFor(ctx, plan);
   await validatePlan(ctx.reader, plan);
   const snapshot = await ctx.reader.snapshot();
   if (snapshot.timestamp + COMMIT_QUOTE_MARGIN > plan.quoteExpiry)
-    throw new AnsError('quote_expired', 'registration quote needs at least 300 seconds before commit');
+    throw new FogError('quote_expired', 'registration quote needs at least 300 seconds before commit');
   const tx = await runTxOutcome(
     ctx,
     async () => {
@@ -292,14 +292,14 @@ export async function waitUntilRegistrable(
 ) {
   const deadline = Date.now() + (opts.timeoutMs ?? 30 * 60_000);
   while (Date.now() < deadline) {
-    if (opts.signal?.aborted) throw new AnsError('invalid_argument', 'aborted');
+    if (opts.signal?.aborted) throw new FogError('invalid_argument', 'aborted');
     const check = await checkRegistration(reader, plan);
     if (check.state === 'ready_to_register' || check.state === 'registered') return check;
     if (check.state !== 'commit_wait' && check.state !== 'commit_missing')
-      throw new AnsError(codeFor(check.state), check.state);
+      throw new FogError(codeFor(check.state), check.state);
     await new Promise((r) => setTimeout(r, opts.pollMs ?? 5000));
   }
-  throw new AnsError('commit_not_ready', 'timed out waiting for the commitment to mature');
+  throw new FogError('commit_not_ready', 'timed out waiting for the commitment to mature');
 }
 
 /**
@@ -307,7 +307,7 @@ export async function waitUntilRegistrable(
  * check reverts the fee together with the registration.
  */
 export async function submitRegistration(
-  ctx: AnsContext,
+  ctx: FogContext,
   plan: RegistrationPlan,
   opts?: TxOptions,
 ): Promise<{ plan: RegistrationPlan; tx: TxResult }> {
@@ -316,17 +316,17 @@ export async function submitRegistration(
 }
 
 /** Internal flow variant; exceptions from wallets or observers remain exceptions. */
-export async function submitRegistrationOutcome(ctx: AnsContext, plan: RegistrationPlan, opts?: RunTxOptions) {
+export async function submitRegistrationOutcome(ctx: FogContext, plan: RegistrationPlan, opts?: RunTxOptions) {
   assertPlanFor(ctx, plan);
   if (plan.registerTx)
-    throw new AnsError(
+    throw new FogError(
       'unknown_tx_state',
       'check the existing registration transaction before retrying',
       undefined,
       plan.registerTx,
     );
   const check = await checkRegistration(ctx.reader, plan);
-  if (check.state !== 'ready_to_register') throw new AnsError(codeFor(check.state), check.state);
+  if (check.state !== 'ready_to_register') throw new FogError(codeFor(check.state), check.state);
 
   const config = await ctx.reader.getConfig();
   const terms = {
@@ -336,10 +336,10 @@ export async function submitRegistrationOutcome(ctx: AnsContext, plan: Registrat
     registrar: plan.registrar ? AztecAddress.fromStringUnsafe(plan.registrar) : undefined,
   };
   if (!sameFeeTerms(config, terms))
-    throw new AnsError('fee_changed', 'registry fee terms differ from the plan');
+    throw new FogError('fee_changed', 'registry fee terms differ from the plan');
   const label = labelFromCanonical(plan.label);
   if (plan.fee !== chargeFor(config, plan.duration, label.len))
-    throw new AnsError('corrupt_data', 'plan fee does not match registry fee');
+    throw new FogError('corrupt_data', 'plan fee does not match registry fee');
 
   await assertPublicRegistration(ctx.reader, plan.label, plan.duration, check.snapshot);
   const authWitness = await buildFeeAuthorization(ctx, {

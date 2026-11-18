@@ -7,7 +7,7 @@ import { isV8Class, readCoreUpgrade, type UpgradeProfile } from './core-upgrade.
 import modular from '../artifacts/modular-metadata.json' with { type: 'json' };
 import { PACKED_LEN } from '../core/constants.js';
 import { registryProtocol, registryProtocols } from '../core/registry-protocol.js';
-import { AnsError, toAnsError } from '../core/errors.js';
+import { FogError, toFogError } from '../core/errors.js';
 import { nodeOf, hashWithSeparator, primaryKey, recordKey } from '../core/hash.js';
 import {
   unpackAddressMeta,
@@ -83,7 +83,7 @@ export class RegistryReader {
     opts: { verifyClass?: boolean; allowRehearsalSuccessor?: boolean } = {},
   ) {
     try {
-      if (opts.verifyClass === false) throw new AnsError('invalid_argument', 'contract class verification cannot be disabled');
+      if (opts.verifyClass === false) throw new FogError('invalid_argument', 'contract class verification cannot be disabled');
       const [infoResult, instanceResult] = await Promise.allSettled([
         Promise.resolve().then(() => node.getNodeInfo()),
         Promise.resolve().then(() => node.getContract(registry)),
@@ -94,12 +94,12 @@ export class RegistryReader {
         instance = instanceResult.value;
       let classId = registryProtocols.legacy.classId;
       {
-        if (!instance) throw new AnsError('wrong_deployment', `no contract at ${registry}`);
+        if (!instance) throw new FogError('wrong_deployment', `no contract at ${registry}`);
         classId = instance.currentContractClassId.toString();
         const protocol = registryProtocol(classId);
         const original = instance.originalContractClassId?.toString();
         if (original && registryProtocol(original).version !== protocol.version)
-          throw new AnsError('wrong_deployment', 'registry implementation is incompatible with its original storage');
+          throw new FogError('wrong_deployment', 'registry implementation is incompatible with its original storage');
       }
       const reader = new RegistryReader(
         node,
@@ -115,7 +115,7 @@ export class RegistryReader {
       if (isV8Class(classId)) await reader.snapshot();
       return reader;
     } catch (e) {
-      throw toAnsError(e);
+      throw toFogError(e);
     }
   }
 
@@ -127,7 +127,7 @@ export class RegistryReader {
     // Bounded retry for a reorg of N; advancing the latest head is not a failure.
     for (let attempt = 0; attempt < 3; attempt++) {
       const data = await this.guard(() => this.node.getBlockData(finality));
-      if (!data) throw new AnsError('network', `node has no ${finality} block`);
+      if (!data) throw new FogError('network', `node has no ${finality} block`);
       const snap: Snapshot = {
         blockNumber: Number(data.header.globalVariables.blockNumber),
         blockHash: data.blockHash.toString(),
@@ -137,7 +137,7 @@ export class RegistryReader {
       if (this.modular) await this.assertCurrentClass(snap);
       if (await this.isCanonical(snap)) return snap;
     }
-    throw new AnsError('network', 'could not obtain a canonical registry snapshot after three attempts');
+    throw new FogError('network', 'could not obtain a canonical registry snapshot after three attempts');
   }
 
   /** True when the block a snapshot was taken from is still part of the chain (no reorg since). */
@@ -214,7 +214,7 @@ export class RegistryReader {
       if (parent.expiresAt < expiry) expiry = parent.expiresAt;
       current = link.parent;
     }
-    throw new AnsError('corrupt_data', 'subname ancestry exceeds maximum depth');
+    throw new FogError('corrupt_data', 'subname ancestry exceeds maximum depth');
   }
 
   async getParent(node: bigint, snap: Snapshot) {
@@ -272,7 +272,7 @@ export class RegistryReader {
     if (current.generation !== generation || current.expiresAt <= snap.timestamp) return {};
     const scope = await recordKey(node, generation);
     const [count] = await this.readMap(this.slots.text_count.slot, scope, 1, snap);
-    if (count > 64n) throw new AnsError('corrupt_data', 'record count exceeds limit');
+    if (count > 64n) throw new FogError('corrupt_data', 'record count exceeds limit');
     const entries: (readonly [string, string])[] = [];
     // The protocol permits raw Field keys/bytes. Return SDK-compatible records without letting an
     // unsupported entry hide the rest of a profile; transport errors must still fail the read.
@@ -285,7 +285,7 @@ export class RegistryReader {
           try {
             decodedKey = decodeRecordKey(key);
           } catch (e) {
-            if (e instanceof AnsError && e.code === 'corrupt_data') return undefined;
+            if (e instanceof FogError && e.code === 'corrupt_data') return undefined;
             throw e;
           }
           const valueKey = await hashWithSeparator([scope, key], TEXT_DOMAIN);
@@ -293,7 +293,7 @@ export class RegistryReader {
           try {
             return [decodedKey, decodeTextValue(words.slice(0, 8), Number(words[8]))] as const;
           } catch (e) {
-            if (e instanceof AnsError && e.code === 'corrupt_data') return undefined;
+            if (e instanceof FogError && e.code === 'corrupt_data') return undefined;
             throw e;
           }
         }),
@@ -307,14 +307,14 @@ export class RegistryReader {
 
   /** Reconstruct and verify every label, including the parent chain. */
   async getPublishedName(node: bigint, snap: Snapshot, depth = 0): Promise<string> {
-    if (depth > 4) throw new AnsError('corrupt_data', 'name exceeds maximum depth');
+    if (depth > 4) throw new FogError('corrupt_data', 'name exceeds maximum depth');
     const published = await this.getPublishedLabel(node, snap);
-    if (!published.present) throw new AnsError('corrupt_data', 'name label is unavailable');
+    if (!published.present) throw new FogError('corrupt_data', 'name label is unavailable');
     const leaf = unpackLabel(published.packedLabel, published.labelLen).label;
     const { parent } = await this.getParent(node, snap);
     const name = parent ? `${leaf}.${await this.getPublishedName(parent, snap, depth + 1)}` : leaf;
     if ((await nodeOf(normalizeName(name, { allowSubnames: true }))) !== node)
-      throw new AnsError('corrupt_data', 'name does not match node');
+      throw new FogError('corrupt_data', 'name does not match node');
     return name;
   }
 
@@ -342,7 +342,7 @@ export class RegistryReader {
   async getRecordRevision(node: bigint, generation: number, snap: Snapshot): Promise<number> {
     if (registryProtocol(this.currentClass).version < 7) return (await this.getName(node, snap)).revision;
     const [revision] = await this.readMap(this.slots.record_revisions.slot, await recordKey(node, generation), 1, snap);
-    if (revision > 0xffffffffn) throw new AnsError('corrupt_data', 'record revision exceeds u32');
+    if (revision > 0xffffffffn) throw new FogError('corrupt_data', 'record revision exceeds u32');
     return Number(revision);
   }
 
@@ -403,17 +403,17 @@ export class RegistryReader {
     const instance = await this.guard(() => this.node.getContract(this.registry, snap ? BlockNumber(snap.blockNumber) : undefined));
     const id = instance?.currentContractClassId.toString();
     if (!id || registryProtocol(id).version !== this.deployment.protocolVersion)
-      throw new AnsError('wrong_deployment', 'registry upgraded to an unsupported class; update the SDK');
+      throw new FogError('wrong_deployment', 'registry upgraded to an unsupported class; update the SDK');
     this.currentClass = id;
     return id;
   }
 
   async getCoreUpgradeState(snap?: Snapshot) {
-    if (!isV8Class(this.currentClass)) throw new AnsError('unsupported', 'core upgrades require an independent V8 registry');
+    if (!isV8Class(this.currentClass)) throw new FogError('unsupported', 'core upgrades require an independent V8 registry');
     let s = snap;
     if (!s) {
       const data = await this.guard(() => this.node.getBlockData('proposed'));
-      if (!data) throw new AnsError('network', 'node has no proposed block');
+      if (!data) throw new FogError('network', 'node has no proposed block');
       s = { blockNumber: Number(data.header.globalVariables.blockNumber), blockHash: String(data.blockHash), timestamp: BigInt(data.header.globalVariables.timestamp), finality: 'proposed' };
     }
     return this.guard(() => readCoreUpgrade(this.node, this.registry, s!, this.upgradeProfile));
@@ -446,7 +446,7 @@ export class RegistryReader {
     const impl = (kind === 'registrar' ? (['registrar', 'registrarTiered', 'registrarLaunch'] as const) : (['resolver'] as const)).find(
       (k) => modular[k].classId === classId,
     );
-    if (!impl) throw new AnsError('wrong_deployment', `unsupported ${kind} class`);
+    if (!impl) throw new FogError('wrong_deployment', `unsupported ${kind} class`);
     const [registry] = await this.readFields(
       BigInt(modular[impl].storage.registry),
       1,
@@ -454,13 +454,13 @@ export class RegistryReader {
       address,
     );
     if (registry !== this.registry.toBigInt())
-      throw new AnsError('wrong_deployment', `${kind} belongs to another registry`);
+      throw new FogError('wrong_deployment', `${kind} belongs to another registry`);
     return impl;
   }
 
   async getModules(snap?: Snapshot) {
     if (!this.modular)
-      throw new AnsError('invalid_argument', 'this registry has no replaceable modules');
+      throw new FogError('invalid_argument', 'this registry has no replaceable modules');
     const s = snap ?? (await this.snapshot());
     const [registrar, resolver, revision] = await this.readFields(
       this.slots.modules.slot.toBigInt(),
@@ -468,7 +468,7 @@ export class RegistryReader {
       s,
     );
     if (!registrar || !resolver || !revision)
-      throw new AnsError('wrong_deployment', 'registry modules are not initialized');
+      throw new FogError('wrong_deployment', 'registry modules are not initialized');
     return {
       registrar: AztecAddress.fromBigIntUnsafe(registrar),
       resolver: AztecAddress.fromBigIntUnsafe(resolver),
@@ -492,7 +492,7 @@ export class RegistryReader {
       await this.assertModule(address, 'resolver', s);
       return { address, verified: true, isDefault };
     } catch (error) {
-      if (!(error instanceof AnsError) || error.code !== 'wrong_deployment') throw error;
+      if (!(error instanceof FogError) || error.code !== 'wrong_deployment') throw error;
       return { address, verified: false, isDefault,
         reason: error.message === 'resolver belongs to another registry' ? 'other_registry' : 'unknown_class' };
     }
@@ -534,8 +534,8 @@ export class RegistryReader {
     try {
       return await fn();
     } catch (e) {
-      const err = toAnsError(e);
-      throw err.code === 'reverted' ? new AnsError('network', err.message, e) : err;
+      const err = toFogError(e);
+      throw err.code === 'reverted' ? new FogError('network', err.message, e) : err;
     }
   }
 }

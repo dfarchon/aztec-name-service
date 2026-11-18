@@ -1,7 +1,7 @@
-import type { AnsContext, RegistrationPlan, TxState } from '@ans/sdk';
+import type { FogContext, RegistrationPlan, TxState } from '@fog/sdk';
 import type { Wallet } from '@aztec-labs/aztec.js/wallet';
 import type { WalletProvider } from '@aztec-labs/wallet-sdk/manager';
-import { AnsError, RegistryReader, toAnsError } from '@ans/sdk/read';
+import { FogError, RegistryReader, toFogError } from '@fog/sdk/read';
 import type { AztecAddress } from '@aztec-labs/aztec.js/addresses';
 
 import type { SponsoredFeePaymentMethod } from '@aztec-labs/aztec.js/fee';
@@ -57,7 +57,7 @@ export type SessionState = {
   walletMode?: 'external' | 'embedded';
   accounts: { alias: string; address: AztecAddress }[];
   selectingAccount?: AztecAddress;
-  ctx?: AnsContext;
+  ctx?: FogContext;
   records?: AccountRecords;
   connection?: { checkedAt: number; latencyMs: number; failures: number };
 };
@@ -101,7 +101,7 @@ let connectionTimer: ReturnType<typeof setTimeout> | undefined;
 let failures = 0;
 let watching = false;
 let verifiedReader: RegistryReader | undefined;
-let suspendedContext: { ctx: AnsContext; epoch: number } | undefined;
+let suspendedContext: { ctx: FogContext; epoch: number } | undefined;
 let connectionRevision = 0;
 
 function requireLiveNetwork() {
@@ -114,7 +114,7 @@ function connectionUnavailable(error: unknown) {
   connectionRevision++;
   failures++;
   if (state.ctx) suspendedContext = { ctx: state.ctx, epoch: sessionEpoch };
-  const err = toAnsError(error);
+  const err = toFogError(error);
   set({ reader: undefined, ctx: undefined,
     status: err.code === 'wrong_deployment' || state.status === 'misconfigured' ? 'misconfigured' : 'offline',
     error: err.message,
@@ -130,7 +130,7 @@ export function boot(): Promise<void> {
   if (connectionTimer) clearTimeout(connectionTimer);
   connecting = (async () => {
     if (!config.registry) {
-      connectionUnavailable(new AnsError('wrong_deployment', 'Registry is not configured'));
+      connectionUnavailable(new FogError('wrong_deployment', 'Registry is not configured'));
       return;
     }
     const started = Date.now();
@@ -139,7 +139,7 @@ export function boot(): Promise<void> {
       const reader = await RegistryReader.connect(state.node, config.registry, { allowRehearsalSuccessor: config.allowRehearsalSuccessor });
       if (identityMismatch({ chainId: config.expectedChainId, rollupVersion: config.expectedRollupVersion },
         verifiedReader?.deployment, reader.deployment)) {
-        throw new AnsError('wrong_deployment', 'Network identity changed');
+        throw new FogError('wrong_deployment', 'Network identity changed');
       }
       // A concurrent final read failure supersedes an older successful health check.
       if (revision !== connectionRevision) return;
@@ -156,7 +156,7 @@ export function boot(): Promise<void> {
       });
     } catch (e) {
       // The transport observer may already have withdrawn capabilities for this failed check.
-      if (revision === connectionRevision || toAnsError(e).code === 'wrong_deployment')
+      if (revision === connectionRevision || toFogError(e).code === 'wrong_deployment')
         connectionUnavailable(e);
       set({ connection: { checkedAt: Date.now(), latencyMs: Date.now() - started, failures } });
     }
@@ -193,9 +193,9 @@ export function watchConnection() {
 async function acquireTabLock(): Promise<void> {
   if (!navigator.locks) return;
   await new Promise<void>((resolve, reject) => {
-    navigator.locks.request('ans-wallet', { ifAvailable: true }, (lock) => {
+    navigator.locks.request('fog-wallet', { ifAvailable: true }, (lock) => {
       if (!lock) {
-        reject(new Error('Another tab is using the ANS wallet.'));
+        reject(new Error('Another tab is using the Fog wallet.'));
         return undefined;
       }
       resolve();
@@ -215,7 +215,7 @@ export async function unlock(passphrase: string) {
     if (info.realProofs && !config.proverEnabled)
     {
       // Operator hint stays in the console; users see a plain message.
-      console.warn('ANS: set VITE_PROVER_ENABLED=true for public networks.');
+      console.warn('Fog: set VITE_PROVER_ENABLED=true for public networks.');
       throw new Error(
         'Public networks require real proofs, which this site build does not enable yet. Please try again later or contact the site maintainer.',
       );
@@ -237,17 +237,17 @@ export async function unlock(passphrase: string) {
     await acquireTabLock();
     const keys = await deriveKeys(passphrase);
     const tag = info.l1ContractAddresses.rollupAddress.toString().slice(2, 12);
-    const log = createLogger('ans-web');
+    const log = createLogger('fog-web');
     // Each store needs its own SAH-pool directory: a pool holds an exclusive lock on its directory.
     const { pxeStore, walletStore } = await openEncryptedEmbeddedStores(
       {
         pxe: {
-          name: `ans-pxe-${tag}`,
-          poolDirectory: `.aztec-kv-ans-pxe-${tag}`,
+          name: `fog-pxe-${tag}`,
+          poolDirectory: `.aztec-kv-fog-pxe-${tag}`,
         },
         wallet: {
-          name: `ans-wallet-${tag}`,
-          poolDirectory: `.aztec-kv-ans-wallet-${tag}`,
+          name: `fog-wallet-${tag}`,
+          poolDirectory: `.aztec-kv-fog-wallet-${tag}`,
         },
       },
       async () => keys.storeKey(),
@@ -322,9 +322,9 @@ export async function selectAccount(address: AztecAddress) {
   try {
     const { wallet, reader } = state;
     if (!wallet || !reader || !recordsKey) return;
-    const { AnsContext } = await import('@ans/sdk');
+    const { FogContext } = await import('@fog/sdk');
     const feeJuice = config.feePayment === 'fee-juice' ? await import('./fee-juice') : undefined;
-    const ctx = new AnsContext(reader, {
+    const ctx = new FogContext(reader, {
       wallet: feeJuice ? feeJuice.feeJuiceWallet(wallet, state.node) : wallet,
       // The SDK invokes this inside the shared wallet queue, including for already queued writes.
       beforeSend: async (account) => {
@@ -342,7 +342,7 @@ export async function selectAccount(address: AztecAddress) {
     });
     const store = new RecordStore(
       recordsKey,
-      `ans:v2:${reader.deployment.chainId}:${reader.registry}:${address}`,
+      `fog:v2:${reader.deployment.chainId}:${reader.registry}:${address}`,
       emptyRecords,
     );
     await saveQueue.catch(() => {});
@@ -455,7 +455,7 @@ export async function withPendingTx<T>(run: () => Promise<T>): Promise<T> {
 /** Per-device non-extractable key, separate from all existing embedded-wallet keys. */
 async function deviceRecordsKey(): Promise<CryptoKey> {
   const db = await new Promise<IDBDatabase>((resolve, reject) => {
-    const q = indexedDB.open('ans-registration-progress-v2', 1);
+    const q = indexedDB.open('fog-registration-progress-v2', 1);
     q.onupgradeneeded = () => q.result.createObjectStore('keys');
     q.onsuccess = () => resolve(q.result);
     q.onerror = () => reject(q.error);
@@ -504,11 +504,11 @@ export class WalletStepError extends Error {
   }
 }
 const walletStep = async <T>(step: string, run: () => Promise<T>): Promise<T> => {
-  console.info(`[ANS wallet] ${step}`);
+  console.info(`[Fog wallet] ${step}`);
   try {
     return await run();
   } catch (e) {
-    console.error(`[ANS wallet] ${step} failed`, e);
+    console.error(`[Fog wallet] ${step} failed`, e);
     throw new WalletStepError(step, e);
   }
 };
@@ -527,13 +527,13 @@ export async function connectExternal(connected: Wallet, provider: WalletProvide
     await acquireTabLock();
     recordsKey = await deviceRecordsKey();
     let granted;
-    // Aztec 6 wallets refuse account and contract calls until ANS holds matching capabilities.
+    // Aztec 6 wallets refuse account and contract calls until Fog holds matching capabilities.
     // Test doubles without capability negotiation skip it; real wallet-sdk wallets always implement it.
     if (typeof (connected as Partial<Wallet>).requestCapabilities === 'function') {
-      const { requestAnsCapabilities } = await import('@ans/sdk');
-      const result = await walletStep('authorize accounts and ANS contracts', () =>
-        requestAnsCapabilities(reader, connected, {
-          app: { name: 'ANS · Aztec Name Service', version: sdkPackage.version, url: location.origin },
+      const { requestFogCapabilities } = await import('@fog/sdk');
+      const result = await walletStep('authorize accounts and Fog contracts', () =>
+        requestFogCapabilities(reader, connected, {
+          app: { name: 'Fog Names', version: sdkPackage.version, url: location.origin },
           sponsoredFpc: config.feePayment === 'sponsored' ? config.sponsoredFpc : undefined,
         }),
       );
@@ -575,7 +575,7 @@ export async function connectExternal(connected: Wallet, provider: WalletProvide
     // Do not silently pick the first grant and perform actions on an older account.
     const needsAccountSelection = accounts.length > 1;
     if (!needsAccountSelection)
-      await walletStep('register ANS contracts', () => selectAccount(accounts[0].address));
+      await walletStep('register Fog contracts', () => selectAccount(accounts[0].address));
     return { needsAccountSelection };
   } catch (e) {
     await lock();
@@ -609,7 +609,7 @@ export function txRecorder(label: string) {
 }
 
 /** Preserve receipt hashes and transport uncertainty while the encrypted write completes. */
-export function rememberRegistrationProgress(ctx: AnsContext, plan: RegistrationPlan) {
+export function rememberRegistrationProgress(ctx: FogContext, plan: RegistrationPlan) {
   const current = ctx === state.ctx ||
     (ctx === suspendedContext?.ctx && suspendedContext.epoch === sessionEpoch);
   if (!current || !state.records) return;
@@ -632,7 +632,7 @@ export function rememberRegistrationProgress(ctx: AnsContext, plan: Registration
 }
 
 /** Bind a multi-step action to the account that started it. */
-export function recordWriter(ctx: AnsContext) {
+export function recordWriter(ctx: FogContext) {
   if (ctx !== state.ctx || !recordStore) throw new Error('Wallet account changed. Try the action again.');
   const epoch = sessionEpoch;
   const store = recordStore;
@@ -644,7 +644,7 @@ export function recordWriter(ctx: AnsContext) {
 }
 
 /** Read current memory while selected; after a switch, read the captured account's durable records. */
-export function recordReader(ctx: AnsContext) {
+export function recordReader(ctx: FogContext) {
   if (ctx !== state.ctx || !recordStore) throw new Error('Wallet account changed. Try the action again.');
   const epoch = sessionEpoch;
   const store = recordStore;

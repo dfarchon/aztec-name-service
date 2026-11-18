@@ -26,7 +26,7 @@ async function run() {
   assertV6Network('local', info, nodeUrl);
   assertV6FeeJuice('local', info);
   const stateDir = await mkdtemp(
-    join(process.env.ANS_FEE_JUICE_TEST_ROOT ?? tmpdir(), 'ans-fee-juice-local-'),
+    join(process.env.FOG_FEE_JUICE_TEST_ROOT ?? tmpdir(), 'fog-fee-juice-local-'),
   );
   await main(['--init-keys', '--network', 'local', '--state-dir', stateDir]);
   const owner = (await readPublicKeys(join(stateDir, 'keys.json'), 'local')).owner;

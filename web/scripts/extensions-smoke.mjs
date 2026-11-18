@@ -20,7 +20,7 @@ try{
    const source=await(await fetch('/src/App.tsx')).text(),path=source.match(/from\s*["']([^"']*\/session\.ts[^"']*)["']/)?.[1];
    const session=await import(path);window.testSession=session;
    const reader=session.getSession().reader;
-   const sdkSource=await(await fetch('/src/pages/Register.tsx')).text(),sdkPath=sdkSource.match(/from\s*["']([^"']*(?:ans_sdk|sdk\/dist\/index\.js)[^"']*)["']/)?.[1];
+   const sdkSource=await(await fetch('/src/pages/Register.tsx')).text(),sdkPath=sdkSource.match(/from\s*["']([^"']*(?:fog_sdk|sdk\/dist\/index\.js)[^"']*)["']/)?.[1];
    const sdk=await import(sdkPath);window.testSdk=sdk;
    const holding=await sdk.getName(reader,name),account=holding.record.owner;
    window.extensionFixture={reader,account,holding,getManager:reader.getManager.bind(reader),getName:reader.getName.bind(reader),getTransfer:reader.getTransfer.bind(reader)};
@@ -40,7 +40,7 @@ try{
  await wait('Save address');await wait('Profile and address records');assert.ok(!(await page.evaluate(()=>document.body.innerText)).includes('Transfer ownership'));assert.ok(!(await page.evaluate(()=>document.body.innerText)).includes('Renew name'));pass('editor gets record controls without ownership or renewal controls');
  await page.evaluate(secondName=>{const f=window.extensionFixture;f.reader.getManager=async()=>f.account.constructor.ZERO;f.reader.getTransfer=async()=>({recipient:f.account,expiresAt:f.holding.snapshot.timestamp+999999999n});location.hash=`/manage/${secondName}`;},secondName);await wait('Incoming transfer');await wait('Accept transfer');pass('recipient can accept from a non-owner wallet');
  for(const width of [1280,390,320]){await page.setViewport({width,height:900});assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),`${width} overflow`);}
- await page.setViewport({width:1280,height:900});await page.goto(`${base}/#/docs`);await wait('Register your first name');await page.screenshot({path:'/tmp/ans-v5-docs.png',fullPage:true});pass('English pages fit desktop and narrow mobile layouts');
+ await page.setViewport({width:1280,height:900});await page.goto(`${base}/#/docs`);await wait('Register your first name');await page.screenshot({path:'/tmp/fog-v5-docs.png',fullPage:true});pass('English pages fit desktop and narrow mobile layouts');
  assert.equal(broadcasts,0);assert.deepEqual(errors,[]);pass('zero wallet broadcasts and uncaught runtime errors');
  console.log(`ALL ${count} EXTENSION UI CHECKS PASSED`);
 }catch(error){console.error(await page.evaluate(()=>document.body.innerText).catch(()=>''));throw error;}finally{await browser.close();}

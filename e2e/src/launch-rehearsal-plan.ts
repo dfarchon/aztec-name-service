@@ -19,7 +19,7 @@ export type RehearsalConfig = {
   resolverProbe: string;
 };
 export function rehearsalPlan(c: RehearsalConfig, stateDir: string) {
-  assert.equal(c.schema, 'ans-v7-launch-rehearsal/1');
+  assert.equal(c.schema, 'fog-v7-launch-rehearsal/1');
   assert.equal(c.network, 'testnet-v6');
   assert.equal(c.registryVersion, 7);
   assert.equal(c.registrarKind, 'launch');
@@ -94,7 +94,7 @@ export function rehearsalPlan(c: RehearsalConfig, stateDir: string) {
         'Conservative gas allowance for mint, approve, deposit per account; gas price read live; no ETH purchase of FJ assumed. Mint handler availability/limits require bridge dry-run.',
     },
     requirements: [
-      'Supervisor creates a new private directory under ~/.local/share/ans/ and generates independent owner/treasury keys using existing offline --init-keys.',
+      'Supervisor creates a new private directory under ~/.local/share/fog/ and generates independent owner/treasury keys using existing offline --init-keys.',
       'Fund both new public accounts through the existing checkpointed bridge runner before --send; old balances are observational only.',
       'Use the same checkpoint on resume. Saved hashes, including reverted/dropped/ambiguous hashes, are never removed or automatically resent.',
       'Confirm network version, chain, rollup and real proving before every wallet operation and raw send.',

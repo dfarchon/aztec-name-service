@@ -6,13 +6,13 @@
 /** Version of the SDK <-> contract encoding (domains, packing, storage layout). */
 export const PROTOCOL_VERSION = 2;
 
-/** ASCII tags packed big-endian into a Field, used as Poseidon2 domain separators. */
+/** Frozen protocol domain separators mirrored in Noir (`logic.nr`). */
 export const DOMAIN = {
-  LABEL_V1: 0x414e535f4c4142454c5f5631n, // "ANS_LABEL_V1"
-  NODE_V1: 0x414e535f4e4f44455f5631n, // "ANS_NODE_V1"
-  REGISTER_V3: 0x414e535f52454749535445525f5633n, // "ANS_REGISTER_V3"
-  RECORD_KEY_V1: 0x414e535f5245434f52445f5631n, // "ANS_RECORD_V1"
-  PRIMARY_KEY_V1: 0x414e535f5052494d4152595f5631n, // "ANS_PRIMARY_V1"
+  LABEL_V1: 0x414e535f4c4142454c5f5631n,
+  NODE_V1: 0x414e535f4e4f44455f5631n,
+  REGISTER_V3: 0x414e535f52454749535445525f5633n,
+  RECORD_KEY_V1: 0x414e535f5245434f52445f5631n,
+  PRIMARY_KEY_V1: 0x414e535f5052494d4152595f5631n,
 } as const;
 
 export const ROOT_NODE = 0n;

@@ -6,11 +6,11 @@ import { publishContractClass } from '@aztec-labs/aztec.js/deployment';
 import { AztecAddress } from '@aztec-labs/aztec.js/addresses';
 import { Fr } from '@aztec-labs/aztec.js/fields';
 import { loadContractArtifact } from '@aztec-labs/stdlib/abi';
-import { NameRegistryV8RehearsalContract } from '@ans/sdk/contracts/v8';
-import type { AnsContext } from '@ans/sdk';
+import { NameRegistryV8RehearsalContract } from '@fog/sdk/contracts/v8';
+import type { FogContext } from '@fog/sdk';
 import metadata from '../../sdk/src/artifacts/modular-metadata.json' with { type: 'json' };
 
-export async function exerciseV8Fixtures(ctx: AnsContext, fixtureDirectory: string, warp: (timestamp: bigint) => Promise<void>, check: (label: string, value: unknown) => Promise<void>) {
+export async function exerciseV8Fixtures(ctx: FogContext, fixtureDirectory: string, warp: (timestamp: bigint) => Promise<void>, check: (label: string, value: unknown) => Promise<void>) {
   const { node } = ctx.reader, wallet = ctx.wallet, admin = ctx.account, fee = ctx.signer.fee;
   const info = await node.getNodeInfo(); assert.equal(info.realProofs, false); assert.equal(Number(info.l1ChainId), 31337);
   const readArtifact = async (file: string) => loadContractArtifact(JSON.parse(await readFile(`${fixtureDirectory}/target/${file}.json`, 'utf8')));

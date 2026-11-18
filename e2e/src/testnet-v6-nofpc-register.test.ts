@@ -40,13 +40,13 @@ const info = { nodeVersion: '6.0.0', l1ChainId: 11155111, rollupVersion: 6792617
   l1ContractAddresses: { rollupAddress: profile.rollup, feeJuicePortalAddress: profile.feeJuicePortal,
     feeAssetHandlerAddress: profile.feeAssetHandler } };
 const identity = { chainId: m.chainId, rollupVersion: m.rollupVersion, rollup: m.rollup };
-const base = ['--manifest', '/tmp/ans-fixture-deployer/manifest.json', '--state-dir', '/tmp/ans-fixture-user', '--name', 'rehearsal'];
+const base = ['--manifest', '/tmp/fog-fixture-deployer/manifest.json', '--state-dir', '/tmp/fog-fixture-user', '--name', 'rehearsal'];
 const options = () => parseRegisterArgs([...base, '--dry-run']);
-const initialState = (c = options()): RegisterState => ({ schema: 'ans-v6-nofpc-register/1', binding: manifestBinding(m),
+const initialState = (c = options()): RegisterState => ({ schema: 'fog-v6-nofpc-register/1', binding: manifestBinding(m),
   confirmation: registerConfirmation(c, m), identity, user: address(104), name: 'rehearsal',
   transactions: {}, records: {}, done: [], feeJuice: { before: '0' } });
 async function fixture(t: { after(fn: () => Promise<unknown>): void }) {
-  const root = await mkdtemp(join(tmpdir(), 'ans-nofpc-'));
+  const root = await mkdtemp(join(tmpdir(), 'fog-nofpc-'));
   t.after(() => rm(root, { recursive: true, force: true }));
   const deployer = join(root, 'deployer'), stateDir = join(root, 'user'), manifest = join(deployer, 'manifest.json');
   await mkdir(deployer, { mode: 0o700 });

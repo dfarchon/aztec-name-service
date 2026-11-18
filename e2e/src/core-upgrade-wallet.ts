@@ -4,11 +4,11 @@ import { readFile } from 'node:fs/promises';
 import type { Wallet } from '@aztec-labs/aztec.js/wallet';
 import { AztecAddress } from '@aztec-labs/aztec.js/addresses';
 import { createAztecNodeClient } from '@aztec-labs/aztec.js/node';
-import { AnsContext, RegistryReader, prepareRegistration, createRegistrationFlow, type RegistrationPlan } from '@ans/sdk';
+import { FogContext, RegistryReader, prepareRegistration, createRegistrationFlow, type RegistrationPlan } from '@fog/sdk';
 const url = process.env.NODE_URL ?? 'http://127.0.0.1:8082';
 assert.equal(new URL(url).hostname, '127.0.0.1');
-assert(process.env.ANS_V8_LOCAL_PUBLIC_STATE, 'explicit local public-state path required');
-const publicState = JSON.parse(await readFile(process.env.ANS_V8_LOCAL_PUBLIC_STATE, 'utf8'));
+assert(process.env.FOG_V8_LOCAL_PUBLIC_STATE, 'explicit local public-state path required');
+const publicState = JSON.parse(await readFile(process.env.FOG_V8_LOCAL_PUBLIC_STATE, 'utf8'));
 const node = createAztecNodeClient(url), info = await node.getNodeInfo();
 assert.equal(info.realProofs, false); assert.equal(Number(info.l1ChainId), 31337);
 const reader = await RegistryReader.connect(node, AztecAddress.fromStringUnsafe(publicState.registry), { allowRehearsalSuccessor: true });
@@ -19,7 +19,7 @@ for (const wrong of ['chain', 'rollup'] as const) {
     getChainInfo: async () => ({ chainId: { toBigInt: () => reader.deployment.chainId + (wrong === 'chain' ? 1n : 0n) }, version: { toBigInt: () => reader.deployment.rollupVersion + (wrong === 'rollup' ? 1n : 0n) } }),
     registerContract: async () => { registrations++; }, sendTx: async () => { sends++; throw new Error('must never send'); },
   } as unknown as Wallet;
-  const ctx = new AnsContext(reader, { wallet, account: AztecAddress.fromStringUnsafe(publicState.administrator) });
+  const ctx = new FogContext(reader, { wallet, account: AztecAddress.fromStringUnsafe(publicState.administrator) });
   const plan = await prepareRegistration(ctx, { name: `wrong-${wrong}-v8`, duration: 31536000n });
   const flow = createRegistrationFlow(ctx, { load: async () => stored, save: async (_key, value) => { stored = structuredClone(value); } });
   await assert.rejects(flow.commit(plan), (error: any) => error.code === 'wrong_deployment');

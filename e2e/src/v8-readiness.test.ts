@@ -49,7 +49,7 @@ test('canonical sorting uses code unit order independently of localeCompare', ()
   }
 });
 test('offline fixed fixtures use pinned account derivation, exclusive output and private modes', async () => {
-  const directory = await mkdtemp(join(tmpdir(), 'ans-fixture-test-'));
+  const directory = await mkdtemp(join(tmpdir(), 'fog-fixture-test-'));
   const env = Object.fromEntries(
     Object.entries(process.env).filter(([k]) => /(?:NODE|RPC|ANVIL).*URL/i.test(k)),
   );
@@ -143,7 +143,7 @@ const actor = (n: number) => `0x${n.toString(16).padStart(64, '0')}`;
 const A = metadata.v8.classId,
   B = metadata.v8Rehearsal.classId;
 const binding: Binding = {
-  schema: 'ans-v8-safe-prep/1',
+  schema: 'fog-v8-safe-prep/1',
   run: 'local-only',
   identity: {
     chainId: 31337,
@@ -178,7 +178,7 @@ async function recovery(
   run: (j: MockJournal, reopen: () => Promise<MockJournal>, path: string) => Promise<void>,
   confirmed = false,
 ) {
-  const path = await mkdtemp(join(tmpdir(), 'ans-recovery-'));
+  const path = await mkdtemp(join(tmpdir(), 'fog-recovery-'));
   await chmod(path, 0o700);
   let j = await MockJournal.acquire(path, binding);
   try {

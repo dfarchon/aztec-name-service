@@ -1,6 +1,6 @@
-import { AnsError } from '../core/errors.js';
+import { FogError } from '../core/errors.js';
 import { AztecAddress } from '@aztec-labs/aztec.js/addresses';
-import type { AnsContext } from '../wallet/context.js';
+import type { FogContext } from '../wallet/context.js';
 import { ExecutionQueue } from '../wallet/queue.js';
 import { getFeeReadiness, getPrivateFeeBalance } from '../wallet/fee-balance.js';
 import { getFeeQuote, type FeeQuote } from './fees.js';
@@ -30,7 +30,7 @@ export const registrationPlanKey = (plan: RegistrationPlan) =>
 export type RegistrationTxKind = 'commitTx' | 'registerTx';
 
 /** Resumable writes. Explicitly accepted quotes and durable secrets are required before the first broadcast. */
-export function createRegistrationFlow(ctx: AnsContext, store: RegistrationPlanStore) {
+export function createRegistrationFlow(ctx: FogContext, store: RegistrationPlanStore) {
   const actions = new ExecutionQueue();
   // Only unsaved progress overrides storage. Once durable, another instance may advance the plan.
   const known = new Map<string, RegistrationPlan>();
@@ -41,11 +41,11 @@ export function createRegistrationFlow(ctx: AnsContext, store: RegistrationPlanS
       input.registry !== ctx.reader.registry.toString() ||
       input.chainId !== ctx.reader.deployment.chainId
     )
-      throw new AnsError('wrong_deployment', 'plan belongs to another account or deployment');
+      throw new FogError('wrong_deployment', 'plan belongs to another account or deployment');
     const key = registrationPlanKey(input);
     const stored = await store.load(key);
     if (stored && registrationPlanKey(stored) !== key)
-      throw new AnsError('corrupt_data', 'stored registration key does not match its plan');
+      throw new FogError('corrupt_data', 'stored registration key does not match its plan');
     const latest = known.get(key) ?? stored ?? input;
     // Preserve hashes even if persistence failed or a caller retained an older copy of the plan.
     return {
@@ -81,7 +81,7 @@ export function createRegistrationFlow(ctx: AnsContext, store: RegistrationPlanS
   async function recover(plan: RegistrationPlan, kind: RegistrationTxKind, options: TxOptions) {
     const hash = plan[kind];
     if (!hash)
-      throw new AnsError(
+      throw new FogError(
         'unknown_tx_state',
         'no transaction hash; inspect wallet activity before retrying',
       );
@@ -89,7 +89,7 @@ export function createRegistrationFlow(ctx: AnsContext, store: RegistrationPlanS
     try {
       await save(plan);
     } catch (error) {
-      throw new AnsError(
+      throw new FogError(
         'unknown_tx_state',
         'cannot persist the known hash; track it before retrying',
         error,
@@ -106,7 +106,7 @@ export function createRegistrationFlow(ctx: AnsContext, store: RegistrationPlanS
     let plan = await current(input);
     if (plan[kind]) return recover(plan, kind, options);
     if (plan.broadcastUnknown === kind)
-      throw new AnsError(
+      throw new FogError(
         'unknown_tx_state',
         'wallet returned no transaction hash; inspect its activity before clearing the recovery flag',
       );
@@ -114,7 +114,7 @@ export function createRegistrationFlow(ctx: AnsContext, store: RegistrationPlanS
     const check = await checkRegistration(ctx.reader, plan);
     // A commit is only useful while none exists and the name, policy and quote still match the plan.
     if (kind === 'commitTx' && check.state !== 'commit_missing')
-      throw new AnsError(
+      throw new FogError(
         check.state === 'commit_wait' || check.state === 'ready_to_register' ? 'conflict' : codeFor(check.state),
         `cannot commit: ${check.state}`,
       );
@@ -123,7 +123,7 @@ export function createRegistrationFlow(ctx: AnsContext, store: RegistrationPlanS
       plan.fee > 0n &&
       (await getPrivateFeeBalance(ctx, AztecAddress.fromStringUnsafe(plan.feeToken))) < plan.fee
     )
-      throw new AnsError(
+      throw new FogError(
         'invalid_argument',
         `insufficient private fee balance in ${plan.feeToken}`,
       );
@@ -185,7 +185,7 @@ export function createRegistrationFlow(ctx: AnsContext, store: RegistrationPlanS
       plan = terminal ? await clearTerminalHash(plan, kind, terminal.txHash) : await current(plan);
     } catch (error) {
       if (plan[kind])
-        throw new AnsError(
+        throw new FogError(
           'unknown_tx_state',
           'transaction submitted; saving progress failed; track this hash before retrying',
           error,
@@ -210,7 +210,7 @@ export function createRegistrationFlow(ctx: AnsContext, store: RegistrationPlanS
     prepare: (args: { name: string; acceptedQuote: FeeQuote }) =>
       actions.run(async () => {
         if (args.acceptedQuote.operation !== 'register')
-          throw new AnsError('invalid_argument', 'accept a registration quote');
+          throw new FogError('invalid_argument', 'accept a registration quote');
         const plan = await prepareRegistration(ctx, {
           name: args.name,
           duration: args.acceptedQuote.duration,

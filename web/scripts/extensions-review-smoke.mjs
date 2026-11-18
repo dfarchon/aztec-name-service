@@ -40,7 +40,7 @@ try {
     const sessionPath = source.match(/from\s*["']([^"']*\/session\.ts[^"']*)["']/)?.[1];
     const session = await import(sessionPath);
     const sdkSource = await (await fetch('/src/pages/Register.tsx')).text();
-    const sdkPath = sdkSource.match(/from\s*["']([^"']*(?:ans_sdk|sdk\/dist\/index\.js)[^"']*)["']/)?.[1];
+    const sdkPath = sdkSource.match(/from\s*["']([^"']*(?:fog_sdk|sdk\/dist\/index\.js)[^"']*)["']/)?.[1];
     const sdk = await import(sdkPath);
     const reader = session.getSession().reader;
     const holding = await sdk.getName(reader, name);
@@ -59,7 +59,7 @@ try {
           const config = await fixture.getConfig();
           return { ...config, annualPrice: config.annualPrice + 1n, priceVersion: config.priceVersion + 1 };
         };
-        throw new sdk.AnsError('fee_changed', 'fee policy changed; review a fresh quote');
+        throw new sdk.FogError('fee_changed', 'fee policy changed; review a fresh quote');
       },
       listSubnames: async (_reader, _parent, options) => {
         childReads++;

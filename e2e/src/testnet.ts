@@ -5,11 +5,11 @@ import { homedir } from 'node:os';
 import { isAbsolute, join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import {
-  AnsContext, checkRegistration, clearAddress, clearPrimary, deserializePlan,
+  FogContext, checkRegistration, clearAddress, clearPrimary, deserializePlan,
   inspectHolding, listOwnedNames, NameRegistryContract, prepareRegistration, RegistryReader,
   renew, resolveAddress, resolvePrimary, resolvePrimaryMany, serializePlan, setAddress,
   setPrimary, submitCommit, submitRegistration, trackTx, waitUntilRegistrable,
-} from '@ans/sdk';
+} from '@fog/sdk';
 import { AztecAddress } from '@aztec-labs/aztec.js/addresses';
 import { NO_WAIT } from '@aztec-labs/aztec.js/contracts';
 import { Fq, Fr } from '@aztec-labs/aztec.js/fields';
@@ -27,7 +27,7 @@ const info = await rawNode.getNodeInfo();
 assertTestnet(url, info);
 console.log(`TESTNET ${info.nodeVersion}; Sepolia; rollup ${info.rollupVersion}; REAL PROOFS`);
 
-const dir = resolve(process.env.TESTNET_STATE_DIR ?? join(homedir(), '.local/share/ans/testnet-v5.2.1'));
+const dir = resolve(process.env.TESTNET_STATE_DIR ?? join(homedir(), '.local/share/fog/testnet-v5.2.1'));
 const repoRoot = fileURLToPath(new URL('../../', import.meta.url));
 const relativeState = relative(repoRoot, dir);
 if (!isAbsolute(relativeState) && relativeState !== '..' && !relativeState.startsWith('../'))
@@ -47,7 +47,7 @@ try { state = JSON.parse(await readFile(statePath, 'utf8')); }
 catch (e) {
   if ((e as NodeJS.ErrnoException).code !== 'ENOENT') throw e;
   state = {
-    toolchainVersion: '5.2.1', network: info.l1ContractAddresses.rollupAddress.toString(), name: `ans-${Date.now().toString(36)}`,
+    toolchainVersion: '5.2.1', network: info.l1ContractAddresses.rollupAddress.toString(), name: `fog-${Date.now().toString(36)}`,
     keys: Array.from({ length: 3 }, () => { const k = randomKeys(); return { secret: k.secret.toString(), salt: k.salt.toString(), signingKey: k.signingKey.toString() }; }),
     salts: Array.from({ length: 3 }, () => Fr.random().toString()),
     addresses: {}, transactions: {}, done: [], checks: [],
@@ -120,7 +120,7 @@ try {
   const sendOptions = { from: owner, fee, wait: { timeout: 1800, interval: 5 } };
   const price = 1_000_000n;
   const year = 31_536_000n;
-  const tokenDeploy = TokenContract.deploy(wallet, owner, 'ANS Test Fee', 'ANSF', 6, { salt: Fr.fromString(state.salts[0]), deployer: owner });
+  const tokenDeploy = TokenContract.deploy(wallet, owner, 'Fog Test Fee', 'FOGF', 6, { salt: Fr.fromString(state.salts[0]), deployer: owner });
   const tokenInstance = await tokenDeploy.getInstance();
   state.addresses.token = tokenInstance.address.toString();
   await save();
@@ -141,8 +141,8 @@ try {
     await trackTx(node, state.transactions[activeStep], txOptions);
   }, async () => check('registry deployed with real proof', !!await node.getContract(registryInstance.address)));
   const reader = await RegistryReader.connect(node, registryInstance.address);
-  const holder = new AnsContext(reader, { wallet, account: owner, fee });
-  const game = new AnsContext(reader, { wallet: targetWallet, account: target, fee });
+  const holder = new FogContext(reader, { wallet, account: owner, fee });
+  const game = new FogContext(reader, { wallet: targetWallet, account: target, fee });
   await holder.ensureRegistered({ feeToken: { address: token.address, artifact: TokenContractArtifact } });
   await game.ensureRegistered();
   check('registry class and immutable fee verified', (await reader.getConfig()).annualPrice === price);

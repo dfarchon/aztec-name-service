@@ -4,7 +4,7 @@ import { AztecAddress } from "@aztec-labs/aztec.js/addresses";
 
 import {
   annualPriceFor,
-  AnsError,
+  FogError,
   assertRegistrableLabel,
   chargeFor,
   formatName,
@@ -15,7 +15,7 @@ import {
   type NameRecord,
   normalizeName,
   seal,
-  toAnsError,
+  toFogError,
   unpackLabel,
   unseal,
 } from "../src/index.js";
@@ -24,7 +24,7 @@ const code = (fn: () => unknown) => {
   try {
     fn();
   } catch (e) {
-    return (e as AnsError).code;
+    return (e as FogError).code;
   }
   return "ok";
 };
@@ -127,16 +127,16 @@ test("lifecycle boundaries follow the contract", () => {
 
 test("contract errors map to stable codes; transport errors never look like empty state", () => {
   assert.equal(
-    toAnsError(new Error("Assertion failed: 'revision mismatch'")).code,
+    toFogError(new Error("Assertion failed: 'revision mismatch'")).code,
     "conflict",
   );
   assert.equal(
-    toAnsError(new Error("Assertion failed: commitment too young")).code,
+    toFogError(new Error("Assertion failed: commitment too young")).code,
     "commit_not_ready",
   );
-  assert.equal(toAnsError(new Error("fetch failed")).code, "network");
+  assert.equal(toFogError(new Error("fetch failed")).code, "network");
   assert.equal(
-    toAnsError(new Error("User rejected the request")).code,
+    toFogError(new Error("User rejected the request")).code,
     "wallet_rejected",
   );
 });
@@ -147,7 +147,7 @@ test("seal/unseal round-trips bigints and rejects a wrong passphrase", async () 
   assert.deepEqual(await unseal(sealed, "correct horse"), value);
   await assert.rejects(
     unseal(sealed, "wrong horse!"),
-    (e: AnsError) => e.code === "invalid_argument",
+    (e: FogError) => e.code === "invalid_argument",
   );
 });
 

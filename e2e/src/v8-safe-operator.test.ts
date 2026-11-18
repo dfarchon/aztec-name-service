@@ -25,7 +25,7 @@ import {
 import { V8_RESERVED_HASH } from './v8-rehearsal-plan.js';
 const actor = (n: number) => `0x${n.toString(16).padStart(64, '0')}`;
 const binding: Binding = {
-  schema: 'ans-v8-safe-prep/1',
+  schema: 'fog-v8-safe-prep/1',
   run: 'local-only',
   identity: {
     chainId: 31337,
@@ -51,7 +51,7 @@ const binding: Binding = {
   configHash: 'c'.repeat(64),
 };
 async function fixture(run: (path: string, journal: MockJournal) => Promise<void>) {
-  const path = await mkdtemp(join(tmpdir(), 'ans-mock-'));
+  const path = await mkdtemp(join(tmpdir(), 'fog-mock-'));
   await chmod(path, 0o700);
   const journal = await MockJournal.acquire(path, binding);
   try {
@@ -94,9 +94,9 @@ test('CLI defaults dry-run; flags and injected live environment never open money
     encoding: 'utf8',
     env: {
       PATH: process.env.PATH,
-      ANS_EXECUTE: 'true',
-      ANS_KEY_PATH: '/forbidden-money-file',
-      ANS_CONFIG: '/forbidden-config',
+      FOG_EXECUTE: 'true',
+      FOG_KEY_PATH: '/forbidden-money-file',
+      FOG_CONFIG: '/forbidden-config',
     },
   });
   assert.equal(run.status, 0, run.stderr);
@@ -160,7 +160,7 @@ test('identity and binding reject drift without fallback and retain 325 inventor
     assert.throws(() => validateBinding(changed as Binding));
 });
 test('private store enforces modes, no symlinks, locks, immutable binding and history', async () => {
-  const path = await mkdtemp(join(tmpdir(), 'ans-store-'));
+  const path = await mkdtemp(join(tmpdir(), 'fog-store-'));
   await chmod(path, 0o700);
   const alias = path + '-alias';
   try {
@@ -301,7 +301,7 @@ test('incomplete budget, overrun, prices, DA and activation fail closed; full wa
 });
 
 test('disk reopen preserves TRACK-only recovery and blocks earlier completed steps', async () => {
-  const path = await mkdtemp(join(tmpdir(), 'ans-reopen-'));
+  const path = await mkdtemp(join(tmpdir(), 'fog-reopen-'));
   await chmod(path, 0o700);
   let journal = await MockJournal.acquire(path, binding);
   const { mock, calls } = adapter();
@@ -357,11 +357,11 @@ test('confirmed resume readback drift halts advancement while retaining hash', a
 
 test('real file/directory fsync fault injection blocks broadcast and disk resume never resends', async () => {
   for (const failAt of [3, 4, 5, 6]) {
-    const path = await mkdtemp(join(tmpdir(), 'ans-sync-'));
+    const path = await mkdtemp(join(tmpdir(), 'fog-sync-'));
     await chmod(path, 0o700);
     let journal = await MockJournal.acquire(path, binding);
     const { mock, calls } = adapter();
-    const probe = await open(join(tmpdir(), `ans-probe-${process.pid}-${failAt}`), 'w', 0o600);
+    const probe = await open(join(tmpdir(), `fog-probe-${process.pid}-${failAt}`), 'w', 0o600);
     const prototype = Object.getPrototypeOf(probe),
       original = prototype.sync;
     let syncs = 0;
@@ -375,7 +375,7 @@ test('real file/directory fsync fault injection blocks broadcast and disk resume
     } finally {
       prototype.sync = original;
       await probe.close();
-      await rm(join(tmpdir(), `ans-probe-${process.pid}-${failAt}`), { force: true });
+      await rm(join(tmpdir(), `fog-probe-${process.pid}-${failAt}`), { force: true });
     }
     try {
       await journal.close();
@@ -391,7 +391,7 @@ test('real file/directory fsync fault injection blocks broadcast and disk resume
 });
 
 test('instrumented CLI performs zero credential reads, key constructions, signatures and connections', async () => {
-  const path = await mkdtemp(join(tmpdir(), 'ans-cli-guard-'));
+  const path = await mkdtemp(join(tmpdir(), 'fog-cli-guard-'));
   const preload = join(path, 'guard.cjs');
   await writeFile(
     preload,
@@ -424,7 +424,7 @@ process.on('exit',()=>process.stderr.write('SAFE_COUNTERS='+JSON.stringify(count
         ],
         {
           encoding: 'utf8',
-          env: { PATH: process.env.PATH, ANS_EXECUTE: '1', ANS_KEY_PATH: '/forbidden-money' },
+          env: { PATH: process.env.PATH, FOG_EXECUTE: '1', FOG_KEY_PATH: '/forbidden-money' },
         },
       );
       assert.equal(child.status, args.length ? 1 : 0, child.stderr);

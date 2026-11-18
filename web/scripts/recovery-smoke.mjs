@@ -21,7 +21,7 @@ try {
   await click('Create account'); await wait('Current'); pass('account created');
   await page.goto(`${base}/#/register/${name}`); await wait('1000000');
   await click('Start registration'); await wait('Commit transaction'); pass('browser commit hash persisted');
-  const encrypted=await page.evaluate(()=>Object.entries(localStorage).filter(([k])=>k.startsWith('ans:v2:')));
+  const encrypted=await page.evaluate(()=>Object.entries(localStorage).filter(([k])=>k.startsWith('fog:v2:')));
   assert.ok(encrypted.length>0 && encrypted.every(([,v])=>!v.includes('commitment') && !v.includes('secret')));pass('plan encrypted at rest');
   await page.reload(); await page.goto(`${base}/#/account`); await page.waitForSelector('input[type=password]');
   await page.type('input[type=password]','local-smoke-passphrase'); await click('Unlock'); await wait('Current');

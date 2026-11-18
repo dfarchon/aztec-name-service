@@ -1,6 +1,6 @@
 import { translate } from '../i18n';
 import {
-  AnsError,
+  FogError,
   assertRegistrableLabel,
   type FeeQuote,
   formatName,
@@ -8,8 +8,8 @@ import {
   normalizeName,
   type RegistrationCheck,
   type RegistrationPlan,
-  toAnsError,
-} from '@ans/sdk';
+  toFogError,
+} from '@fog/sdk';
 import { useEffect, useState } from 'react';
 
 import { ChooseAccount, go, NeedsAccount } from '../App';
@@ -189,7 +189,7 @@ function NewRegistration({ initial }: { initial?: string }) {
     })()
       .catch((e) => {
         // Tiered registrars cannot quote until a valid name gives the length.
-        if (labelLength === undefined && toAnsError(e).code === 'invalid_argument') return;
+        if (labelLength === undefined && toFogError(e).code === 'invalid_argument') return;
         if (live) setError(errorMessage(e));
       });
     return () => {
@@ -204,7 +204,7 @@ function NewRegistration({ initial }: { initial?: string }) {
   const start = () =>
     tx.exec(`Submit registration ${label}`, async (onUpdate) => {
       if (quote!.fee > 0n && (await readFeeBalance(ctx, quote!.feeToken.toString())) < quote!.fee)
-        throw new AnsError(
+        throw new FogError(
           'invalid_argument',
           'Insufficient registration fee token balance. Fund this account before starting.',
         );
@@ -212,7 +212,7 @@ function NewRegistration({ initial }: { initial?: string }) {
       const plan = await flow
         .prepare({ name: label!, acceptedQuote: quote! })
         .catch(async (error) => {
-          if (toAnsError(error).code === 'fee_changed') {
+          if (toFogError(error).code === 'fee_changed') {
             setQuote(undefined);
             setQuote(await flow.quote(BigInt(years) * YEAR, label));
           }

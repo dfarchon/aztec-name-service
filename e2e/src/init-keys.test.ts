@@ -8,7 +8,7 @@ import { Fr, Fq } from '@aztec-labs/aztec.js/fields';
 import { initKeys, readKeys, readPublicKeys, validateKeys, type KeysFile, type InitConfig } from './init-keys.js';
 const config = (stateDir: string): InitConfig => ({ network: 'local', stateDir, assertPath: () => {} });
 async function fixture(t: { after: (f: () => Promise<unknown>) => void }) {
-  const dir = await fs.mkdtemp(join(tmpdir(), 'ans-init-')); t.after(() => fs.rm(dir, { recursive: true, force: true }));
+  const dir = await fs.mkdtemp(join(tmpdir(), 'fog-init-')); t.after(() => fs.rm(dir, { recursive: true, force: true }));
   await fs.chmod(dir, 0o700); return dir;
 }
 const hash = async (path: string) => createHash('sha256').update(await fs.readFile(path)).digest('hex');
@@ -20,7 +20,7 @@ test('init schema, address derivation, public projection and modes survive umask
   try {
     await initKeys(config(join(dir, 'state')));
     const path = join(dir, 'state/keys.json'), k = await readKeys(path, 'local');
-    assert.equal(k.schema, 'ans-v6-keys/1'); assert(k.owner.address !== k.treasury.address);
+    assert.equal(k.schema, 'fog-v6-keys/1'); assert(k.owner.address !== k.treasury.address);
     assert.equal((await fs.stat(join(dir, 'state'))).mode & 0o777, 0o700); assert.equal((await fs.stat(path)).mode & 0o777, 0o600);
     const publicJson = JSON.stringify(await readPublicKeys(path, 'local'));
     assert([k.owner.secret,k.owner.signingKey,k.treasury.secret,k.treasury.signingKey].every(v => !publicJson.includes(v)));

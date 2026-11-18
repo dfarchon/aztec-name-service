@@ -1,7 +1,7 @@
 /** Proof-disabled local acceptance. Intentionally races policy only after the reveal has been proven. */
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
-import { AnsContext, RegistryReader, NameRegistrarLaunchContract, NameResolverContract, prepareRegistration, submitCommit, submitRegistration, checkRegistration, renew, normalizeName, nodeOf, type RegistrationPlan } from '@ans/sdk';
+import { FogContext, RegistryReader, NameRegistrarLaunchContract, NameResolverContract, prepareRegistration, submitCommit, submitRegistration, checkRegistration, renew, normalizeName, nodeOf, type RegistrationPlan } from '@fog/sdk';
 import { NameRegistryV6Contract } from '../../sdk/src/artifacts/NameRegistryV6.js';
 import { Contract, NO_WAIT, type InteractionFeeOptions } from '@aztec-labs/aztec.js/contracts';
 import { AztecAddress } from '@aztec-labs/aztec.js/addresses';
@@ -32,7 +32,7 @@ export async function exerciseLaunchFlow(raw:AztecNode,debug:AztecNodeDebug,wall
     const {contract:resolver}=await NameResolverContract.deploy(wallet,core.address).send({from:admin,fee});
     const {contract:free}=await NameRegistrarLaunchContract.deploy(wallet,core.address,AztecAddress.ZERO,AztecAddress.ZERO,0n,0n,0n,1,7,false,0n).send({from:admin,fee});
     await core.methods.bootstrap(free.address,resolver.address).send({from:admin,fee});
-    const reader=await RegistryReader.connect(node,core.address),owner=new AnsContext(reader,{wallet,account:alice,fee}),administrator=owner.as(admin);
+    const reader=await RegistryReader.connect(node,core.address),owner=new FogContext(reader,{wallet,account:alice,fee}),administrator=owner.as(admin);
     const readName=async(n:bigint)=>reader.getName(n,await reader.snapshot());
     const readCommit=async(n:bigint)=>reader.getCommit(n,await reader.snapshot());
     const mature=async(plan:RegistrationPlan)=>{await debug.warpL2TimeAtLeastBy(70);assert.equal((await checkRegistration(reader,plan,0n)).state,'ready_to_register');};
@@ -62,7 +62,7 @@ export async function exerciseLaunchFlow(raw:AztecNode,debug:AztecNodeDebug,wall
     const resumed=await prepare('resumedlaunch');await submitRegistration(owner,resumed);
     check('launch resumes public registration',true);
     const repo=loadContractArtifact(JSON.parse(await readFile(new URL('../../contracts/target/test_token-Token.json',import.meta.url),'utf8')));
-    const {contract:token}=await Contract.deploy(wallet,repo,[admin,'ans-launch-token'.padEnd(31,'0'),'LAUNCH'.padEnd(31,'0'),6]).send({from:admin,fee});
+    const {contract:token}=await Contract.deploy(wallet,repo,[admin,'fog-launch-token'.padEnd(31,'0'),'LAUNCH'.padEnd(31,'0'),6]).send({from:admin,fee});
     await token.methods.mint_to_private(alice,100n).send({from:admin,fee});
     const {contract:paid}=await NameRegistrarLaunchContract.deploy(wallet,core.address,token.address,treasury,1n,128n,32n,2,7,true,0n).send({from:admin,fee});
     // A second wallet uses the same supported launch artifact for the post-proof policy update.

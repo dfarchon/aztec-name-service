@@ -13,10 +13,10 @@ import {
   MAX_COMMIT_AGE,
   TRANSFER_IN_PRIVATE_SIGNATURE,
 } from "../core/constants.js";
-import { AnsError } from "../core/errors.js";
+import { FogError } from "../core/errors.js";
 import { annualPriceFor, assertDuration, assertPolicyDuration, chargeFor } from "../core/lifecycle.js";
 import type { RegistryConfig, Snapshot } from "../core/types.js";
-import type { AnsContext } from "../wallet/context.js";
+import type { FogContext } from "../wallet/context.js";
 
 export type FeeQuote = {
   registrar?: AztecAddress;
@@ -66,7 +66,7 @@ export async function getFeeQuote(
   const fee = chargeFor(config, args.duration, args.labelLength);
   const maxFee = args.maxFee ?? fee;
   if (maxFee < fee)
-    throw new AnsError("fee_changed", `fee ${fee} exceeds max fee ${maxFee}`);
+    throw new FogError("fee_changed", `fee ${fee} exceeds max fee ${maxFee}`);
   return {
     operation: args.operation,
     duration: args.duration,
@@ -105,7 +105,7 @@ export const newFeeNonce = () => Fr.random().toBigInt();
  * the registry. Returns undefined when nothing is charged.
  */
 export async function buildFeeAuthorization(
-  ctx: AnsContext,
+  ctx: FogContext,
   args: {
     feeToken: AztecAddress;
     treasury: AztecAddress;
@@ -138,7 +138,7 @@ export async function buildFeeAuthorization(
       .methods.transfer_in_private(ctx.account, args.treasury, args.fee, args.feeNonce)
       .getFunctionCall();
     if (!(await computeInnerAuthWitHashFromAction(caller, call)).equals(innerHash))
-      throw new AnsError("unsupported", "fee token call does not match the exact payment authorization");
+      throw new FogError("unsupported", "fee token call does not match the exact payment authorization");
     return ctx.wallet.createAuthWit(ctx.account, { caller, call });
   });
 }
@@ -146,5 +146,5 @@ export async function buildFeeAuthorization(
 /** Bind a user-visible quote before creating any payment authorization. */
 export function assertAcceptedQuote(current: FeeQuote, accepted?: FeeQuote) {
   if (accepted && (!sameFeeTerms(current, accepted) || current.operation !== accepted.operation || current.duration !== accepted.duration || current.labelLength !== accepted.labelLength || current.fee !== accepted.fee || current.maxFee !== accepted.maxFee))
-    throw new AnsError("fee_changed", "fee policy changed; review a fresh quote");
+    throw new FogError("fee_changed", "fee policy changed; review a fresh quote");
 }

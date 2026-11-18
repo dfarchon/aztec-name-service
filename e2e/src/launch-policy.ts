@@ -1,6 +1,6 @@
 /** Public reserved-list data and deterministic launch-policy operations; no wallet/key I/O. */
 import { createHash } from 'node:crypto';
-import { nodeOf, normalizeName } from '@ans/sdk';
+import { nodeOf, normalizeName } from '@fog/sdk';
 /** Validate public v1 category files or legacy arrays, returning sorted canonical root labels. */
 export function loadReservedList(value: unknown): string[] {
   let labels: unknown[], minimum = 7;
@@ -8,7 +8,7 @@ export function loadReservedList(value: unknown): string[] {
   else {
     if (!value || typeof value !== 'object') throw new Error('Reserved labels must be an array or v1 category object');
     const list = value as Record<string, unknown>;
-    if (list.schema !== 'ans-reserved-labels/1') throw new Error('Unknown reserved list schema');
+    if (list.schema !== 'fog-reserved-labels/1') throw new Error('Unknown reserved list schema');
     if (!Number.isInteger(list.minLength) || Number(list.minLength) < 1 || Number(list.minLength) > 31)
       throw new Error('Invalid reserved list minLength');
     minimum = Math.max(7, Number(list.minLength));

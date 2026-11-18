@@ -1,5 +1,5 @@
 import { translate } from "../i18n";
-import { seal } from "@ans/sdk";
+import { seal } from "@fog/sdk";
 import { useState } from "react";
 
 import { Card, download, Field } from "../components";
@@ -140,7 +140,7 @@ function Accounts() {
               disabled={exportPass.length < 8}
               onClick={async () =>
                 download(
-                  `ans-account-${s.ctx!.account.toString().slice(2, 10)}.json`,
+                  `fog-account-${s.ctx!.account.toString().slice(2, 10)}.json`,
                   JSON.stringify(await seal(s.records!.keys, exportPass)),
                 )
               }

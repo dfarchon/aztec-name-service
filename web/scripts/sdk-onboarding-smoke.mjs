@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
 import { mkdirSync, writeFileSync } from 'node:fs';
 const require=createRequire(import.meta.url), puppeteer=require('puppeteer-core');
-const base=process.env.BASE??'http://127.0.0.1:5277', name=process.env.NAME??'ans-v4-mv2n77ji';
+const base=process.env.BASE??'http://127.0.0.1:5277', name=process.env.NAME??'fog-v4-mv2n77ji';
 const browser=await puppeteer.launch({executablePath:process.env.CHROME_PATH??'/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',headless:true,args:['--no-sandbox']});
 const page=await browser.newPage();let broadcasts=0;const errors=[];
 await page.setRequestInterception(true);page.on('request',r=>{if(/(?:aztec|node)_sendTx/.test(r.postData()??'')){broadcasts++;void r.abort();}else void r.continue();});
@@ -47,7 +47,7 @@ try {
  await page.waitForFunction(()=>[...document.querySelectorAll('button')].some(b=>b.textContent==='Start registration'&&!b.disabled),{timeout:90000});
  const recovered=await page.evaluate(()=>({newTokenRegistered:window.review.registered.has('0x212913baa4d8f6dd37e8e050c6cf02c43e4fbf7374994af0a3b5d016fb5c9e14'),startDisabled:[...document.querySelectorAll('button')].find(b=>b.textContent==='Start registration').disabled}));
  assert.equal(recovered.newTokenRegistered,true);assert.equal(broadcasts,0);assert.deepEqual(errors,[]);
- const dir=process.env.ANS_REVIEW_OUTPUT??'/tmp/ans-sdk-onboarding-review';mkdirSync(dir,{recursive:true});
+ const dir=process.env.FOG_REVIEW_OUTPUT??'/tmp/fog-sdk-onboarding-review';mkdirSync(dir,{recursive:true});
  const result={checkedAt:new Date().toISOString(),method:'Actual frontend and public RPC reads, read-only wallet and synthetic quote failure/module switch; no governance change',failedQuote,changedToken,recovered,form,broadcasts,errors};
  writeFileSync(`${dir}/readiness-browser.json`,`${JSON.stringify(result,null,2)}\n`);console.log(JSON.stringify(result,null,2));
 } finally {await browser.close();}

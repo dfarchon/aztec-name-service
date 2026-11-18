@@ -5,7 +5,7 @@ import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createRequire } from 'node:module';
 import { getSchnorrInitializerlessAccountContractAddress } from '@aztec-labs/accounts/schnorr';
-import { RegistryReader, NameRegistrarLaunchContract, NameRegistrarContract, NameRegistrarTieredContract, NameResolverContract, readFeeTokenMetadata, trackTx } from '@ans/sdk';
+import { RegistryReader, NameRegistrarLaunchContract, NameRegistrarContract, NameRegistrarTieredContract, NameResolverContract, readFeeTokenMetadata, trackTx } from '@fog/sdk';
 import { NameRegistryV7Contract } from '../../sdk/src/artifacts/NameRegistryV7.js';
 import { NameRegistryV6Contract } from '../../sdk/src/artifacts/NameRegistryV6.js';
 import baseline from '../../sdk/test/fixtures/classids-6.0.0.json' with { type: 'json' };
@@ -90,7 +90,7 @@ export async function buildInitialState(c: Config, pricing: Parameters<typeof ma
   const k = keys ? { secret: Fr.fromString(keys.owner.secret), salt: Fr.fromString(keys.owner.salt), signingKey: Fq.fromString(keys.owner.signingKey) } : generate();
   const owner = keys?.owner.address ?? (await getSchnorrInitializerlessAccountContractAddress(k.signingKey, k.salt, k.secret)).toString();
   const p = makePolicy(c, pricing, c.treasury ?? keys?.treasury.address ?? owner);
-  return { schema: 'ans-deploy-v6-state/1', toolchainVersion: '6.0.0', network: c.network, identity, config: p, configHash: configHash(p), keys: { owner: { secret: k.secret.toString(), salt: k.salt.toString(), signingKey: k.signingKey.toString() } }, salts: keys ? { ...keys.salts } : Object.fromEntries(['token', 'registry', 'resolver', 'registrar'].map(key => [key, Fr.random().toString()])), addresses: { owner, treasury: p.treasury, sponsoredFpc }, transactions: {}, done: [], checks: [], manifestPath };
+  return { schema: 'fog-deploy-v6-state/1', toolchainVersion: '6.0.0', network: c.network, identity, config: p, configHash: configHash(p), keys: { owner: { secret: k.secret.toString(), salt: k.salt.toString(), signingKey: k.signingKey.toString() } }, salts: keys ? { ...keys.salts } : Object.fromEntries(['token', 'registry', 'resolver', 'registrar'].map(key => [key, Fr.random().toString()])), addresses: { owner, treasury: p.treasury, sponsoredFpc }, transactions: {}, done: [], checks: [], manifestPath };
 }
 export function assertCheckpointKeys(state: V6State, keys: KeysFile) {
   const equal = state.keys.owner.secret === keys.owner.secret && state.keys.owner.salt === keys.owner.salt && state.keys.owner.signingKey === keys.owner.signingKey && state.addresses.owner === keys.owner.address && state.config.treasury === keys.treasury.address && Object.keys(state.salts).length === 4 && Object.entries(keys.salts).every(([key, value]) => state.salts[key] === value);
@@ -160,7 +160,7 @@ export async function main(argv = process.argv.slice(2), dependencies = { create
         if (c.feePayment === 'fee-juice') state.feePayment = 'fee-juice';
         await save();
       }
-      assert.equal(state.schema, 'ans-deploy-v6-state/1', 'Unknown deployment checkpoint schema');
+      assert.equal(state.schema, 'fog-deploy-v6-state/1', 'Unknown deployment checkpoint schema');
       assert.equal(state.toolchainVersion, '6.0.0', 'Checkpoint toolchain mismatch');
       assert.equal(state.network, c.network, 'Checkpoint network mismatch');
       assert.equal(state.feePayment ?? 'sponsored', c.feePayment, 'Checkpoint fee mode mismatch');

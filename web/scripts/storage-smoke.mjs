@@ -7,7 +7,7 @@ try {
   const result=await page.evaluate(async()=>{
     const {RecordStore, deriveKeys}=await import('/src/vault.ts');
     const key=await crypto.subtle.generateKey({name:'AES-GCM',length:256},false,['encrypt','decrypt']);
-    const store=new RecordStore(key,'ans-storage-regression',()=>({}));
+    const store=new RecordStore(key,'fog-storage-regression',()=>({}));
     await store.save({secret:123n});
     const roundtrip=(await store.load()).secret===123n;
     const original=Storage.prototype.setItem;
@@ -15,8 +15,8 @@ try {
     try {
       Storage.prototype.setItem=function(){throw new DOMException('full','QuotaExceededError');};
       try {await store.save({secret:456n});} catch(e) {rejected=e.message.includes('Cannot save registration progress');}
-    } finally {Storage.prototype.setItem=original;localStorage.removeItem('ans-storage-regression');}
-    const saltKey='ans:vault-salt';
+    } finally {Storage.prototype.setItem=original;localStorage.removeItem('fog-storage-regression');}
+    const saltKey='fog:vault-salt';
     const oldSalt=localStorage.getItem(saltKey);
     const originalGet=Storage.prototype.getItem;
     let blockedRead=false;

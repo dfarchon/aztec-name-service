@@ -1,10 +1,10 @@
-import { createRegistrationFlow, registrationPlanKey, type AnsContext } from '@ans/sdk';
+import { createRegistrationFlow, registrationPlanKey, type FogContext } from '@fog/sdk';
 import { rememberRegistrationProgress, recordReader, recordWriter, withPendingTx } from './session';
 
-const flows = new WeakMap<AnsContext, ReturnType<typeof createRegistrationFlow>>();
+const flows = new WeakMap<FogContext, ReturnType<typeof createRegistrationFlow>>();
 
 /** One workflow per selected account. The app supplies only its encrypted record store. */
-export function registrationFlow(ctx: AnsContext) {
+export function registrationFlow(ctx: FogContext) {
   let flow = flows.get(ctx);
   if (flow) return flow;
   const write = recordWriter(ctx);

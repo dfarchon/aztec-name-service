@@ -33,12 +33,12 @@ export function parseLog(raw) {
     const frames = [...block.matchAll(/^\s+\d+: (.+)\n\s+at (\S+):(\d+):(\d+)/gm)].map(m => ({
       function: m[1], file: normalizePath(m[2]), line: Number(m[3]), col: Number(m[4]),
     }));
-    const ansFrames = frames.filter(f => f.file.startsWith('contracts/'));
-    const businessFrames = ansFrames.filter(f => !f.file.startsWith('contracts/test_token/'));
-    const tokenFrames = ansFrames.filter(f => f.file.startsWith('contracts/test_token/'));
-    const category = businessFrames.length ? 'ans-business' : tokenFrames.length ? 'test_token' : 'upstream';
-    const fingerprint = `${kind} | ${primary} | ${ansFrames.map(f => f.function).join(' > ')}`;
-    rows.push({ fingerprint, kind, primary, category, frames, ansFrames, businessFrames, tokenFrames });
+    const fogFrames = frames.filter(f => f.file.startsWith('contracts/'));
+    const businessFrames = fogFrames.filter(f => !f.file.startsWith('contracts/test_token/'));
+    const tokenFrames = fogFrames.filter(f => f.file.startsWith('contracts/test_token/'));
+    const category = businessFrames.length ? 'fog-business' : tokenFrames.length ? 'test_token' : 'upstream';
+    const fingerprint = `${kind} | ${primary} | ${fogFrames.map(f => f.function).join(' > ')}`;
+    rows.push({ fingerprint, kind, primary, category, frames, fogFrames, businessFrames, tokenFrames });
   }
   if (/Brillig/i.test(log) && !rows.length) throw new Error('Brillig text present but parsed zero diagnostics');
   if (/^(?:error:|error\[)|Failed to compile|Compilation failed/m.test(log)) throw new Error('Compilation failed');
@@ -49,7 +49,7 @@ export function makeBaseline(rows, toolchain) {
   for (const row of rows) {
     if (entries.has(row.fingerprint)) entries.get(row.fingerprint).count++;
     else entries.set(row.fingerprint, { fingerprint: row.fingerprint, kind: row.kind, primary: row.primary,
-      category: row.category, count: 1, ansFrames: row.ansFrames,
+      category: row.category, count: 1, fogFrames: row.fogFrames,
       review: row.businessFrames.length > 0, separateSubgraph: row.kind === 'subgraph' });
   }
   return { toolchain, aztecNr: `v${toolchain}`, total: rows.length,
@@ -70,12 +70,12 @@ export function check(rows, baseline, toolchain) {
   const newFingerprints = actual.entries.filter(e => !expected.has(e.fingerprint));
   if (baseline.toolchain !== toolchain) errors.push('R3: baseline toolchain differs from .aztecrc');
   for (const row of rows) {
-    if (row.primary.startsWith('contracts/')) errors.push(`R1: ANS primary: ${row.primary}`);
+    if (row.primary.startsWith('contracts/')) errors.push(`R1: Fog primary: ${row.primary}`);
     else if (!row.primary.startsWith(`aztec-nr@v${toolchain}/`)) errors.push(`Unknown primary origin: ${row.primary}`);
   }
   for (const row of actual.entries) {
     const old = expected.get(row.fingerprint);
-    if (!old || row.count > old.count || old.category !== row.category) errors.push(`R2: 新上游诊断，需要人工确认后更新基线: ${row.fingerprint}`);
+    if (!old || row.count > old.count || old.category !== row.category) errors.push(`R2: new upstream diagnostic; review before updating baseline: ${row.fingerprint}`);
   }
   // Scheduler ruling: all three categories must retain their full fingerprint multisets.
   for (const row of expected.values()) {
@@ -83,10 +83,10 @@ export function check(rows, baseline, toolchain) {
   }
   const summary = { total: rows.length, ...actual.byKind,
     upstreamPrimary: rows.filter(r => r.primary.startsWith(`aztec-nr@v${toolchain}/`)).length,
-    ansPrimary: rows.filter(r => r.primary.startsWith('contracts/')).length,
-    throughBusinessANS: rows.filter(r => r.businessFrames.length).length,
+    fogPrimary: rows.filter(r => r.primary.startsWith('contracts/')).length,
+    throughBusinessFog: rows.filter(r => r.businessFrames.length).length,
     throughTestToken: rows.filter(r => r.tokenFrames.length).length,
-    categories: Object.fromEntries(['upstream', 'ans-business', 'test_token'].map(c => [c, rows.filter(r => r.category === c).length])),
+    categories: Object.fromEntries(['upstream', 'fog-business', 'test_token'].map(c => [c, rows.filter(r => r.category === c).length])),
     newFingerprints: newFingerprints.length };
   return { summary, errors };
 }

@@ -6,11 +6,11 @@ import { homedir } from 'node:os';
 import { join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import {
-  RegistryReader, connectAns, createRegistrationFlow, getFeeQuote, getPrivateFeeBalance,
+  RegistryReader, connectFog, createRegistrationFlow, getFeeQuote, getPrivateFeeBalance,
   inspectHolding, registrationPlanKey, renew, resolveAddress, resolvePrimary,
   seal, setAddress, setPrimary, trackTx, unseal, waitUntilRegistrable,
   type RegistrationPlan, type RegistrationPlanStore, type Sealed,
-} from '@ans/sdk';
+} from '@fog/sdk';
 import { AztecAddress } from '@aztec-labs/aztec.js/addresses';
 import { Fq, Fr } from '@aztec-labs/aztec.js/fields';
 import { createAztecNodeClient, type AztecNode } from '@aztec-labs/aztec.js/node';
@@ -28,9 +28,9 @@ function privateDirectory(path: string) {
   assert(rel === '..' || rel.startsWith('../'), 'Private state must remain outside the repository');
   return dir;
 }
-const legacyDir = privateDirectory(process.env.TESTNET_LEGACY_STATE_DIR ?? join(homedir(), '.local/share/ans/testnet-v5.2.1'));
-const walletDir = privateDirectory((deployment.protocol === 5 ? process.env.TESTNET_V5_STATE_DIR : process.env.TESTNET_V4_STATE_DIR) ?? join(homedir(), `.local/share/ans/testnet-v${deployment.protocol === 5 ? '5' : '4'}-5.2.1`));
-const dir = privateDirectory(process.env.TESTNET_FLOW_STATE_DIR ?? join(homedir(), '.local/share/ans/testnet-registration-flow-5.2.1'));
+const legacyDir = privateDirectory(process.env.TESTNET_LEGACY_STATE_DIR ?? join(homedir(), '.local/share/fog/testnet-v5.2.1'));
+const walletDir = privateDirectory((deployment.protocol === 5 ? process.env.TESTNET_V5_STATE_DIR : process.env.TESTNET_V4_STATE_DIR) ?? join(homedir(), `.local/share/fog/testnet-v${deployment.protocol === 5 ? '5' : '4'}-5.2.1`));
+const dir = privateDirectory(process.env.TESTNET_FLOW_STATE_DIR ?? join(homedir(), '.local/share/fog/testnet-registration-flow-5.2.1'));
 assert.notEqual(dir, legacyDir); assert.notEqual(dir, walletDir);
 await mkdir(dir, { recursive: true, mode: 0o700 }); await chmod(dir, 0o700);
 for (const path of new Set([dir, walletDir, legacyDir])) {
@@ -57,7 +57,7 @@ try { state = JSON.parse(await readFile(statePath, 'utf8')); }
 catch (error) {
   if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error;
   state = { toolchainVersion: '5.2.1', network: legacy.network, registry: deployment.registry,
-    name: `ans-flow-${Date.now().toString(36)}`, transactions: {}, done: [], checks: [] };
+    name: `fog-flow-${Date.now().toString(36)}`, transactions: {}, done: [], checks: [] };
 }
 assertStateToolchain(state); assert.equal(state.network, legacy.network); assert.equal(state.registry, deployment.registry);
 const completedAtStart = state.done.length === 5;
@@ -128,8 +128,8 @@ try {
   assert.equal(accounts[1].address.toString(), legacy.addresses.treasury);
   const reader = await RegistryReader.connect(node, AztecAddress.fromStringUnsafe(deployment.registry));
   check('configured deployment verified without deployment transactions', reader.extended);
-  const contexts: Awaited<ReturnType<typeof connectAns>>[] = [];
-  for (const [i, wallet] of wallets.entries()) contexts.push(await connectAns(reader, {
+  const contexts: Awaited<ReturnType<typeof connectFog>>[] = [];
+  for (const [i, wallet] of wallets.entries()) contexts.push(await connectFog(reader, {
     wallet, account: accounts[i].address, deployment,
     sponsoredFpc: AztecAddress.fromStringUnsafe(deployment.sponsoredFpc),
   }));

@@ -1,10 +1,10 @@
 import { AztecAddress } from "@aztec-labs/aztec.js/addresses";
-import type { AnsContext } from "./context.js";
+import type { FogContext } from "./context.js";
 import type { FeeQuote } from "../transactions/fees.js";
 import { readFeeTokenMetadata } from "../client/fee-token.js";
 
 /** Private balance is obtained only through the selected account's wallet; never through public RPC storage. */
-export async function getPrivateFeeBalance(ctx: AnsContext, token: AztecAddress): Promise<bigint> {
+export async function getPrivateFeeBalance(ctx: FogContext, token: AztecAddress): Promise<bigint> {
   if (token.isZero()) return 0n;
   return ctx.queue.run(async () => {
     await ctx.registerFeeToken(token);
@@ -16,7 +16,7 @@ export async function getPrivateFeeBalance(ctx: AnsContext, token: AztecAddress)
 }
 
 /** A host can show the exact missing amount and token address before asking for a commit or a payment. */
-export async function getFeeReadiness(ctx: AnsContext, quote: FeeQuote) {
+export async function getFeeReadiness(ctx: FogContext, quote: FeeQuote) {
   if (quote.fee === 0n) return { ready: true, balance: 0n, shortfall: 0n, token: undefined };
   const [balance, token] = await Promise.all([
     getPrivateFeeBalance(ctx, quote.feeToken),

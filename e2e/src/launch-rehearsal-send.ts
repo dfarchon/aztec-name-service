@@ -15,7 +15,7 @@ import type { Tx } from '@aztec-labs/stdlib/tx';
 import { EmbeddedWallet } from '@aztec-labs/wallets/embedded';
 import { setLogLevel } from '@aztec-labs/foundation/log';
 import {
-  AnsContext,
+  FogContext,
   RegistryReader,
   NameResolverContract,
   NameRegistrarLaunchContract,
@@ -34,10 +34,10 @@ import {
   acceptTransfer,
   normalizeName,
   nodeOf,
-} from '@ans/sdk';
+} from '@fog/sdk';
 import { ExecutionQueue } from '../../sdk/src/wallet/queue.js';
 import { assertWalletNetwork } from '../../sdk/src/wallet/network.js';
-import { NameRegistryV7Contract } from '@ans/sdk/contracts/v7';
+import { NameRegistryV7Contract } from '@fog/sdk/contracts/v7';
 import { readKeys } from './init-keys.js';
 import { instances, v6Artifacts } from './deploy-v6.js';
 import type { Policy } from './deploy-v6-plan.js';
@@ -96,7 +96,7 @@ export const rehearsalSendDependencies = {
   registrarAt: NameRegistrarLaunchContract.at,
   resolverAt: NameResolverContract.at,
   connectReader: RegistryReader.connect,
-  Context: AnsContext,
+  Context: FogContext,
   prepareRegistration,
   submitCommit,
   submitRegistration,
@@ -188,7 +188,7 @@ export async function sendRehearsal(
     } catch (e) {
       if ((e as NodeJS.ErrnoException).code !== 'ENOENT') throw e;
       s = {
-        schema: 'ans-v7-rehearsal-checkpoint/1',
+        schema: 'fog-v7-rehearsal-checkpoint/1',
         binding: plan.configHash,
         owner: owner.toString(),
         recipient: recipient.toString(),
@@ -197,7 +197,7 @@ export async function sendRehearsal(
         fees: {},
       };
     }
-    assert.equal(s.schema, 'ans-v7-rehearsal-checkpoint/1');
+    assert.equal(s.schema, 'fog-v7-rehearsal-checkpoint/1');
     assert.equal(s.binding, plan.configHash);
     assert.equal(s.owner, owner.toString());
     assert.equal(s.recipient, recipient.toString());

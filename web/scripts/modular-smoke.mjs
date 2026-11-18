@@ -16,7 +16,7 @@ try{
   await page.evaluate(async(name)=>{
     const source=await(await fetch('/src/App.tsx')).text(),path=source.match(/from\s*["']([^"']*\/session\.ts[^"']*)["']/)?.[1];
     const session=await import(path);window.moduleSession=session;
-    const reader=session.getSession().reader;const sdkSource=await(await fetch('/src/pages/Register.tsx')).text(),sdkPath=sdkSource.match(/from\s*["']([^"']*(?:ans_sdk|sdk\/dist\/index\.js)[^"']*)["']/)?.[1];
+    const reader=session.getSession().reader;const sdkSource=await(await fetch('/src/pages/Register.tsx')).text(),sdkPath=sdkSource.match(/from\s*["']([^"']*(?:fog_sdk|sdk\/dist\/index\.js)[^"']*)["']/)?.[1];
     const sdk=await import(sdkPath);window.moduleSdk=sdk;
     const holding=await sdk.getName(reader,name),account=holding.record.owner;
     window.moduleFixture={reader,account,record:holding.record,getName:reader.getName.bind(reader),getModules:reader.getModules.bind(reader),getConfig:reader.getConfig.bind(reader),inspectResolver:reader.inspectResolver.bind(reader)};

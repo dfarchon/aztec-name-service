@@ -1,20 +1,20 @@
 import { translate } from "./i18n";
 import { useEffect, useState } from "react";
 import { AztecAddress } from "@aztec-labs/aztec.js/addresses";
-import { readFeeTokenMetadata, type RegistryReader } from "@ans/sdk/read";
-import type { AnsContext } from "@ans/sdk";
+import { readFeeTokenMetadata, type RegistryReader } from "@fog/sdk/read";
+import type { FogContext } from "@fog/sdk";
 import { useSession } from "./session";
 import { formatUnits } from "./usability";
 
 /** Balance stays in memory and is read only through the selected account's wallet. */
-export async function readFeeBalance(ctx: AnsContext, token: string): Promise<bigint> {
-  const { getPrivateFeeBalance } = await import("@ans/sdk");
+export async function readFeeBalance(ctx: FogContext, token: string): Promise<bigint> {
+  const { getPrivateFeeBalance } = await import("@fog/sdk");
   return getPrivateFeeBalance(ctx, AztecAddress.fromStringUnsafe(token));
 }
 
-export function useFeeBalance(ctx: AnsContext | undefined, token: string | undefined) {
+export function useFeeBalance(ctx: FogContext | undefined, token: string | undefined) {
   const [revision, refresh] = useState(0);
-  const [read, setRead] = useState<{ ctx: AnsContext; token: string; balance?: bigint; failed?: boolean }>();
+  const [read, setRead] = useState<{ ctx: FogContext; token: string; balance?: bigint; failed?: boolean }>();
   useEffect(() => {
     let live = true;
     setRead(undefined);

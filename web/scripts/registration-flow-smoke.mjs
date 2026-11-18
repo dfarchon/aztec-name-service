@@ -36,7 +36,7 @@ async function connectFixture() {
   await page.evaluate(async () => {
     const source = await (await fetch('/src/pages/Register.tsx')).text();
     const sdkPath = source.match(
-      /from\s*["']([^"']*(?:ans_sdk|sdk\/dist\/index\.js)[^"']*)["']/,
+      /from\s*["']([^"']*(?:fog_sdk|sdk\/dist\/index\.js)[^"']*)["']/,
     )[1];
     const sessionPath = source.match(/from\s*["']([^"']*session\.ts[^"']*)["']/)[1];
     const sdk = await import(sdkPath),
@@ -111,7 +111,7 @@ async function connectFixture() {
             send: async () => {
               fixture.sends[kind]++;
               if (fixture.failSend)
-                throw new sdk.AnsError('network', 'synthetic lost send response');
+                throw new sdk.FogError('network', 'synthetic lost send response');
               if (kind === 'commit') fixture.mature = true;
               else fixture.consumed = true;
               return {
@@ -150,7 +150,7 @@ try {
   assert.equal(await page.evaluate(() => window.registrationFixture.sends.commit), 1);
   pass('double click uses one SDK workflow and saves one commit hash');
   const encrypted = await page.evaluate(() =>
-    Object.entries(localStorage).filter(([key]) => key.startsWith('ans:v2:')),
+    Object.entries(localStorage).filter(([key]) => key.startsWith('fog:v2:')),
   );
   assert.ok(
     encrypted.length &&

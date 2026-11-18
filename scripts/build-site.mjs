@@ -67,7 +67,7 @@ export function buildSite(
   const head = exec('git', ['rev-parse', '--short', 'HEAD'], { encoding: 'utf8' }).trim();
   const dirty = exec('git', ['status', '--porcelain'], { encoding: 'utf8' }).trim();
   const release = `${head}${dirty ? '-dirty' : ''}`;
-  const walletUrls = process.env.ANS_PUBLIC_WALLET_URLS ?? '';
+  const walletUrls = process.env.FOG_PUBLIC_WALLET_URLS ?? '';
   const CSP = contentSecurityPolicy(walletUrls);
   const env = {
     ...process.env,
@@ -88,19 +88,19 @@ export function buildSite(
     env.VITE_SPONSORED_FPC = deployment.sponsoredFpc;
   if (customManifest) {
     exec('npm', ['run', 'build:sdk'], { env, stdio: 'inherit' });
-    exec('npm', ['run', 'build', '-w', '@ans/web', '--', '--outDir', out], {
+    exec('npm', ['run', 'build', '-w', '@fog/web', '--', '--outDir', out], {
       env,
       stdio: 'inherit',
     });
   } else exec('npm', ['run', 'build'], { env, stdio: 'inherit' });
   exec('node', ['--import', 'tsx', 'scripts/export-docs.mjs', out, release], { stdio: 'inherit' });
   packageConsumer(`${out}/downloads/sdk`, release, deployment);
-  writeFileSync(`${out}/health.txt`, `ans:${release}\n`);
+  writeFileSync(`${out}/health.txt`, `fog:${release}\n`);
   // Wallet key material lives in this origin's storage, so script sources are restricted to the site itself.
   // WebAssembly (proving, encrypted SQLite) needs 'wasm-unsafe-eval'; RPC and wallet endpoints are any HTTPS/WSS origin.
   writeFileSync(
     `${out}/_headers`,
-    `/*\n  Cross-Origin-Opener-Policy: same-origin\n  Cross-Origin-Embedder-Policy: credentialless\n  Referrer-Policy: no-referrer\n  X-Content-Type-Options: nosniff\n  Content-Security-Policy: ${CSP}\n  X-ANS-Release: ${release}\n/health.txt\n  Cache-Control: no-store\n/downloads/sdk/ans-*\n  Cache-Control: public, max-age=31536000, immutable\n/downloads/sdk/manifest.json\n  Cache-Control: no-store\n/assets/*\n  Cache-Control: public, max-age=31536000, immutable\n/index.html\n  Cache-Control: no-cache\n`,
+    `/*\n  Cross-Origin-Opener-Policy: same-origin\n  Cross-Origin-Embedder-Policy: credentialless\n  Referrer-Policy: no-referrer\n  X-Content-Type-Options: nosniff\n  Content-Security-Policy: ${CSP}\n  X-Fog-Release: ${release}\n/health.txt\n  Cache-Control: no-store\n/downloads/sdk/fog-*\n  Cache-Control: public, max-age=31536000, immutable\n/downloads/sdk/manifest.json\n  Cache-Control: no-store\n/assets/*\n  Cache-Control: public, max-age=31536000, immutable\n/index.html\n  Cache-Control: no-cache\n`,
   );
   console.log(`Built ${network === 'testnet-v6' ? 'testnet' : network} release ${release}`);
 }

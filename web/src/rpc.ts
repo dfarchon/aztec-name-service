@@ -34,7 +34,7 @@ export class RpcReadError extends Error {
     this.name = 'RpcReadError';
   }
 }
-/** Aztec attaches JSON-RPC errors as cause; the SDK may add another AnsError wrapper. */
+/** Aztec attaches JSON-RPC errors as cause; the SDK may add another FogError wrapper. */
 export function rpcRetryInfo(error: unknown, seen = new Set<unknown>()): RpcRetryInfo | undefined {
   if (!error || typeof error !== 'object' || seen.has(error)) return;
   seen.add(error);

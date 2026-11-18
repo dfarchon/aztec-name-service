@@ -48,7 +48,7 @@ export function assertPayment(before: Before, after: Before, amount: bigint) {
   assert(delta >= amount, `Treasury credit delta ${delta} below payment ${amount}`);
 }
 export type E2EState = {
-  schema: 'ans-testnet-v6-e2e/1';
+  schema: 'fog-testnet-v6-e2e/1';
   binding: string;
   names: { long: string; short: string };
   accounts: { user: AccountKeys; recipient: AccountKeys };
@@ -111,17 +111,17 @@ export function testNames(
 ) {
   assert(/^[a-z0-9]{8}$/.test(suffix), 'Invalid name randomness');
   return {
-    long: `ans-e2e-${Math.floor(now / 86400000).toString(36)}-${suffix}`,
+    long: `fog-e2e-${Math.floor(now / 86400000).toString(36)}-${suffix}`,
     short: `a${short.toString(36).padStart(3, '0')}`,
   };
 }
 export function validateState(s: E2EState, manifest: Manifest) {
   assert(
-    s.schema === 'ans-testnet-v6-e2e/1' && s.binding === manifestBinding(manifest),
+    s.schema === 'fog-testnet-v6-e2e/1' && s.binding === manifestBinding(manifest),
     'Checkpoint deployment mismatch',
   );
   assert(
-    /^ans-e2e-[a-z0-9]+-[a-z0-9]{8}$/.test(s.names.long) &&
+    /^fog-e2e-[a-z0-9]+-[a-z0-9]{8}$/.test(s.names.long) &&
       s.names.long.length <= 31 &&
       /^a[a-z0-9]{3}$/.test(s.names.short),
     'Checkpoint names invalid',

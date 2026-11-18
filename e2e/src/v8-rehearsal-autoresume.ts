@@ -1,6 +1,6 @@
 /**
  * Fail-closed, read-only chain-time gated auto-resumer for the V8 public testnet rehearsal.
- * Runs exclusively as `ans-signer`. Never touches credentials directly; reads only `report.json` + `runner.lock`.
+ * Runs exclusively as `fog-signer`. Never touches credentials directly; reads only `report.json` + `runner.lock`.
  * Resumes `--send` ONLY when a clean `WAITING_*` checkpoint exists AND both proposed & checkpointed L2 timestamps
  * have reached `earliestChainTimestamp`. Any crash or non-zero exit writes `halted.json` and stops permanently.
  */
@@ -18,7 +18,7 @@ import { savePrivateJson } from './testnet-v6-e2e-state.js';
 import { V6_PROFILES } from './v6-network.js';
 
 export type RehearsalReport = {
-  schema: 'ans-v8-live-rehearsal-report/1';
+  schema: 'fog-v8-live-rehearsal-report/1';
   status: string;
   stage?: string;
   confirmation: string;
@@ -38,7 +38,7 @@ export type RehearsalReport = {
 };
 
 export type PublicAutoStatus = {
-  schema: 'ans-v8-autoresume-status/1';
+  schema: 'fog-v8-autoresume-status/1';
   checkedAt: string;
   phase:
     | 'ACTIVE_RUNNER'
@@ -80,7 +80,7 @@ async function readSignerReport(stateDir: string, signer: SignerIdentity): Promi
     const s = await f.stat();
     assert(s.isFile() && s.uid === signer.uid && (s.mode & 0o777) === 0o600, 'Unsafe report.json permissions');
     const parsed = JSON.parse(await f.readFile('utf8')) as RehearsalReport;
-    assert.equal(parsed.schema, 'ans-v8-live-rehearsal-report/1', 'Invalid report schema');
+    assert.equal(parsed.schema, 'fog-v8-live-rehearsal-report/1', 'Invalid report schema');
     return parsed;
   } finally {
     await f.close();
@@ -117,7 +117,7 @@ export async function evaluateAndMaybeResume(opts: {
     phase: PublicAutoStatus['phase'],
     extra: Partial<PublicAutoStatus> = {},
   ): PublicAutoStatus => ({
-    schema: 'ans-v8-autoresume-status/1',
+    schema: 'fog-v8-autoresume-status/1',
     checkedAt: new Date().toISOString(),
     phase,
     reportStatus: report.status,
@@ -264,7 +264,7 @@ export async function evaluateAndMaybeResume(opts: {
       : 0;
   const doneAfter = new Set(updated.l2Done);
   const finalOut: PublicAutoStatus = {
-    schema: 'ans-v8-autoresume-status/1',
+    schema: 'fog-v8-autoresume-status/1',
     checkedAt: new Date().toISOString(),
     phase: finalPhase,
     reportStatus: updated.status,

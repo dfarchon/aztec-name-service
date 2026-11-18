@@ -153,7 +153,7 @@ test('RPC max attempts propagates an error through the actual Aztec client', asy
   assert.equal(attempts, 4);
 });
 test('reader boot classifies an aborted or unavailable node as network after bounded retries', async () => {
-  const { RegistryReader, AnsError } = await import('@ans/sdk/read');
+  const { RegistryReader, FogError } = await import('@fog/sdk/read');
   const { AztecAddress } = await import('@aztec-labs/aztec.js/addresses');
   const { createAztecNodeClient } = await import('@aztec-labs/aztec.js/node');
   for (const failure of [
@@ -164,7 +164,7 @@ test('reader boot classifies an aborted or unavailable node as network after bou
     const f = fixture([failure]);
     const node = createAztecNodeClient('http://127.0.0.1', { fetch: f.run });
     await assert.rejects(RegistryReader.connect(node, AztecAddress.fromBigIntUnsafe(1n)), (e) => {
-      assert.ok(e instanceof AnsError);
+      assert.ok(e instanceof FogError);
       assert.equal(e.code, 'network'); // session.boot maps this to offline, never misconfigured.
       assert.equal(rpcRetryInfo(e)?.retryCount, 3);
       return true;
@@ -294,7 +294,7 @@ test('RPC HTTP 400 with a JSON-RPC sendTx error returns the node error without r
 });
 test('node error behind HTTP 400 reaches the caller verbatim, not as a network error', async () => {
   const { createAztecNodeClient } = await import('@aztec-labs/aztec.js/node');
-  const { toAnsError } = await import('@ans/sdk/read');
+  const { toFogError } = await import('@fog/sdk/read');
   let requests = 0;
   const transport = makeRpcFetch(undefined, (async (_url, init) => {
     requests++;
@@ -305,7 +305,7 @@ test('node error behind HTTP 400 reaches the caller verbatim, not as a network e
     assert.match(e.message, /Invalid tx: duplicate nullifier/);
     assert.doesNotMatch(e.message, /network request failed/);
     assert.equal(rpcRetryInfo(e), undefined);
-    assert.notEqual(toAnsError(e).code, 'network');
+    assert.notEqual(toFogError(e).code, 'network');
     return true;
   });
   assert.equal(requests, 1);

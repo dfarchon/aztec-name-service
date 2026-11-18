@@ -1,8 +1,8 @@
 # CLAUDE.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+This file provides guidance when working with code in this repository.
 
-ANS is an ENS-like name service on Aztec: Noir contracts, a TypeScript SDK (`@ans/sdk`), a React/Vite site, a Cloudflare monitor and chain acceptance scripts, in one npm-workspace repo (`sdk`, `web`, `e2e`, `ops`). **`AGENTS.md` holds the binding rules** (product boundary, legacy compatibility, verification and delivery rules); `README.md` (Chinese) holds the protocol rules; `docs/code-structure.md` holds module boundaries. Read them before changing behavior. Docs, UI strings and commits are mostly Chinese, and user-facing docs are bilingual.
+Fog Names is an ENS-like `.fog` name service on Aztec: Noir contracts, a TypeScript SDK (`@fog/sdk`), a React/Vite site, a Cloudflare monitor and chain acceptance scripts, in one npm-workspace repo (`sdk`, `web`, `e2e`, `ops`). **`AGENTS.md` holds the binding rules** (product boundary, legacy compatibility, verification and delivery rules); `README.md` holds the protocol rules; `docs/code-structure.md` holds module boundaries. Read them before changing behavior. All code, UI strings and documentation are strictly English-only.
 
 ## Toolchain
 
@@ -13,9 +13,9 @@ ANS is an ENS-like name service on Aztec: Noir contracts, a TypeScript SDK (`@an
 
 ```sh
 npm run check            # builds SDK, typechecks all workspaces (web/e2e typecheck against sdk/dist)
-npm test                 # SDK, e2e and ops unit tests, plus pricing, bundle budget and deployment config
+npm test                 # SDK, web, e2e and ops unit tests, plus pricing, bundle budget and deployment config
 npm run build            # SDK + web production build
-npm run check:docs       # bilingual docs, and README code blocks must match web/src/docs-examples.ts
+npm run check:docs       # English-only docs, and README code blocks must match web/src/docs-examples.ts
 npm run check:format     # pinned prettier on integration files; fix with npm run format:integration
 npm run test:consumer    # packs SDK, installs it independently, compiles examples/consumer and doc examples (needs the zip CLI)
 ```
@@ -36,8 +36,8 @@ A single SDK test: `cd sdk && node --import tsx --test --test-name-pattern "<nam
 ### Chain and browser tests (manual)
 
 - Local node E2E: `NO_PROXY=127.0.0.1,localhost node scripts/aztec.mjs start --local-network` (port 8080), then `npm run test:e2e`. `test:modular` and `test:extensions` default to an isolated node on 8082 with the debug RPC on 8882: `ANVIL_PORT=8547 node scripts/aztec.mjs start --local-network --port 8082 --admin-port 8882`, then `npm run test:modular` (README.md has the details). Proving is disabled, so these runs don't prove real-proof readiness.
-- Browser smoke tests: `npm run smoke:* -w @ans/web` with `BASE=<vite url>`. They need a built SDK and a running dev server.
-- Public testnet: only when the user asks. `npm run deploy:v6` (see docs/deploy-v6.md), `npm run test:testnet:v6` and the archived V5 runner `npm run test:testnet` broadcast with real proofs. State and keys live outside the repo in `~/.local/share/ans/<run>/`. Every tx hash is checkpointed before broadcast, and a re-run resumes from it instead of resending.
+- Browser smoke tests: `npm run smoke:* -w @fog/web` with `BASE=<vite url>`. They need a built SDK and a running dev server.
+- Public testnet: only when the user asks. `npm run deploy:v6` (see docs/deploy-v6.md), `npm run test:testnet:v6` and the archived V5 runner `npm run test:testnet` broadcast with real proofs. State and keys live outside the repo in `~/.local/share/fog/<run>/`. Every tx hash is checkpointed before broadcast, and a re-run resumes from it instead of resending.
 
 ## Architecture
 
@@ -47,9 +47,9 @@ contracts → artifacts (committed) → sdk → web, e2e, ops (monitor), example
 
 **Contracts** (`contracts/`):
 - Registries: `name_registry` (V2), plus `name_registry_v3`, `_v4` and `_v5`, all kept for deployed instances on the Aztec 5.2.1 rollup (read-only archive) with frozen storage layouts. `name_registry_v6` is the core on the Aztec 6 testnet (`deployments/testnet-v6.json`).
-- The V3+ registries delegate fees and records to replaceable modules: a **Registrar** (`name_registrar`, single price; `name_registrar_tiered`, length tiers and the stricter new-label rules) and a **Resolver** (`name_resolver`). The administrator swaps modules immediately with `configure_modules`, and names never migrate.
+- The V3+ registries delegate fees and records to replaceable modules: a **Registrar** (`name_registrar`, single price; `name_registrar_tiered`, length tiers and the stricter new-label rules; `name_registrar_launch`, fixed-year launch policy) and a **Resolver** (`name_resolver`). The administrator swaps modules immediately with `configure_modules`, and names never migrate.
 - A Registrar's fee policy is immutable, so a price change means deploying a new Registrar and switching to it.
-- Shared hashing, label packing and lifecycle rules live in `ans_common`.
+- Shared hashing, label packing and lifecycle rules live in the common library crate under `contracts/`.
 
 **Invariants** (see AGENTS.md):
 - commit-reveal (60s–24h);
@@ -58,7 +58,7 @@ contracts → artifacts (committed) → sdk → web, e2e, ops (monitor), example
 - bidirectional primary verification;
 - registration commitments that bind the chain, registry, Registrar, name, owner, duration, token, treasury, priceVersion, max fee and quote expiry.
 
-**SDK** (`sdk/src`), with three entry points: `.`, `./read` (wallet-free, no contract artifacts) and `./contracts/v6`.
+**SDK** (`sdk/src`), with entry points: `.`, `./read` (wallet-free, no contract artifacts), `./contracts/v6`, `./contracts/v7` and `./contracts/v8`.
 - `core/registry-protocol.ts` and `artifacts/modular-metadata.json` pick the protocol and storage layout from the exact on-chain class ID.
 - `RegistryReader` (`client/reader.ts`) reads raw storage slots at one snapshot. It rejects unknown registry or module classes with `wrong_deployment`, so supporting a new contract class always needs a new SDK release; older SDKs fail closed.
 - `getFeeQuote` / `chargeFor` need `labelLength` on a tiered Registrar, and `flow.quote(duration, name)` derives it. A quote binds its length.

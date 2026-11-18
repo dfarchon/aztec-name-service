@@ -10,15 +10,15 @@ import { createAztecNodeClient } from '@aztec-labs/aztec.js/node';
 import { Fr, Fq } from '@aztec-labs/aztec.js/fields';
 import { AztecAddress } from '@aztec-labs/aztec.js/addresses';
 import { publishContractClass } from '@aztec-labs/aztec.js/deployment';
-import { NameRegistryV8Contract, NameRegistryV8RehearsalContract } from '@ans/sdk/contracts/v8';
+import { NameRegistryV8Contract, NameRegistryV8RehearsalContract } from '@fog/sdk/contracts/v8';
 import {
-  AnsContext,
+  FogContext,
   CORE_UPGRADE_FAMILY,
   NameRegistrarLaunchContract,
   NameResolverContract,
   RegistryReader,
   administerCoreUpgrade,
-} from '@ans/sdk';
+} from '@fog/sdk';
 import metadata from '../../sdk/src/artifacts/modular-metadata.json' with { type: 'json' };
 import { sponsoredFpc } from './common.js';
 import { assertV8DeploymentOwner, v8BoundDeployment } from './v8-deployment.js';
@@ -35,7 +35,7 @@ const savedEnv = Object.fromEntries(
 );
 for (const key of Object.keys(savedEnv)) delete process.env[key];
 
-const scratch = await mkdtemp(join(tmpdir(), 'ans-v8-readiness-local-'));
+const scratch = await mkdtemp(join(tmpdir(), 'fog-v8-readiness-local-'));
 await chmod(scratch, 0o700);
 const fixtureDir = join(scratch, 'fixtures');
 const journalDir = join(scratch, 'journal');
@@ -63,7 +63,7 @@ try {
   const A = Fr.fromString(metadata.v8.classId);
   const B = Fr.fromString(metadata.v8Rehearsal.classId);
   const binding: Binding = {
-    schema: 'ans-v8-safe-prep/1',
+    schema: 'fog-v8-safe-prep/1',
     run: 'v8-readiness-local',
     identity: {
       chainId: 31337,
@@ -255,7 +255,7 @@ try {
       (await publishContractClass(wallet, NameRegistryV8RehearsalContract.artifact)).send(opts),
     );
 
-    const adminCtx = new AnsContext(reader, { wallet, account: owner, fee: fpc.fee.fee });
+    const adminCtx = new FogContext(reader, { wallet, account: owner, fee: fpc.fee.fee });
     const adminAction = async (
       label: string,
       build: (expectedNonce: bigint) => Parameters<typeof administerCoreUpgrade>[1],

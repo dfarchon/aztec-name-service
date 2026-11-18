@@ -4,7 +4,7 @@ import {
   MIN_DURATION,
   SECONDS_PER_YEAR,
 } from "./constants.js";
-import { AnsError } from "./errors.js";
+import { FogError } from "./errors.js";
 import type { NameRecord, RegistryConfig } from "./types.js";
 
 /**
@@ -31,7 +31,7 @@ export function assertDuration(duration: bigint) {
     duration > MAX_DURATION ||
     duration % SECONDS_PER_YEAR !== 0n
   ) {
-    throw new AnsError("invalid_argument", "租期必须为 1–5 个整年");
+    throw new FogError("invalid_argument", "lease duration must be 1 to 5 whole years");
   }
 }
 
@@ -39,7 +39,7 @@ export function assertDuration(duration: bigint) {
 export function assertPolicyDuration(config: RegistryConfig, duration: bigint) {
   assertDuration(duration);
   if (config.launch && duration !== SECONDS_PER_YEAR)
-    throw new AnsError("invalid_argument", "lease must be one year");
+    throw new FogError("invalid_argument", "lease must be one year");
 }
 
 /** `fee_for`: pro-rata annual price, rounded up. */
@@ -51,7 +51,7 @@ export function feeFor(annualPrice: bigint, duration: bigint): bigint {
 export function annualPriceFor(config: RegistryConfig, labelLength?: number): bigint {
   if (!config.lengthPrices) return config.annualPrice;
   if (labelLength === undefined)
-    throw new AnsError("invalid_argument", "this registrar prices by name length; pass the name");
+    throw new FogError("invalid_argument", "this registrar prices by name length; pass the name");
   if (labelLength === 3) return config.lengthPrices.three;
   if (labelLength === 4) return config.lengthPrices.four;
   return config.annualPrice;

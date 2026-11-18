@@ -3,9 +3,9 @@ import { type ContractFunctionInteraction, NO_WAIT } from '@aztec-labs/aztec.js/
 import type { AztecNode } from '@aztec-labs/aztec.js/node';
 import { TxHash, TxStatus } from '@aztec-labs/aztec.js/tx';
 
-import { AnsError, toAnsError } from '../core/errors.js';
+import { FogError, toFogError } from '../core/errors.js';
 import { isV8Class } from '../client/core-upgrade.js';
-import type { AnsContext } from '../wallet/context.js';
+import type { FogContext } from '../wallet/context.js';
 
 /**
  * - included: in a proposed block (can still be pruned)
@@ -31,7 +31,7 @@ export type TxUpdate = {
   state: TxState;
   txHash?: string;
   blockNumber?: number;
-  error?: AnsError;
+  error?: FogError;
 };
 
 export type TxOptions = {
@@ -60,7 +60,7 @@ export type TxResult = { txHash: string; state: TxState; blockNumber?: number };
 /** Internal result from the receipt interpreter; never inferred from a caught exception. */
 export type TxOutcome =
   | { status: 'success'; txHash: string; result: TxResult }
-  | { status: 'terminal_failure'; txHash: string; error: AnsError; callbackFailure?: { error: unknown } };
+  | { status: 'terminal_failure'; txHash: string; error: FogError; callbackFailure?: { error: unknown } };
 
 /** Preserve the public throwing API, including exceptions from progress callbacks. */
 export function unwrapTxOutcome(outcome: TxOutcome): TxResult {
@@ -82,10 +82,10 @@ const RANK: Partial<Record<TxState, number>> = {
 
 /**
  * Hands the call to the wallet (which simulates, proves and sends), then tracks the receipt. Contract errors from the
- * wallet's own simulation surface as mapped AnsErrors before any proof is made.
+ * wallet's own simulation surface as mapped FogErrors before any proof is made.
  */
 export async function runTx(
-  ctx: AnsContext,
+  ctx: FogContext,
   call: TxCall,
   opts: TxOptions & { authWitnesses?: AuthWitness[] } = {},
 ): Promise<TxResult> {
@@ -94,7 +94,7 @@ export async function runTx(
 
 /** Internal registration path: wallet/callback exceptions cannot become terminal receipt results. */
 export async function runTxOutcome(
-  ctx: AnsContext,
+  ctx: FogContext,
   call: TxCall,
   opts: RunTxOptions = {},
 ): Promise<TxOutcome> {
@@ -119,7 +119,7 @@ export async function runTxOutcome(
         await interaction.simulate(send);
       }
     } catch (cause) {
-      throw toAnsError(cause);
+      throw toFogError(cause);
     }
     emit({ state: 'awaiting_wallet' });
     emit({ state: 'proving' });
@@ -127,13 +127,13 @@ export async function runTxOutcome(
       if (isV8Class(ctx.reader.classId)) await ctx.assertSendReady();
       await opts.beforeBroadcast?.();
     } catch (cause) {
-      throw toAnsError(cause);
+      throw toFogError(cause);
     }
     try {
       const sent = await interaction.send({ ...send, wait: NO_WAIT });
       return sent.txHash.toString();
     } catch (e) {
-      let error = toAnsError(e);
+      let error = toFogError(e);
       let state: TxState;
       if (error.code === 'wallet_rejected') state = 'cancelled';
       else if (error.code === 'network' && failedReadingBeforeSend(e)) {
@@ -145,7 +145,7 @@ export async function runTxOutcome(
       else {
         // An unrecognized failure (e.g. the wallet disconnecting mid-request) may follow a broadcast.
         state = 'unknown';
-        error = new AnsError('unknown_tx_state', `wallet returned no transaction hash: ${error.message}`, e, error.txHash);
+        error = new FogError('unknown_tx_state', `wallet returned no transaction hash: ${error.message}`, e, error.txHash);
       }
       if (!error.txHash && (state === 'cancelled' || state === 'reverted'))
         await clearNotBroadcast();
@@ -231,7 +231,7 @@ export async function trackTxOutcome(
     const blockNumber = receipt.blockNumber === undefined ? undefined : Number(receipt.blockNumber);
 
     if (RANK[state] !== undefined && RANK[state]! >= 1 && receipt.hasExecutionReverted()) {
-      const error = new AnsError(
+      const error = new FogError(
         'reverted',
         receipt.error ?? 'public execution reverted',
         undefined,
@@ -240,7 +240,7 @@ export async function trackTxOutcome(
       return terminalFailure(error, { state: 'reverted', txHash, blockNumber, error });
     }
     if (state === 'dropped') {
-      const error = new AnsError(
+      const error = new FogError(
         'dropped',
         'transaction dropped by the network',
         undefined,
@@ -257,7 +257,7 @@ export async function trackTxOutcome(
       return { status: 'success', txHash, result: { txHash, state, blockNumber } };
     await sleep(opts.pollMs ?? 1000);
   }
-  const error = new AnsError(
+  const error = new FogError(
     'unknown_tx_state',
     'timed out waiting for the transaction',
     undefined,
@@ -268,7 +268,7 @@ export async function trackTxOutcome(
 
   // Called only after the poll above interpreted an actual terminal receipt. A throwing observer
   // cannot erase that evidence, and its original exception still reaches the caller after persistence.
-  function terminalFailure(error: AnsError, update: TxUpdate): TxOutcome {
+  function terminalFailure(error: FogError, update: TxUpdate): TxOutcome {
     try {
       emit(update);
       return { status: 'terminal_failure', txHash, error };

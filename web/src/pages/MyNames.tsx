@@ -1,7 +1,7 @@
 import { favoriteKey, readFavorites, downloadCalendar } from "../portfolio";
 import { FavoriteButton } from "../NameExtras";
 import { translate } from "../i18n";
-import { formatName, listOwnedNames, type NamesCursor, type OwnedName } from "@ans/sdk";
+import { formatName, listOwnedNames, type NamesCursor, type OwnedName } from "@fog/sdk";
 import { useEffect, useRef, useState } from "react";
 import { go, NeedsAccount } from "../App";
 import { Card, CopyValue, EmptyState } from "../components";
@@ -20,7 +20,7 @@ export function MyNamesPage() {
   const remindersRef = useRef(reminders); remindersRef.current = reminders;
   const sent = useRef(new Set<string>());
   const favoritesKey = reader ? favoriteKey(reader.deployment.chainId, reader.registry.toString()) : "";
-  useEffect(() => { const update = () => setFavorites(favoritesKey ? readFavorites(favoritesKey) : []); update(); window.addEventListener("ans:favorites", update); window.addEventListener("storage", update); return () => { window.removeEventListener("ans:favorites", update); window.removeEventListener("storage", update); }; }, [favoritesKey]);
+  useEffect(() => { const update = () => setFavorites(favoritesKey ? readFavorites(favoritesKey) : []); update(); window.addEventListener("fog:favorites", update); window.addEventListener("storage", update); return () => { window.removeEventListener("fog:favorites", update); window.removeEventListener("storage", update); }; }, [favoritesKey]);
   const [names, setNames] = useState<OwnedName[]>([]);
   const [cursor, setCursor] = useState<NamesCursor>();
   const [complete, setComplete] = useState(false);

@@ -1,10 +1,10 @@
 /**
  * Isolated V8 public testnet rehearsal CLI.
- * - `--init-accounts --state-dir /var/lib/ans-signer/testnet-v8-upgrade-rehearsal-YYYYMMDD`
- *   generates fresh isolated credentials under `ans-signer` and outputs only public addresses.
+ * - `--init-accounts --state-dir /var/lib/fog-signer/testnet-v8-upgrade-rehearsal-YYYYMMDD`
+ *   generates fresh isolated credentials under `fog-signer` and outputs only public addresses.
  * - Default `--dry-run` verifies canonical Sepolia L1 runtime SHA256 hashes, Aztec 6 testnet
  *   identity (`realProofs: true`, `feePerDaGas === 0`), balances and prints the exact confirmation.
- * - `--send --confirm <exact>` loads the real-proof checkpointed executor under `ans-signer`.
+ * - `--send --confirm <exact>` loads the real-proof checkpointed executor under `fog-signer`.
  */
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';

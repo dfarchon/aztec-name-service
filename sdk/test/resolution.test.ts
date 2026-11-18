@@ -11,7 +11,7 @@ import {
   resolvePrimary,
   resolvePrimaryMany,
   Resolver,
-  AnsError,
+  FogError,
   type RegistryReader,
   type Snapshot,
 } from "../src/index.js";
@@ -88,7 +88,7 @@ test("batch resolution rejects invalid concurrency and skips RPC for an empty ba
   const { reader } = fixture();
   for (const concurrency of [0, -1, 1.5, NaN, Infinity]) {
     await assert.rejects(resolvePrimaryMany(reader, [owner], { concurrency }),
-      (e: AnsError) => e.code === "invalid_argument");
+      (e: FogError) => e.code === "invalid_argument");
   }
   reader.snapshot = async () => { throw new Error("unnecessary RPC"); };
   assert.equal((await resolvePrimaryMany(reader, [])).size, 0);
@@ -99,7 +99,7 @@ test("resolver refuses cached names when canonicality cannot be checked and retr
   const resolver = new Resolver(reader, { reorgCheckMs: 0 });
   assert.equal((await resolver.primary(owner)).status, "verified");
   reader.isCanonical = async () => { throw new Error("fetch failed"); };
-  await assert.rejects(resolver.primary(owner), (e: AnsError) => e.code === "network");
+  await assert.rejects(resolver.primary(owner), (e: FogError) => e.code === "network");
   primary.present = false;
   reader.isCanonical = async () => true;
   assert.equal((await resolver.primary(owner)).status, "none");
@@ -186,11 +186,11 @@ test("public ownership discovery decodes actual ABI, paginates and pins the snap
   assert.equal(first.cursor.rollupVersion, '1');
   await assert.rejects(listOwnedNames(reader, owner, {
     cursor: { ...first.cursor, rollupVersion: '2' },
-  }), (e: AnsError) => e.code === 'wrong_deployment');
+  }), (e: FogError) => e.code === 'wrong_deployment');
   // Pre-0.4.3 cursors lack a rollup identity; restart discovery rather than guessing.
   await assert.rejects(listOwnedNames(reader, owner, {
     cursor: { ...first.cursor, rollupVersion: undefined } as any,
-  }), (e: AnsError) => e.code === 'wrong_deployment');
+  }), (e: FogError) => e.code === 'wrong_deployment');
   const second = await listOwnedNames(reader, owner, { cursor: first.cursor });
   assert.equal(second.status, "complete");
   assert.equal(second.names[0].name, "alice");
@@ -215,11 +215,11 @@ test('nested primary lookup preserves transport and unsupported-class errors ins
   const { reader } = fixture();
   Object.defineProperty(reader, 'extended', { value: true });
   for (const code of ['network', 'wrong_deployment'] as const) {
-    reader.getPublishedName = async () => { throw new AnsError(code, 'lookup failed'); };
-    await assert.rejects(resolvePrimary(reader, owner), (e: AnsError) => e.code === code);
+    reader.getPublishedName = async () => { throw new FogError(code, 'lookup failed'); };
+    await assert.rejects(resolvePrimary(reader, owner), (e: FogError) => e.code === code);
   }
-  reader.getPublishedName = async () => { throw new AnsError('network', 'parent RPC unavailable'); };
-  await assert.rejects(resolvePrimaryMany(reader, [owner, owner]), (e: AnsError) => e.code === 'network');
-  reader.getPublishedName = async () => { throw new AnsError('corrupt_data', 'label does not match'); };
+  reader.getPublishedName = async () => { throw new FogError('network', 'parent RPC unavailable'); };
+  await assert.rejects(resolvePrimaryMany(reader, [owner, owner]), (e: FogError) => e.code === 'network');
+  reader.getPublishedName = async () => { throw new FogError('corrupt_data', 'label does not match'); };
   assert.equal((await resolvePrimary(reader, owner)).status, 'label_unavailable');
 });

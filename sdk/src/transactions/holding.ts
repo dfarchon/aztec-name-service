@@ -1,9 +1,9 @@
-import { AnsError } from '../core/errors.js';
+import { FogError } from '../core/errors.js';
 import { nodeOf } from '../core/hash.js';
 import { type Label, normalizeName } from '../core/label.js';
 import { nameStatus, type NameStatus } from '../core/lifecycle.js';
 import type { NameRecord, Snapshot } from '../core/types.js';
-import type { AnsContext } from '../wallet/context.js';
+import type { FogContext } from '../wallet/context.js';
 
 export type NameRef = string | Label;
 const toLabel = (n: NameRef, allowSubnames = false) =>
@@ -25,7 +25,7 @@ export type Holding = {
 
 /** Current state of a name from the point of view of the context's account. Always call before a holder action. */
 export async function inspectHolding(
-  ctx: AnsContext,
+  ctx: FogContext,
   name: NameRef,
   opts: { snapshot?: Snapshot } = {},
 ): Promise<Holding> {
@@ -59,12 +59,12 @@ export async function inspectHolding(
 export function assertHoldingAccess(h: Holding, access: 'owner' | 'editor', allowGrace = false) {
   const allowed = access === 'owner' ? h.isHolder : h.canEdit;
   if (!allowed)
-    throw new AnsError(
+    throw new FogError(
       'not_holder',
       access === 'owner'
         ? 'this account does not hold the name'
         : 'only the owner or editor can change records',
     );
   if (h.status !== 'active' && !(allowGrace && h.status === 'grace'))
-    throw new AnsError('not_active', `name is ${h.status}`);
+    throw new FogError('not_active', `name is ${h.status}`);
 }

@@ -1,4 +1,4 @@
-import type { RegistryReader } from '@ans/sdk/read';
+import type { RegistryReader } from '@fog/sdk/read';
 
 /** SDK retains V4 as extended V3 for legacy layout selection; V5/V6 have distinct protocols. */
 export function deploymentProtocolLabel(

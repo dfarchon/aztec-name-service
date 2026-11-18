@@ -1,7 +1,7 @@
 import { translate } from "./i18n.js";
 type Incident = { name: string; kind: string; at: number };
-const preference = 'ans:monitor-notifications';
-const cursor = 'ans:monitor-notified-at';
+const preference = 'fog:monitor-notifications';
+const cursor = 'fog:monitor-notified-at';
 export function notificationsEnabled() {
   try { return typeof Notification !== 'undefined' && Notification.permission === 'granted' && localStorage.getItem(preference) === 'true'; }
   catch { return false; }
@@ -21,7 +21,7 @@ export function notifyIncidents(events: Incident[], labels: Record<string, strin
   // Advance before delivery so a refresh or duplicate status response never repeats an alert.
   localStorage.setItem(cursor, String(Math.max(...fresh.map(e => e.at))));
   for (const e of fresh) {
-    new Notification(translate(e.kind === 'changed' ? 'ANS · {name} changed' : e.kind === 'recovered' ? 'ANS · {name} recovered' : 'ANS · {name} ongoing issue', { name: translate(labels[e.name] ?? e.name) }), {
+    new Notification(translate(e.kind === 'changed' ? 'Fog · {name} changed' : e.kind === 'recovered' ? 'Fog · {name} recovered' : 'Fog · {name} ongoing issue', { name: translate(labels[e.name] ?? e.name) }), {
       tag: `${e.name}:${e.kind}:${e.at}`, body: translate('View service status'),
     });
   }

@@ -5,12 +5,12 @@ import { homedir } from 'node:os';
 import { isAbsolute, join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import {
-  AnsContext, RegistryReader, NameRegistryV5Contract, NameRegistrarContract, NameResolverContract,
+  FogContext, RegistryReader, NameRegistryV5Contract, NameRegistrarContract, NameResolverContract,
   checkRegistration, deserializePlan, getAvailability, inspectHolding, listOwnedNames, migrateName,
   renew, configureModules, readFeeTokenMetadata, prepareRegistration, resolveAddress, resolveChainAddress, resolvePrimary, serializePlan,
   setAddress, setPrimary, setManager, setTextRecord, setChainAddress, issueSubname,
   offerTransfer, acceptTransfer, submitCommit, submitRegistration, trackTx, waitUntilRegistrable,
-} from '@ans/sdk';
+} from '@fog/sdk';
 import { AztecAddress } from '@aztec-labs/aztec.js/addresses';
 import { NO_WAIT } from '@aztec-labs/aztec.js/contracts';
 import { Fq, Fr } from '@aztec-labs/aztec.js/fields';
@@ -38,8 +38,8 @@ const privateDir = (path: string) => {
   assert(isAbsolute(rel) || rel === '..' || rel.startsWith('../'), 'State must remain outside the repository');
   return dir;
 };
-const legacyDir = privateDir(process.env.TESTNET_LEGACY_STATE_DIR ?? join(homedir(), '.local/share/ans/testnet-v5.2.1'));
-const dir = privateDir(process.env.TESTNET_V5_STATE_DIR ?? join(homedir(), '.local/share/ans/testnet-v5-5.2.1'));
+const legacyDir = privateDir(process.env.TESTNET_LEGACY_STATE_DIR ?? join(homedir(), '.local/share/fog/testnet-v5.2.1'));
+const dir = privateDir(process.env.TESTNET_V5_STATE_DIR ?? join(homedir(), '.local/share/fog/testnet-v5-5.2.1'));
 assert.notEqual(dir, legacyDir, 'Keep V2 checkpoints intact');
 await mkdir(dir, { recursive: true, mode: 0o700 }); await chmod(dir, 0o700);
 const unlock = acquireTestnetLock(join(dir, 'runner.lock')); process.once('exit', unlock);
@@ -71,7 +71,7 @@ try { state = JSON.parse(await readFile(statePath, 'utf8')); }
 catch (e) {
   if ((e as NodeJS.ErrnoException).code !== 'ENOENT') throw e;
   state = { toolchainVersion: '5.2.1', network: legacy.network, legacy: legacyReader.registry.toString(),
-    name: `ans-v5-${Date.now().toString(36)}`, salts: Array.from({ length: 4 }, () => Fr.random().toString()),
+    name: `fog-v5-${Date.now().toString(36)}`, salts: Array.from({ length: 4 }, () => Fr.random().toString()),
     addresses: {}, transactions: {}, done: [], checks: [] };
 }
 assertStateToolchain(state); assert.equal(state.network, legacy.network); assert.equal(state.legacy, legacyReader.registry.toString());
@@ -153,8 +153,8 @@ try {
   const core = NameRegistryV5Contract.at(coreInstance.address, wallet);
   await step('bootstrap', () => core.methods.bootstrap(initialRegistrarInstance.address, resolverInstance.address).send(send));
   const reader = await RegistryReader.connect(node, core.address);
-  const owner = new AnsContext(reader, { wallet, account: ownerAddress, fee });
-  const target = new AnsContext(reader, { wallet: wallets[1], account: targetAddress, fee });
+  const owner = new FogContext(reader, { wallet, account: ownerAddress, fee });
+  const target = new FogContext(reader, { wallet: wallets[1], account: targetAddress, fee });
   await owner.ensureRegistered({ feeToken: { address: policy.feeToken, artifact: TokenContractArtifact } }); await target.ensureRegistered();
   await step('configure-payment', () => configureModules(owner, {registrar: registrarInstance.address, resolver: resolverInstance.address}, txOptions), async () => {
     const active=await reader.getModules();
@@ -188,10 +188,10 @@ try {
     check('paid renewal transfers the exact mock fee', await balance(0) === BigInt(state.balanceBefore![0]) - policy.annualPrice * 2n && await balance(2) === BigInt(state.balanceBefore![1]) + policy.annualPrice * 2n);
   });
   await step('set-editor', () => setManager(owner, { name: state.name, manager: targetAddress }, txOptions));
-  await step('editor-profile', () => setTextRecord(target, { name: state.name, key: 'description', value: 'ANS V5 public testnet · 测试' }, txOptions));
+  await step('editor-profile', () => setTextRecord(target, { name: state.name, key: 'description', value: 'Fog V5 public testnet · café €' }, txOptions));
   await step('editor-chain-address', () => setChainAddress(target, { name: state.name, chain: 'eip155:1', address: '0x1234567890123456789012345678901234567890' }, txOptions), async () => {
     const h = await inspectHolding(owner, state.name);
-    check('editor profile and multi-chain records read back', (await reader.getTextRecords(h.node, h.record.generation, h.snapshot)).description === 'ANS V5 public testnet · 测试' && await resolveChainAddress(reader, state.name, 'eip155:1') === '0x1234567890123456789012345678901234567890');
+    check('editor profile and multi-chain records read back', (await reader.getTextRecords(h.node, h.record.generation, h.snapshot)).description === 'Fog V5 public testnet · café €' && await resolveChainAddress(reader, state.name, 'eip155:1') === '0x1234567890123456789012345678901234567890');
   });
   await step('issue-subname', async () => issueSubname(owner, { parent: state.name, label: 'team', owner: targetAddress, expiresAt: (await inspectHolding(owner, state.name)).record.expiresAt - 86400n }, txOptions), async () => check('subname ownership and discovery verified', (await inspectHolding(target, `team.${state.name}`)).isHolder && (await listOwnedNames(reader, targetAddress)).names.some(n => n.name === `team.${state.name}`)));
   await step('offer-transfer', () => offerTransfer(owner, { name: state.name, recipient: targetAddress }, txOptions));

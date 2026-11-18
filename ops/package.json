@@ -1,5 +1,5 @@
 {
-  "name": "@ans/ops",
+  "name": "@fog/ops",
   "version": "0.1.0",
   "license": "Apache-2.0",
   "private": true,
@@ -17,7 +17,7 @@
     "@types/node": "24.10.7"
   },
   "dependencies": {
-    "@ans/sdk": "0.7.0",
+    "@fog/sdk": "0.7.0",
     "@aztec-labs/aztec.js": "6.0.0"
   }
 }

@@ -1,14 +1,14 @@
 {
-  "name": "@ans/sdk",
+  "name": "@fog/sdk",
   "version": "0.7.0",
   "license": "Apache-2.0",
   "repository": {
     "type": "git",
-    "url": "https://github.com/dfarchon/aztec-name-service.git",
+    "url": "https://github.com/dfarchon/fog-names.git",
     "directory": "sdk"
   },
   "private": true,
-  "description": "Public Aztec name service: registration, ownership discovery and verified address resolution.",
+  "description": "Public Fog name service: registration, ownership discovery and verified address resolution.",
   "type": "module",
   "exports": {
     ".": {

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { formatName, type RegistryReader, type Snapshot } from '@ans/sdk/read';
+import { formatName, type RegistryReader, type Snapshot } from '@fog/sdk/read';
 import { Card, CopyValue } from './components';
 import { translate as t } from './i18n';
 import { favoriteKey, readFavorites, toggleFavorite } from './portfolio';
@@ -8,7 +8,7 @@ import { errorMessage } from './format';
 export function FavoriteButton({ reader, name }: { reader: RegistryReader; name: string }) {
   const key = favoriteKey(reader.deployment.chainId, reader.registry.toString());
   const [saved, setSaved] = useState(() => readFavorites(key).includes(name)), [error, setError] = useState('');
-  useEffect(() => { const on = () => setSaved(readFavorites(key).includes(name)); on(); window.addEventListener('ans:favorites', on); window.addEventListener('storage', on); return () => { window.removeEventListener('ans:favorites', on); window.removeEventListener('storage', on); }; }, [key, name]);
+  useEffect(() => { const on = () => setSaved(readFavorites(key).includes(name)); on(); window.addEventListener('fog:favorites', on); window.addEventListener('storage', on); return () => { window.removeEventListener('fog:favorites', on); window.removeEventListener('storage', on); }; }, [key, name]);
   return <><button className="ghost" aria-pressed={saved} onClick={() => { try { toggleFavorite(key, name); setError(''); } catch { setError('Favorites could not be saved in this browser.'); } }}>{t(saved ? 'Remove favorite' : 'Save favorite')}</button>{error && <small role="alert">{t(error)}</small>}</>;
 }
 export function ShareName({ name }: { name: string }) {

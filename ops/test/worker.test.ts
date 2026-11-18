@@ -30,13 +30,13 @@ function fixture() {
   const env: Env = { DB, ASSETS: { fetch: async () => new Response('asset') } as unknown as Fetcher,
     MONITOR: { fetch: async () => Response.json({ checkedAt: Date.now() }) } as unknown as Fetcher,
     RUM_LIMITER: { limit: async () => ({ success: true }) } as RateLimit,
-    RPC_URL: 'https://rpc.test', SITE_URL: 'https://ans.test', REGISTRY: 'registry', SPONSORED_FPC: metadata.fpcAddress,
+    RPC_URL: 'https://rpc.test', SITE_URL: 'https://fog.test', REGISTRY: 'registry', SPONSORED_FPC: metadata.fpcAddress,
     CHAIN_ID: '11155111', ROLLUP_VERSION: '679261766', ROLLUP: '0xrollup', RELEASE: 'a123abc',
     FPC_LOW_WATERMARK: '1000000000000000000', BLOCK_STALE_SECONDS: '600', ADMIN_TOKEN: 'test-only-token' };
   let broken = '', block = 100;
   const fetcher = (async (input: any, init?: RequestInit) => {
     const url = String(input);
-    if (url.startsWith(env.SITE_URL)) return new Response(`ans:${env.RELEASE}`, { headers: { 'cross-origin-opener-policy': 'same-origin', 'cross-origin-embedder-policy': 'credentialless' } });
+    if (url.startsWith(env.SITE_URL)) return new Response(`fog:${env.RELEASE}`, { headers: { 'cross-origin-opener-policy': 'same-origin', 'cross-origin-embedder-policy': 'credentialless' } });
     const req = JSON.parse(init!.body as string);
     let result: unknown;
     if (req.method === 'aztec_getNodeInfo') result = { nodeVersion: '6.0.0', l1ChainId: 11155111, rollupVersion: broken === 'chain' ? 0 : 679261766, realProofs: true, l1ContractAddresses: { rollupAddress: env.ROLLUP } };
@@ -232,7 +232,7 @@ test('review fixes: constant-time token check and bounded body reads', async () 
 
 test('review fixes: unset RELEASE is refused instead of mislabelled', async () => {
   const f = fixture(); f.env.RELEASE = '';
-  const r = await worker.fetch(new Request('https://ans.test/api/status'), f.env);
+  const r = await worker.fetch(new Request('https://fog.test/api/status'), f.env);
   assert.equal(r.status, 503);
   await assert.rejects(probe(f.env, Date.now(), f.fetcher), /RELEASE is not set/);
 });
@@ -258,14 +258,14 @@ test('review fixes: Worker configs agree with the deployment manifest', () => {
 });
 
 test('UX: direct app paths redirect to hash routes, other paths fall through', async () => {
-  assert.equal(appRedirect(new URL('https://ans.test/docs')), 'https://ans.test/#/docs');
-  assert.equal(appRedirect(new URL('https://ans.test/docs/pricing/')), 'https://ans.test/#/docs/pricing');
-  assert.equal(appRedirect(new URL('https://ans.test/favicon.ico')), 'https://ans.test/favicon.svg');
-  assert.equal(appRedirect(new URL('https://ans.test/unknown')), undefined);
-  assert.equal(appRedirect(new URL('https://ans.test/docs/a/b')), undefined);
+  assert.equal(appRedirect(new URL('https://fog.test/docs')), 'https://fog.test/#/docs');
+  assert.equal(appRedirect(new URL('https://fog.test/docs/pricing/')), 'https://fog.test/#/docs/pricing');
+  assert.equal(appRedirect(new URL('https://fog.test/favicon.ico')), 'https://fog.test/favicon.svg');
+  assert.equal(appRedirect(new URL('https://fog.test/unknown')), undefined);
+  assert.equal(appRedirect(new URL('https://fog.test/docs/a/b')), undefined);
   const f = fixture();
-  const r = await worker.fetch(new Request('https://ans.test/status'), f.env);
-  assert.equal(r.status, 302); assert.equal(r.headers.get('location'), 'https://ans.test/#/status');
+  const r = await worker.fetch(new Request('https://fog.test/status'), f.env);
+  assert.equal(r.status, 302); assert.equal(r.headers.get('location'), 'https://fog.test/#/status');
 });
 
 test('fee-juice monitor skips FPC reads and marks unconfigured operator N/A without false alarms', async () => {

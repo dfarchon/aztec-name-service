@@ -1,4 +1,4 @@
-import { AnsError } from "./errors.js";
+import { FogError } from "./errors.js";
 
 /**
  * Passphrase encryption for exported registration plans and local name lists (PBKDF2-SHA256 + AES-256-GCM via
@@ -16,7 +16,7 @@ export type Sealed = {
 const ITERATIONS = 310_000;
 const subtle = () => {
   const s = globalThis.crypto?.subtle;
-  if (!s) throw new AnsError("unsupported", "WebCrypto is not available");
+  if (!s) throw new FogError("unsupported", "WebCrypto is not available");
   return s;
 };
 
@@ -67,7 +67,7 @@ export async function seal(
   passphrase: string,
 ): Promise<Sealed> {
   if (passphrase.length < 8)
-    throw new AnsError(
+    throw new FogError(
       "invalid_argument",
       "passphrase must be at least 8 characters",
     );
@@ -97,7 +97,7 @@ export async function unseal<T>(
   passphrase: string,
 ): Promise<T> {
   if (sealed?.v !== 1 || sealed.kdf !== "pbkdf2-sha256")
-    throw new AnsError("corrupt_data", "unknown export format");
+    throw new FogError("corrupt_data", "unknown export format");
   const key = await deriveKey(passphrase, unb64(sealed.salt), sealed.iter);
   try {
     const pt = await subtle().decrypt(
@@ -107,7 +107,7 @@ export async function unseal<T>(
     );
     return parseWithBigInt<T>(new TextDecoder().decode(pt));
   } catch {
-    throw new AnsError(
+    throw new FogError(
       "invalid_argument",
       "wrong passphrase or corrupted export",
     );

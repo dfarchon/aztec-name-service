@@ -5,12 +5,12 @@ import { createAztecNodeClient } from '@aztec-labs/aztec.js/node';
 import { AztecAddress } from '@aztec-labs/aztec.js/addresses';
 import { BlockNumber } from '@aztec-labs/aztec.js/fields';
 import { getPublicEvents } from '@aztec-labs/aztec.js/events';
-import { RegistryReader, type Snapshot } from '@ans/sdk/read';
-import { NameRegistryV8Contract } from '@ans/sdk/contracts/v8';
+import { RegistryReader, type Snapshot } from '@fog/sdk/read';
+import { NameRegistryV8Contract } from '@fog/sdk/contracts/v8';
 import metadata from '../../sdk/src/artifacts/modular-metadata.json' with { type: 'json' };
 const url = process.env.NODE_URL ?? 'http://127.0.0.1:8082'; assert.equal(new URL(url).hostname, '127.0.0.1');
-assert(process.env.ANS_V8_LOCAL_PUBLIC_STATE);
-const addresses = JSON.parse(await readFile(process.env.ANS_V8_LOCAL_PUBLIC_STATE, 'utf8'));
+assert(process.env.FOG_V8_LOCAL_PUBLIC_STATE);
+const addresses = JSON.parse(await readFile(process.env.FOG_V8_LOCAL_PUBLIC_STATE, 'utf8'));
 const node = createAztecNodeClient(url, { maxBatchSize: 20 }), info = await node.getNodeInfo(); assert.equal(info.realProofs, false); assert.equal(Number(info.l1ChainId), 31337);
 const registry = AztecAddress.fromStringUnsafe(addresses.registry), reader = await RegistryReader.connect(node, registry, { allowRehearsalSuccessor: true });
 const tip = await reader.snapshot();
@@ -59,5 +59,5 @@ for (let i = 1; i < timeline.length; i++) {
   console.log(`PASS ${boundaries.length}: actual ${previous.classId} -> ${current.classId} preserves ${ids.length} observed names and ${accounts.length} primary records, including B-created registration and B primary writes`);
 }
 assert.equal(boundaries.length, 2, 'one actual forward activation and one actual compatible rollback');
-if (process.env.ANS_V8_LOCAL_HISTORY_EVIDENCE) await writeFile(process.env.ANS_V8_LOCAL_HISTORY_EVIDENCE, json({ realProofs: false, observedNames: ids.length, primaryAccounts: accounts.length, boundaries }) + '\n', { mode: 0o600 });
+if (process.env.FOG_V8_LOCAL_HISTORY_EVIDENCE) await writeFile(process.env.FOG_V8_LOCAL_HISTORY_EVIDENCE, json({ realProofs: false, observedNames: ids.length, primaryAccounts: accounts.length, boundaries }) + '\n', { mode: 0o600 });
 console.log('ALL 2 V8 FULL HISTORY SNAPSHOT CHECKS PASSED; read-only follow-up, no transactions');

@@ -4,7 +4,7 @@ import { test } from 'node:test';
 import { webcrypto } from 'node:crypto';
 import { AztecAddress } from '@aztec-labs/aztec.js/addresses';
 import { Fr } from '@aztec-labs/aztec.js/fields';
-import { AnsContext, runTx, type RegistrationPlan, type RegistryReader } from '@ans/sdk';
+import { FogContext, runTx, type RegistrationPlan, type RegistryReader } from '@fog/sdk';
 import type { ContractFunctionInteraction } from '@aztec-labs/aztec.js/contracts';
 import { GasFees } from '@aztec-labs/stdlib/gas';
 import type { Wallet } from '@aztec-labs/aztec.js/wallet';
@@ -56,7 +56,7 @@ async function fixture(t: TestContext) {
       return request;
     },
   } as unknown as IDBFactory);
-  t.mock.method(AnsContext.prototype, 'ensureRegistered', async () => {});
+  t.mock.method(FogContext.prototype, 'ensureRegistered', async () => {});
   const a = AztecAddress.fromBigIntUnsafe(1n), b = AztecAddress.fromBigIntUnsafe(2n);
   const registry = AztecAddress.fromBigIntUnsafe(3n);
   const reader = { registry, deployment: { chainId: 31337n, rollupVersion: 1n },
@@ -73,7 +73,7 @@ async function fixture(t: TestContext) {
   const plan = { account: a.toString(), registry: registry.toString(), chainId: 31337n,
     commitment: 1n, broadcastUnknown: 'registerTx' } as RegistrationPlan;
   await session.updateRecords((r) => ({ ...r, plans: [plan] }));
-  const storeA = new RecordStore(key, `ans:v2:31337:${registry}:${a}`, () => ({ plans: [] as RegistrationPlan[], txs: [], names: [] }));
+  const storeA = new RecordStore(key, `fog:v2:31337:${registry}:${a}`, () => ({ plans: [] as RegistrationPlan[], txs: [], names: [] }));
   return { a, b, ctx, plan, storeA, data };
 }
 
@@ -112,7 +112,7 @@ test('switching back waits for detached writes and shows the saved hash with pay
 
 test('boot withdraws stale reader/context on outage and identity mismatch, then restores only after verification', async (t) => {
   const f = await fixture(t);
-  const { RegistryReader } = await import('@ans/sdk/read');
+  const { RegistryReader } = await import('@fog/sdk/read');
   const reader = f.ctx.reader;
   let failure: Error | undefined;
   let deployment = reader.deployment;
@@ -159,13 +159,13 @@ test('boot withdraws stale reader/context on outage and identity mismatch, then 
 
 test('account setup waiting in the shared wallet queue is refused after an outage', async (t) => {
   const f = await fixture(t);
-  const { RegistryReader } = await import('@ans/sdk/read');
+  const { RegistryReader } = await import('@fog/sdk/read');
   let offline = true, registrations = 0;
   t.mock.method(RegistryReader, 'connect', async () => {
     if (offline) throw new TypeError('Failed to fetch');
     return f.ctx.reader;
   });
-  t.mock.method(AnsContext.prototype, 'ensureRegistered', async () => { registrations++; });
+  t.mock.method(FogContext.prototype, 'ensureRegistered', async () => { registrations++; });
   let release!: () => void, queued!: () => void;
   const gate = new Promise<void>(resolve => { release = resolve; });
   const signal = new Promise<void>(resolve => { queued = resolve; });
@@ -193,7 +193,7 @@ for (const feePayment of ['sponsored', 'fee-juice']) {
         fixtureConfig.feePayment = feePayment;
         t.after(() => { fixtureConfig.feePayment = 'sponsored'; });
         const f = await fixture(t);
-        const { RegistryReader } = await import('@ans/sdk/read');
+        const { RegistryReader } = await import('@fog/sdk/read');
         let healthy = true;
         t.mock.method(RegistryReader, 'connect', async () => {
           if (healthy) return f.ctx.reader;
@@ -246,7 +246,7 @@ test('fee-juice admission rejects an outage arising during its balance check bef
   fixtureConfig.feePayment = 'fee-juice';
   t.after(() => { fixtureConfig.feePayment = 'sponsored'; });
   const f = await fixture(t);
-  const { RegistryReader } = await import('@ans/sdk/read');
+  const { RegistryReader } = await import('@fog/sdk/read');
   let healthy = false, sends = 0;
   t.mock.method(RegistryReader, 'connect', async () => {
     if (!healthy) throw new TypeError('Failed to fetch');
@@ -266,7 +266,7 @@ test('fee-juice admission rejects an outage arising during its balance check bef
 
 test('a provider acquired before an outage during wallet lock is disconnected on failure', async (t) => {
   const f = await fixture(t);
-  const { RegistryReader } = await import('@ans/sdk/read');
+  const { RegistryReader } = await import('@fog/sdk/read');
   let healthy = false, disconnected = 0, accountReads = 0;
   t.mock.method(RegistryReader, 'connect', async () => {
     if (!healthy) throw new TypeError('Failed to fetch');
@@ -300,7 +300,7 @@ test('late registration hash updates suspended account memory without restoring 
   });
   const pending = write(r => ({ ...r, names: ['alice'] }));
   await signal;
-  const { RegistryReader } = await import('@ans/sdk/read');
+  const { RegistryReader } = await import('@fog/sdk/read');
   let healthy = false;
   t.mock.method(RegistryReader, 'connect', async () => {
     if (!healthy) throw new TypeError('Failed to fetch');

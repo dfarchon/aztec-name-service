@@ -5,8 +5,8 @@ import { TxHash, TxStatus } from '@aztec-labs/aztec.js/tx';
 import {
   createRegistrationFlow,
   ExecutionQueue,
-  AnsError,
-  type AnsContext,
+  FogError,
+  type FogContext,
   type RegistryReader,
   type RegistrationPlan,
   type RegistrationPlanStore,
@@ -80,7 +80,7 @@ async function fixture(kind: RegistrationTxKind) {
     registrationContract: async () => ({
       methods: { commit: () => interaction, register: () => interaction },
     }),
-  } as unknown as AnsContext;
+  } as unknown as FogContext;
   const fresh = () => {
     const flow = createRegistrationFlow(ctx, store);
     const bounded = (options: TxOptions = {}) => ({ timeoutMs: 1000, pollMs: 1, ...options });
@@ -123,11 +123,11 @@ for (const kind of ['commitTx', 'registerTx'] as const) {
       await f.save({ [kind]: hash });
       const original = f.ctx.reader.node.getTxReceipt;
       f.ctx.reader.node.getTxReceipt = async () => {
-        throw new AnsError(code, 'RPC error, not a receipt', undefined, hash);
+        throw new FogError(code, 'RPC error, not a receipt', undefined, hash);
       };
       await assert.rejects(
         f.fresh().recover(f.plan, kind, { timeoutMs: 15, pollMs: 1 }),
-        (e) => e instanceof AnsError && e.code === 'unknown_tx_state',
+        (e) => e instanceof FogError && e.code === 'unknown_tx_state',
       );
       assert.equal(f.read()[kind], hash);
       f.ctx.reader.node.getTxReceipt = original;
@@ -232,7 +232,7 @@ for (const kind of ['commitTx', 'registerTx'] as const) {
           ),
         );
         if (settled === 'confirmed') await recovering;
-        else await assert.rejects(recovering, (e) => e instanceof AnsError && e.code === settled);
+        else await assert.rejects(recovering, (e) => e instanceof FogError && e.code === settled);
         assert.equal(
           f.read()[kind],
           changed === 'target' ? h2 : settled === 'confirmed' ? h1 : undefined,
@@ -281,7 +281,7 @@ for (const kind of ['commitTx', 'registerTx'] as const) {
       const failure =
         scenario === 'ordinary'
           ? new Error('observer')
-          : new AnsError(
+          : new FogError(
               'reverted',
               'observer',
               undefined,
@@ -325,7 +325,7 @@ for (const kind of ['commitTx', 'registerTx'] as const) {
     await f.save({ [otherKind(kind)]: opposite });
     await assert.rejects(
       f.fresh().recover(f.plan, kind),
-      (e) => e instanceof AnsError && e.code === 'unknown_tx_state',
+      (e) => e instanceof FogError && e.code === 'unknown_tx_state',
     );
     assert.equal(f.read()[otherKind(kind)], opposite);
     assert.equal(f.queried.length, 0);
@@ -364,7 +364,7 @@ for (const kind of ['commitTx', 'registerTx'] as const) {
     await assert.rejects(
       f.fresh().recover(f.plan, kind, { onUpdate: (u) => updates.push(u) }),
       (e) =>
-        e instanceof AnsError &&
+        e instanceof FogError &&
         e.code === 'reverted' &&
         e.txHash === hash &&
         e === updates[0].error,
@@ -389,7 +389,7 @@ for (const kind of ['commitTx', 'registerTx'] as const) {
     t.mock.method(Date, 'now', () => (now += 7000));
     await assert.rejects(
       f.fresh().recover(f.plan, kind, { timeoutMs: 120000, pollMs: 1 }),
-      (e) => e instanceof AnsError && e.code === 'dropped' && e.txHash === hash,
+      (e) => e instanceof FogError && e.code === 'dropped' && e.txHash === hash,
     );
     assert.equal(f.read()[kind], undefined);
     assert.equal(f.read()[otherKind(kind)], opposite);
@@ -406,7 +406,7 @@ for (const kind of ['commitTx', 'registerTx'] as const) {
     };
     await assert.rejects(
       f.fresh().recover(f.plan, kind, { timeoutMs: 15, pollMs: 1 }),
-      (e) => e instanceof AnsError && e.code === 'unknown_tx_state' && e.txHash === hash,
+      (e) => e instanceof FogError && e.code === 'unknown_tx_state' && e.txHash === hash,
     );
     assert.equal(f.read()[kind], hash);
     f.ctx.reader.node.getTxReceipt = original;
@@ -428,7 +428,7 @@ for (const kind of ['commitTx', 'registerTx'] as const) {
           onUpdate(u) {
             if (u.state === (origin === 'send-submitted' ? 'submitted' : 'included')) {
               trackedHash = u.txHash;
-              throw new AnsError(
+              throw new FogError(
                 code,
                 'observer has no terminal receipt evidence',
                 undefined,
@@ -442,7 +442,7 @@ for (const kind of ['commitTx', 'registerTx'] as const) {
           origin === 'recover'
             ? flow.recover(f.plan, kind, options)
             : f.invoke(flow, f.plan, options),
-          (e) => e instanceof AnsError && e.code === code && e.txHash === trackedHash,
+          (e) => e instanceof FogError && e.code === code && e.txHash === trackedHash,
         );
         const preserved = f.read()[kind] === trackedHash;
         const beforeRetry = f.sent.length;
