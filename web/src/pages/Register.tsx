@@ -1,6 +1,7 @@
 import { translate } from '../i18n';
 import {
   FogError,
+  SECONDS_PER_YEAR,
   assertRegistrableLabel,
   type FeeQuote,
   formatName,
@@ -21,7 +22,7 @@ import { choosingAccount, recordWriter, useSession } from '../session';
 import { registrationFlow } from '../registration';
 import { canDiscardUncertain, parseTxHash } from '../registration-recovery';
 
-const YEAR = 365n * 86400n;
+const YEAR = SECONDS_PER_YEAR;
 
 export function RegisterPage({ initial }: { initial?: string }) {
   const s = useSession();
@@ -114,6 +115,41 @@ function PriceTiers({ quote }: { quote: FeeQuote }) {
         <FeeAmount amount={quote.annualPrice} token={token} /> {translate('/ year')}
       </dd>
     </dl>
+  );
+}
+
+/** Collapsible breakdown of the exact fee parameters bound into a registration commitment. */
+function FeeDetails({
+  token,
+  treasury,
+  maxFee,
+  sponsored,
+}: {
+  token: string;
+  treasury: string;
+  maxFee: bigint;
+  sponsored: boolean;
+}) {
+  return (
+    <details className="fee-details">
+      <summary>{translate('Fee details')}</summary>
+      <dl>
+        <dt>{translate('Payment token')}</dt>
+        <dd>
+          <code>{token}</code>
+        </dd>
+        <dt>{translate('Treasury address')}</dt>
+        <dd>
+          <code>{treasury}</code>
+        </dd>
+        <dt>{translate('Maximum fee')}</dt>
+        <dd>
+          <FeeAmount amount={maxFee} token={token} />
+        </dd>
+        <dt>{translate('Network fee')}</dt>
+        <dd>{sponsored ? translate('Sponsored') : translate('Confirmed in wallet')}</dd>
+      </dl>
+    </details>
   );
 }
 
@@ -266,29 +302,12 @@ function NewRegistration({ initial }: { initial?: string }) {
             <FeeAmount amount={quote.fee} token={quote.feeToken.toString()} />
           </p>
           <FeeBalance amount={quote.fee} token={quote.feeToken.toString()} read={balance} />
-          <details className="fee-details">
-            <summary>{translate('Fee details')}</summary>
-            <dl>
-              <dt>{translate('Payment token')}</dt>
-              <dd>
-                <code>{quote.feeToken.toString()}</code>
-              </dd>
-              <dt>{translate('Treasury address')}</dt>
-              <dd>
-                <code>{quote.treasury.toString()}</code>
-              </dd>
-              <dt>{translate('Maximum fee')}</dt>
-              <dd>
-                <FeeAmount amount={quote.maxFee} token={quote.feeToken.toString()} />
-              </dd>
-              <dt>{translate('Network fee')}</dt>
-              <dd>
-                {ctx.signer.fee?.paymentMethod
-                  ? translate('Sponsored')
-                  : translate('Confirmed in wallet')}
-              </dd>
-            </dl>
-          </details>
+          <FeeDetails
+            token={quote.feeToken.toString()}
+            treasury={quote.treasury.toString()}
+            maxFee={quote.maxFee}
+            sponsored={Boolean(ctx.signer.fee?.paymentMethod)}
+          />
         </>
       )}
       <RegistrationFunding free={quote?.fee === 0n} />
@@ -459,29 +478,12 @@ function PlanCard({ plan }: { plan: RegistrationPlan }) {
           </>
         )}
       </dl>
-      <details className="fee-details">
-        <summary>{translate('Fee details')}</summary>
-        <dl>
-          <dt>{translate('Payment token')}</dt>
-          <dd>
-            <code>{plan.feeToken}</code>
-          </dd>
-          <dt>{translate('Treasury address')}</dt>
-          <dd>
-            <code>{plan.treasury}</code>
-          </dd>
-          <dt>{translate('Maximum fee')}</dt>
-          <dd>
-            <FeeAmount amount={plan.maxFee} token={plan.feeToken} />
-          </dd>
-          <dt>{translate('Network fee')}</dt>
-          <dd>
-            {ctx.signer.fee?.paymentMethod
-              ? translate('Sponsored')
-              : translate('Confirmed in wallet')}
-          </dd>
-        </dl>
-      </details>
+      <FeeDetails
+        token={plan.feeToken}
+        treasury={plan.treasury}
+        maxFee={plan.maxFee}
+        sponsored={Boolean(ctx.signer.fee?.paymentMethod)}
+      />
       {canFinish && (
         <>
           <FeeBalance amount={plan.fee} token={plan.feeToken} read={balance} />

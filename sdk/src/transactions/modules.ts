@@ -1,22 +1,22 @@
 import { AztecAddress } from '@aztec-labs/aztec.js/addresses';
-import { NameRegistryV8Contract } from '../artifacts/NameRegistryV8.js';
-import { NameRegistryV8RehearsalContract } from '../artifacts/NameRegistryV8Rehearsal.js';
-import { NameRegistryV7Contract } from '../artifacts/NameRegistryV7.js';
-import { NameRegistryV6Contract } from '../artifacts/NameRegistryV6.js';
-import { registryProtocols } from '../core/registry-protocol.js';
 import { NameRegistryV5Contract } from '../artifacts/NameRegistryV5.js';
 import { FogError } from '../core/errors.js';
 import { normalizeName } from '../core/label.js';
-import { assertHoldingAccess, inspectHolding, type NameRef } from './holding.js';
+import { registryProtocols } from '../core/registry-protocol.js';
 import type { FogContext } from '../wallet/context.js';
+import { assertHoldingAccess, inspectHolding, type NameRef } from './holding.js';
 import { runTx, type TxOptions } from './tx.js';
 
 async function core(ctx: FogContext) {
-  if (!ctx.reader.modular)
+  if (!ctx.reader.modular) {
     throw new FogError('invalid_argument', 'this registry does not support contract modules');
-  return ctx.contract() as { methods: Pick<NameRegistryV5Contract['methods'], 'migrate' | 'set_resolver'> };
+  }
+  return ctx.contract() as {
+    methods: Pick<NameRegistryV5Contract['methods'], 'migrate' | 'set_resolver'>;
+  };
 }
 
+/** Points a single name's resolution module to a verified `NameResolver` bound to this registry. */
 export async function setResolver(
   ctx: FogContext,
   args: { name: NameRef; resolver: AztecAddress },
@@ -35,13 +35,16 @@ export async function setResolver(
   };
 }
 
+/** Migrates an active or grace-period legacy name into a modular registry for its current holder. */
 export async function migrateName(ctx: FogContext, name: NameRef, opts?: TxOptions) {
   const h = await inspectHolding(ctx, name);
-  if (h.record.generation !== 0)
+  if (h.record.generation !== 0) {
     throw new FogError('conflict', 'name already exists in this registry');
+  }
   const old = await ctx.reader.getLegacyName(h.node, h.snapshot);
-  if (!old?.owner.equals(ctx.account))
+  if (!old?.owner.equals(ctx.account)) {
     throw new FogError('not_holder', 'this account does not hold the legacy name');
+  }
   const label = typeof name === 'string' ? normalizeName(name) : name;
   const contract = await core(ctx);
   return { tx: await runTx(ctx, contract.methods.migrate(label.bytes, label.len), opts) };
@@ -50,31 +53,65 @@ export async function migrateName(ctx: FogContext, name: NameRef, opts?: TxOptio
 async function configurationSnapshot(ctx: FogContext) {
   const snapshot = await ctx.reader.snapshot();
   const administrator = await ctx.reader.getAdministrator(snapshot);
-  if (!administrator) throw new FogError('unsupported', 'this deployment does not support direct configuration');
-  if (!administrator.equals(ctx.account)) throw new FogError('not_administrator', 'this account cannot configure the registry');
+  if (!administrator) {
+    throw new FogError('unsupported', 'this deployment does not support direct configuration');
+  }
+  if (!administrator.equals(ctx.account)) {
+    throw new FogError('not_administrator', 'this account cannot configure the registry');
+  }
   return snapshot;
 }
 
-export async function configureModules(ctx: FogContext, args: {registrar: AztecAddress; resolver: AztecAddress}, opts?: TxOptions) {
+/**
+ * Replaces the active Registrar and default Resolver immediately upon confirmation.
+ * Both modules must match supported classes and bind immutably to `ctx.reader.registry`.
+ */
+export async function configureModules(
+  ctx: FogContext,
+  args: { registrar: AztecAddress; resolver: AztecAddress },
+  opts?: TxOptions,
+) {
   const snapshot = await configurationSnapshot(ctx);
-  const [modules] = await Promise.all([ctx.reader.getModules(snapshot), ctx.reader.assertModule(args.registrar, 'registrar', snapshot), ctx.reader.assertModule(args.resolver, 'resolver', snapshot)]);
-  const contract=ctx.reader.classId === registryProtocols.v8.classId
-    ? NameRegistryV8Contract.at(ctx.reader.registry, ctx.wallet)
-    : ctx.reader.classId === registryProtocols.v8Rehearsal.classId
-    ? NameRegistryV8RehearsalContract.at(ctx.reader.registry, ctx.wallet)
-    : ctx.reader.classId === registryProtocols.v7.classId
-    ? NameRegistryV7Contract.at(ctx.reader.registry, ctx.wallet)
-    : ctx.reader.classId === registryProtocols.v6.classId
-    ? NameRegistryV6Contract.at(ctx.reader.registry, ctx.wallet)
-    : NameRegistryV5Contract.at(ctx.reader.registry, ctx.wallet);
-  return {tx: await runTx(ctx, contract.methods.configure_modules(modules.revision, args.registrar, args.resolver), opts)};
+  const [modules] = await Promise.all([
+    ctx.reader.getModules(snapshot),
+    ctx.reader.assertModule(args.registrar, 'registrar', snapshot),
+    ctx.reader.assertModule(args.resolver, 'resolver', snapshot),
+  ]);
+  const contract = ctx.extendedContract() as {
+    methods: Pick<NameRegistryV5Contract['methods'], 'configure_modules'>;
+  };
+  return {
+    tx: await runTx(
+      ctx,
+      contract.methods.configure_modules(modules.revision, args.registrar, args.resolver),
+      opts,
+    ),
+  };
 }
 
-export async function setAdministrator(ctx: FogContext, administrator: AztecAddress, opts?: TxOptions) {
-  if (administrator.isZero()) throw new FogError('invalid_argument', 'administrator must not be zero');
+/** Direct administrator rotation on V5; V6+ requires two-step nomination and acceptance. */
+export async function setAdministrator(
+  ctx: FogContext,
+  administrator: AztecAddress,
+  opts?: TxOptions,
+) {
+  if (administrator.isZero()) {
+    throw new FogError('invalid_argument', 'administrator must not be zero');
+  }
   await configurationSnapshot(ctx);
-  if ([registryProtocols.v6.classId, registryProtocols.v7.classId, registryProtocols.v8.classId, registryProtocols.v8Rehearsal.classId].includes(ctx.reader.classId))
-    throw new FogError('unsupported', 'V6/V7/V8 administration requires nomination and acceptance via the matching bindings');
-  const contract=NameRegistryV5Contract.at(ctx.reader.registry, ctx.wallet);
-  return {tx: await runTx(ctx, contract.methods.set_administrator(administrator), opts)};
+  if (
+    [
+      registryProtocols.v6.classId,
+      registryProtocols.v7.classId,
+      registryProtocols.v8.classId,
+      registryProtocols.v8Rehearsal.classId,
+    ].includes(ctx.reader.classId)
+  ) {
+    throw new FogError(
+      'unsupported',
+      'V6/V7/V8 administration requires nomination and acceptance via the matching bindings',
+    );
+  }
+  const contract = NameRegistryV5Contract.at(ctx.reader.registry, ctx.wallet);
+  return { tx: await runTx(ctx, contract.methods.set_administrator(administrator), opts) };
 }

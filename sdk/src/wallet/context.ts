@@ -92,29 +92,22 @@ export class FogContext {
   }
 
   extendedContract() {
-    if (this.reader.classId === registryProtocols.v8.classId) return NameRegistryV8Contract.at(this.reader.registry, this.wallet);
-    if (this.reader.classId === registryProtocols.v8Rehearsal.classId) return NameRegistryV8RehearsalContract.at(this.reader.registry, this.wallet);
-    if (!this.reader.extended)
+    if (!this.reader.extended) {
       throw new FogError('invalid_argument', 'this feature requires registry V4');
-    if (this.reader.classId === registryProtocols.v7.classId)
-      return NameRegistryV7Contract.at(this.reader.registry, this.wallet);
-    if (this.reader.classId === registryProtocols.v6.classId)
-      return NameRegistryV6Contract.at(this.reader.registry, this.wallet);
-    return this.reader.classId === registryProtocols.current.classId
-      ? NameRegistryV5Contract.at(this.reader.registry, this.wallet)
-      : NameRegistryV4Contract.at(this.reader.registry, this.wallet);
+    }
+    const { registry, classId } = this.reader;
+    if (classId === registryProtocols.v8.classId) return NameRegistryV8Contract.at(registry, this.wallet);
+    if (classId === registryProtocols.v8Rehearsal.classId) return NameRegistryV8RehearsalContract.at(registry, this.wallet);
+    if (classId === registryProtocols.v7.classId) return NameRegistryV7Contract.at(registry, this.wallet);
+    if (classId === registryProtocols.v6.classId) return NameRegistryV6Contract.at(registry, this.wallet);
+    return classId === registryProtocols.current.classId
+      ? NameRegistryV5Contract.at(registry, this.wallet)
+      : NameRegistryV4Contract.at(registry, this.wallet);
   }
 
   contract() {
-    if (this.reader.classId === registryProtocols.v8.classId) return NameRegistryV8Contract.at(this.reader.registry, this.wallet);
-    if (this.reader.classId === registryProtocols.v8Rehearsal.classId) return NameRegistryV8RehearsalContract.at(this.reader.registry, this.wallet);
-    if (this.reader.classId === registryProtocols.v7.classId)
-      return NameRegistryV7Contract.at(this.reader.registry, this.wallet);
-    if (this.reader.classId === registryProtocols.v6.classId)
-      return NameRegistryV6Contract.at(this.reader.registry, this.wallet);
-    return this.reader.classId === registryProtocols.current.classId
-      ? NameRegistryV5Contract.at(this.reader.registry, this.wallet)
-      : this.reader.modular
+    if (this.reader.extended) return this.extendedContract();
+    return this.reader.modular
       ? NameRegistryV3Contract.at(this.reader.registry, this.wallet)
       : NameRegistryContract.at(this.reader.registry, this.wallet);
   }

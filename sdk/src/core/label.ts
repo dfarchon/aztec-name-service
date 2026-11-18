@@ -51,9 +51,22 @@ export function normalizeName(
     s = s.slice(0, -opts.suffix.length);
   if (opts.allowSubnames && s.includes(".")) {
     const parts = s.split(".");
-    if (parts.length > 5) throw new FogError("invalid_name", "at most four subname levels are supported");
+    if (parts.length > 5) {
+      throw new FogError(
+        "invalid_name",
+        "at most four subname levels are supported",
+      );
+    }
+    // Parse from rightmost root label to leftmost leaf so each child links to its verified parent.
     let result = normalizeName(parts.pop()!);
-    while (parts.length) { const leaf = normalizeName(parts.pop()!); result = { ...leaf, label: `${leaf.label}.${result.label}`, parent: result }; }
+    while (parts.length) {
+      const leaf = normalizeName(parts.pop()!);
+      result = {
+        ...leaf,
+        label: `${leaf.label}.${result.label}`,
+        parent: result,
+      };
+    }
     return result;
   }
   if (s.includes("."))

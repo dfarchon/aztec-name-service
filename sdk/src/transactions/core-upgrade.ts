@@ -40,21 +40,46 @@ export async function administerCoreUpgrade(ctx: FogContext, action: CoreUpgrade
     const field = (id: bigint) => new Fr(id);
     switch (action.kind) {
       case 'approve_release':
-        if (!Number.isInteger(action.releaseSeq) || action.releaseSeq <= 0 || action.releaseSeq > 0xffff_ffff) throw new FogError('invalid_argument', 'releaseSeq must be a positive uint32');
-        if (action.family !== CORE_UPGRADE_FAMILY) throw new FogError('invalid_argument', 'wrong core family');
-        if (![metadata.v8.classId, ...(ctx.reader.upgradeProfile.allowRehearsalSuccessor ? [metadata.v8Rehearsal.classId] : [])].some(id => BigInt(id) === action.classId)) throw new FogError('wrong_deployment', 'release has no reviewed artifact in this profile');
-        return contract.methods.approve_release(n, field(action.classId), field(action.family), action.releaseSeq);
-      case 'revoke_release': return contract.methods.revoke_release(n, field(action.classId));
-      case 'approve_edge_pair': return contract.methods.approve_edge_pair(n, field(action.older), field(action.newer));
-      case 'revoke_edge': return contract.methods.revoke_edge(n, field(action.from), field(action.to));
-      case 'propose': return contract.methods.propose_upgrade(n, field(action.from), field(action.to));
-      case 'execute': return contract.methods.execute_upgrade(n, field(action.from), field(action.to));
-      case 'cancel_proposal': return contract.methods.cancel_upgrade(n);
+        if (
+          !Number.isInteger(action.releaseSeq) ||
+          action.releaseSeq <= 0 ||
+          action.releaseSeq > 0xffff_ffff
+        ) {
+          throw new FogError('invalid_argument', 'releaseSeq must be a positive uint32');
+        }
+        if (action.family !== CORE_UPGRADE_FAMILY) {
+          throw new FogError('invalid_argument', 'wrong core family');
+        }
+        return contract.methods.approve_release(
+          n,
+          field(action.classId),
+          field(action.family),
+          action.releaseSeq,
+        );
+      case 'revoke_release':
+        return contract.methods.revoke_release(n, field(action.classId));
+      case 'approve_edge_pair':
+        return contract.methods.approve_edge_pair(n, field(action.older), field(action.newer));
+      case 'revoke_edge':
+        return contract.methods.revoke_edge(n, field(action.from), field(action.to));
+      case 'propose':
+        return contract.methods.propose_upgrade(n, field(action.from), field(action.to));
+      case 'execute':
+        return contract.methods.execute_upgrade(n, field(action.from), field(action.to));
+      case 'cancel_proposal':
+        return contract.methods.cancel_upgrade(n);
       case 'cancel_scheduled':
-        if (!state.scheduled.active || state.scheduled.activationAt - state.snapshot.timestamp <= 900n) throw new FogError('unsupported', 'scheduled cancellation needs more than 900 seconds of proving/inclusion margin');
+        if (!state.scheduled.active || state.scheduled.activationAt - state.snapshot.timestamp <= 900n) {
+          throw new FogError(
+            'unsupported',
+            'scheduled cancellation needs more than 900 seconds of proving/inclusion margin',
+          );
+        }
         return contract.methods.cancel_scheduled_upgrade(n);
-      case 'nominate_administrator': return contract.methods.nominate_administrator(n, action.administrator);
-      case 'accept_administrator': return contract.methods.accept_administrator(n);
+      case 'nominate_administrator':
+        return contract.methods.nominate_administrator(n, action.administrator);
+      case 'accept_administrator':
+        return contract.methods.accept_administrator(n);
     }
   }, options);
   // Receipt tracking is preserved by runTx. A readback exception must never lead to automatic resubmission.

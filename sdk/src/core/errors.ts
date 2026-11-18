@@ -40,7 +40,10 @@ export class FogError extends Error {
   }
 }
 
-/** Contract assertion messages (see main.nr / logic.nr) and the code each one maps to. */
+/**
+ * Ordered Noir contract assertion substrings (`main.nr` / `logic.nr`) mapped to stable SDK codes.
+ * Checked before generic wallet/transport heuristics so simulated contract reverts keep their exact reason.
+ */
 const CONTRACT_MESSAGES: [string, FogErrorCode][] = [
   ["generation or revision mismatch", "conflict"],
   ["not record editor", "not_holder"],
@@ -91,13 +94,12 @@ const NETWORK_PATTERNS = [
   /fetch failed/i,
   /failed to fetch/i,
   /network request failed/i,
-  /networkerror/i,
+  /network ?error/i,
   /(?:request|connection|rpc|fetch).*(?:timed?\s*out|timeout)/i,
   /load failed/i,
   /ECONNREFUSED/,
   /ECONNRESET/,
   /ETIMEDOUT/,
-  /network ?error/i,
   /socket hang up/i,
 ];
 const NETWORK_CODES = new Set(["ECONNREFUSED", "ECONNRESET", "ETIMEDOUT", "ENOTFOUND", "EAI_AGAIN", "UND_ERR_CONNECT_TIMEOUT", "UND_ERR_HEADERS_TIMEOUT", "UND_ERR_SOCKET"]);
@@ -119,7 +121,7 @@ const REJECT_PATTERNS = [
   /cancelled by user/i,
 ];
 
-/** Maps any thrown value (contract revert, transport failure, wallet rejection) to an FogError. */
+/** Maps any thrown value (contract revert, transport failure, wallet rejection) to a `FogError`. */
 export function toFogError(e: unknown): FogError {
   if (e instanceof FogError) return e;
   const message = e instanceof Error ? e.message : String(e);

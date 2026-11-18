@@ -3,6 +3,7 @@ import { SetupChecklist, ShareName } from "../NameExtras";
 const Extensions = lazy(() => import("./Extensions").then(m => ({ default: m.Extensions })));
 import { translate, renewalWindowHint } from "../i18n";
 import {
+  SECONDS_PER_YEAR,
   clearAddress,
   clearPrimary,
   formatName,
@@ -26,7 +27,8 @@ import { NameModules } from "../modules";
 import { FeeAmount, FeeBalance, useFeeBalance } from "../fees";
 import { date, errorMessage, statusText } from "../format";
 import { useSession } from "../session";
-const YEAR = 365n * 86400n;
+
+const YEAR = SECONDS_PER_YEAR;
 
 export function ManagePage({ name }: { name: string }) {
   const { ctx } = useSession();

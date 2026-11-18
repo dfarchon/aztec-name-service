@@ -14,11 +14,13 @@ import { runTx, type TxOptions } from './tx.js';
 
 async function state(ctx: FogContext, name: NameRef, access: 'owner' | 'editor' = 'owner') {
   await ctx.reader.assertCurrentClass();
-  const contract = ctx.extendedContract(),
-    h = await inspectHolding(ctx, name);
+  const contract = ctx.extendedContract();
+  const h = await inspectHolding(ctx, name);
   assertHoldingAccess(h, access);
   return { contract, ...h };
 }
+
+/** Assigns or clears (`AztecAddress.ZERO`) a delegated record editor without transferring ownership. */
 export async function setManager(
   ctx: FogContext,
   args: { name: NameRef; manager: AztecAddress },
@@ -33,15 +35,17 @@ export async function setManager(
     ),
   };
 }
-/** Recipient must accept within seven days. Pass ZERO to cancel. */
+
+/** Proposes a two-step ownership transfer; the recipient must accept within seven days. Pass `AztecAddress.ZERO` to cancel. */
 export async function offerTransfer(
   ctx: FogContext,
   args: { name: NameRef; recipient: AztecAddress },
   opts?: TxOptions,
 ) {
   const h = await state(ctx, args.name);
-  if (args.recipient.equals(ctx.account))
+  if (args.recipient.equals(ctx.account)) {
     throw new FogError('invalid_argument', 'recipient already owns this name');
+  }
   return {
     tx: await runTx(
       ctx,
@@ -55,21 +59,38 @@ export async function offerTransfer(
     ),
   };
 }
-export async function acceptTransfer(ctx: FogContext, args: { name: NameRef; acceptUnverifiedResolver?: boolean }, opts?: TxOptions) {
+
+/**
+ * Accepts a pending ownership transfer directed to `ctx.account`.
+ * Protocol V7+ resets the name's resolver to the registry default automatically; older deployments
+ * inspect the inherited resolver first and require explicit opt-in if unverified.
+ */
+export async function acceptTransfer(
+  ctx: FogContext,
+  args: { name: NameRef; acceptUnverifiedResolver?: boolean },
+  opts?: TxOptions,
+) {
   await ctx.reader.assertCurrentClass();
-  const contract = ctx.extendedContract(),
-    h = await inspectHolding(ctx, args.name);
+  const contract = ctx.extendedContract();
+  const h = await inspectHolding(ctx, args.name);
   const offer = await ctx.reader.getTransfer(h.node, h.record.generation, h.snapshot);
   if (
     h.status !== 'active' ||
     !offer.recipient.equals(ctx.account) ||
     offer.expiresAt <= h.snapshot.timestamp
-  )
+  ) {
     throw new FogError('invalid_argument', 'no active transfer offer for this account');
+  }
   const resolverReset = ctx.reader.deployment.protocolVersion >= 7;
-  const resolver = resolverReset ? undefined : await ctx.reader.inspectResolver(h.node, h.record.generation, h.snapshot);
-  if (resolver && !resolver.verified && args.acceptUnverifiedResolver !== true)
-    throw new FogError('invalid_argument', 'inherited resolver is unverified; explicitly accept the risk and reset to the default resolver after acceptance');
+  const resolver = resolverReset
+    ? undefined
+    : await ctx.reader.inspectResolver(h.node, h.record.generation, h.snapshot);
+  if (resolver && !resolver.verified && args.acceptUnverifiedResolver !== true) {
+    throw new FogError(
+      'invalid_argument',
+      'inherited resolver is unverified; explicitly accept the risk and reset to the default resolver after acceptance',
+    );
+  }
   return {
     resolverReset,
     resolver,
@@ -80,6 +101,8 @@ export async function acceptTransfer(ctx: FogContext, args: { name: NameRef; acc
     ),
   };
 }
+
+/** Issues or replaces a direct child subname bounded by the parent's active lease expiry. */
 export async function issueSubname(
   ctx: FogContext,
   args: {
@@ -91,22 +114,24 @@ export async function issueSubname(
   },
   opts?: TxOptions,
 ) {
-  const h = await state(ctx, args.parent),
-    leaf = normalizeName(args.label);
+  const h = await state(ctx, args.parent);
+  const leaf = normalizeName(args.label);
   const label = normalizeName(`${leaf.label}.${h.label.label}`, { allowSubnames: true });
-  const node = await nodeOf(label),
-    previous = await ctx.reader.getName(node, h.snapshot);
-  if (previous.generation && !args.replaceExisting)
+  const node = await nodeOf(label);
+  const previous = await ctx.reader.getName(node, h.snapshot);
+  if (previous.generation && !args.replaceExisting) {
     throw new FogError('invalid_argument', 'subname exists; explicitly allow replacement');
+  }
   if (
     args.owner.isZero() ||
     args.expiresAt <= h.snapshot.timestamp ||
     args.expiresAt > h.record.expiresAt
-  )
+  ) {
     throw new FogError(
       'invalid_argument',
       'subname expiry must be in the future and within the parent lease',
     );
+  }
   return {
     name: label.label,
     tx: await runTx(
@@ -125,12 +150,14 @@ export async function issueSubname(
     ),
   };
 }
+
+/** Revokes a direct subname from its parent owner's account. */
 export async function revokeSubname(ctx: FogContext, args: { name: string }, opts?: TxOptions) {
   const label = normalizeName(args.name, { allowSubnames: true });
   if (!label.parent) throw new FogError('invalid_argument', 'root names cannot be revoked');
-  const parent = await state(ctx, label.parent),
-    node = await nodeOf(label),
-    child = await ctx.reader.getName(node, parent.snapshot);
+  const parent = await state(ctx, label.parent);
+  const node = await nodeOf(label);
+  const child = await ctx.reader.getName(node, parent.snapshot);
   return {
     tx: await runTx(
       ctx,
@@ -144,13 +171,15 @@ export async function revokeSubname(ctx: FogContext, args: { name: string }, opt
     ),
   };
 }
+
+/** Writes or clears (`""`) a public UTF-8 profile/address record under the name's current generation. */
 export async function setTextRecord(
   ctx: FogContext,
   args: { name: NameRef; key: string; value: string },
   opts?: TxOptions,
 ) {
-  const key = encodeRecordKey(args.key),
-    value = encodeTextValue(args.value);
+  const key = encodeRecordKey(args.key);
+  const value = encodeTextValue(args.value);
   if (args.key.startsWith('address:')) validateChainAddress(args.key.slice(8), args.value);
   const h = await state(ctx, args.name, 'editor');
   return {
@@ -168,6 +197,8 @@ export async function setTextRecord(
     ),
   };
 }
+
+/** Stores or clears a CAIP-2 (`address:<namespace>:<reference>`) public address record. */
 export async function setChainAddress(
   ctx: FogContext,
   args: { name: NameRef; chain: string; address: string },
@@ -178,7 +209,7 @@ export async function setChainAddress(
     {
       name: args.name,
       key: chainAddressKey(args.chain),
-      value: validateChainAddress(args.chain, args.address),
+      value: args.address,
     },
     opts,
   );

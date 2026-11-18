@@ -90,16 +90,14 @@ export class RegistryReader {
       ]);
       if (infoResult.status === 'rejected') throw infoResult.reason;
       if (instanceResult.status === 'rejected') throw instanceResult.reason;
-      const info = infoResult.value,
-        instance = instanceResult.value;
-      let classId = registryProtocols.legacy.classId;
-      {
-        if (!instance) throw new FogError('wrong_deployment', `no contract at ${registry}`);
-        classId = instance.currentContractClassId.toString();
-        const protocol = registryProtocol(classId);
-        const original = instance.originalContractClassId?.toString();
-        if (original && registryProtocol(original).version !== protocol.version)
-          throw new FogError('wrong_deployment', 'registry implementation is incompatible with its original storage');
+      const info = infoResult.value;
+      const instance = instanceResult.value;
+      if (!instance) throw new FogError('wrong_deployment', `no contract at ${registry}`);
+      const classId = instance.currentContractClassId.toString();
+      const protocol = registryProtocol(classId);
+      const original = instance.originalContractClassId?.toString();
+      if (original && registryProtocol(original).version !== protocol.version) {
+        throw new FogError('wrong_deployment', 'registry implementation is incompatible with its original storage');
       }
       const reader = new RegistryReader(
         node,
@@ -107,7 +105,7 @@ export class RegistryReader {
           chainId: BigInt(info.l1ChainId),
           rollupVersion: BigInt(info.rollupVersion),
           registry,
-          protocolVersion: registryProtocol(classId).version,
+          protocolVersion: protocol.version,
         },
         classId,
         { allowRehearsalSuccessor: opts.allowRehearsalSuccessor },
@@ -200,6 +198,10 @@ export class RegistryReader {
     };
   }
 
+  /**
+   * Reads a name's lifecycle record at `snap`, clamping subname expiry to every ancestor's lease
+   * and zeroing `expiresAt` if any ancestor was re-registered under a newer generation.
+   */
   async getName(node: bigint, snap: Snapshot): Promise<NameRecord> {
     const record = await this.rawName(node, snap);
     if (!this.extended) return record;
