@@ -120,6 +120,13 @@ function PriceTiers({ quote }: { quote: FeeQuote }) {
 function RegistrationFunding({ free = false }: { free?: boolean }) {
   return (
     <>
+      {config.network !== 'mainnet' && (
+        <p className="muted">
+          {translate(
+            'Public testnet rollout: test registrations hold no monetary value and do not carry over to future deployments.',
+          )}
+        </p>
+      )}
       {!free && <p className="muted">
         {translate(
           'Registration uses the payment token shown here. Fee Juice does not pay this registration fee.',

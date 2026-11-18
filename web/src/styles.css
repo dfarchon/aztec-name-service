@@ -76,6 +76,9 @@ html[data-theme='light'] .card.err { border: 0; box-shadow: inset 2px 0 var(--pi
 .ok { color: var(--text); }
 .banner { padding: 16px 0; margin-top: 16px; }
 .banner button { margin: 8px; }
+.rollout-pill { font-size: 12px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; border: 1px solid var(--line); }
+.rollout-banner { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 12px; padding: 12px 16px; margin-top: 20px; background: var(--surface); border: 1px solid var(--line); border-left: 3px solid var(--accent); font-size: 14px; line-height: 1.55; color: var(--text-muted); }
+.rollout-banner strong { color: var(--text-heading); font-size: 13px; letter-spacing: .03em; text-transform: uppercase; }
 dl { display: grid; grid-template-columns: minmax(0,max-content) minmax(0,1fr); gap: 12px 24px; margin: 16px 0; font-variant-numeric: tabular-nums; }
 dt { color: var(--text-muted); } dd { margin: 0; overflow-wrap: anywhere; min-width: 0; }
 code { font: inherit; overflow-wrap: anywhere; }
