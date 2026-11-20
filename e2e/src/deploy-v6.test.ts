@@ -326,10 +326,17 @@ test('fee-juice rehearsal requires dated isolated state and explicit manifest ou
   const c = parseArgs([...testnet, ...extra, '--state-dir', dir, '--manifest-out', '/tmp/result.json']); assert.match(confirmation(c), /:fee=fee-juice$/);
   assert.throws(() => parseArgs([...testnet, '--fee-payment', 'fee-juice', '--dry-run']), /min-fee-juice/);
 });
-test('mainnet refuses before node creation; dry run only calls getNodeInfo', async () => {
+test('mainnet refuses before node creation; dry run only calls getNodeInfo', async (t) => {
   const args = ['--network', 'mainnet', '--node-url', 'https://rpc.invalid', '--registrar', 'flat', '--price-version', '1', '--state-dir', '/tmp/fog-mainnet-refusal', '--manifest-out', '/tmp/mainnet-refusal.json', '--min-fee-juice', '1'];
   let calls = 0;
-  await assert.rejects(main(args, { createNode: (() => { calls++; throw new Error('Must not create node'); }) as any, randomKeys }), /Mainnet blocked:.*settlement.l2Token/);
+  const forbidNode = (() => { calls++; throw new Error('Must not create node'); }) as any;
+  await assert.rejects(main(args, { createNode: forbidNode, randomKeys }), /Mainnet blocked:.*token-deploying flow refused/);
+  const unconfiguredDir = await mkdtemp(join(tmpdir(), 'fog-v6-mainnet-unconfigured-'));
+  t.after(() => rm(unconfiguredDir, { recursive: true, force: true }));
+  await assert.rejects(
+    main(args, { createNode: forbidNode, randomKeys, readinessRoot: new URL(`file://${unconfiguredDir}/`) }),
+    /Mainnet blocked:.*settlement.l2Token/,
+  );
   assert.equal(calls, 0);
   const methods: string[] = [];
   await main([...args, '--dry-run'], { createNode: (() => ({ getNodeInfo: async () => { methods.push('getNodeInfo'); return { nodeVersion: '6.0.0', l1ChainId: 1, rollupVersion: 2070860440, realProofs: true, l1ContractAddresses: { rollupAddress: V6_PROFILES.mainnet.rollup } }; } })) as any, randomKeys });

@@ -8,11 +8,12 @@ import { assertDeploymentConfig, deploymentConfigMismatches } from './deployment
 // macOS tmpdir() is under /var, a symlink to /private/var; path checks compare physical paths.
 const tmpdir = () => realpathSync(osTmpdir());
 
-function fixture(t) {
+function fixture(t, { unconfiguredMainnet = false } = {}) {
   const directory = mkdtempSync(join(tmpdir(), 'fog-deployment-config-'));
   const root = pathToFileURL(`${directory}/`);
   t.after(() => rmSync(directory, { recursive: true, force: true }));
   const files = [
+    ...(!unconfiguredMainnet ? ['deployments/mainnet.json'] : []),
     'deployments/mainnet.template.json',
     'deployments/reserved-labels.json',
     'ops/wrangler-mainnet.jsonc',
@@ -28,6 +29,26 @@ function fixture(t) {
   for (const file of files) {
     mkdirSync(join(directory, file, '..'), { recursive: true });
     writeFileSync(new URL(file, root), readFileSync(new URL(`../${file}`, import.meta.url)));
+  }
+  if (unconfiguredMainnet) {
+    for (const file of ['ops/wrangler-mainnet.jsonc', 'ops/wrangler-monitor-mainnet.jsonc']) {
+      const path = new URL(file, root);
+      const data = JSON.parse(
+        readFileSync(path, 'utf8')
+          .split('\n')
+          .filter((line) => !line.trimStart().startsWith('//'))
+          .join('\n'),
+      );
+      data.d1_databases[0].database_id = '00000000-0000-0000-0000-000000000000';
+      data.vars.REGISTRY = 'UNDECIDED';
+      data.vars.OPERATOR = 'UNDECIDED';
+      data.vars.OPERATOR_BALANCE_SLOT = 'UNDECIDED';
+      data.vars.OPERATOR_LOW_WATERMARK = 'UNDECIDED';
+      writeFileSync(
+        path,
+        `// PLACEHOLDER: REGISTRY, OPERATOR and D1 database_id remain undecided until contract deployment.\n${JSON.stringify(data, null, 2)}\n`,
+      );
+    }
   }
   const update = (file, edit) => {
     const path = new URL(file, root),
@@ -325,9 +346,12 @@ import { mainnetBlockers } from './mainnet-readiness.mjs';
 import { buildSite } from './build-site.mjs';
 import { deploySite } from './deploy-site.mjs';
 import { operatorSlotProblems } from './operator-slot.mjs';
-test('mainnet template validates and each undecided item has a named blocker', (t) => {
+test('mainnet template validates, live mainnet has zero blockers, and each undecided item has a named blocker', (t) => {
   assert.deepEqual(mainnetTemplateProblems(), []);
-  const blockers = mainnetBlockers();
+  assert.deepEqual(mainnetBlockers(), []);
+
+  const { root } = fixture(t, { unconfiguredMainnet: true });
+  const blockers = mainnetBlockers(root);
   for (const item of [
     'settlement.l2Token',
     'annualPriceStatus provisional',
@@ -343,7 +367,6 @@ test('mainnet template validates and each undecided item has a named blocker', (
   ])
     assert.ok(blockers.includes(item), item);
 
-  const { root } = fixture(t);
   for (const file of ['ops/wrangler-mainnet.jsonc', 'ops/wrangler-monitor-mainnet.jsonc']) {
     writeFileSync(
       new URL(file, root),
@@ -373,18 +396,19 @@ test('mainnet template validates and each undecided item has a named blocker', (
   ])
     assert.ok(undecidedBlockers.includes(item), item);
 });
-test('mainnet build and site deploy refuse before any exec spy', () => {
+test('mainnet build and site deploy refuse unconfigured root before any exec spy', (t) => {
+  const { root } = fixture(t, { unconfiguredMainnet: true });
   let calls = 0;
   const exec = () => {
     calls++;
     throw new Error('exec forbidden');
   };
   assert.throws(
-    () => buildSite(['--network', 'mainnet'], { exec }),
+    () => buildSite(['--network', 'mainnet'], { exec, root }),
     /Mainnet blocked:.*settlement.l2Token/,
   );
   assert.throws(
-    () => deploySite(['--network', 'mainnet'], { exec }),
+    () => deploySite(['--network', 'mainnet'], { exec, root }),
     /Mainnet blocked:.*admin\/multisig/,
   );
   assert.equal(calls, 0);
@@ -413,7 +437,7 @@ test('canonical templates cannot masquerade as a deployment', (t) => {
   assert.throws(() => assertV6ManifestFile(path, { canonical: true }), /sample cannot/);
 });
 test('mainnet template detects invented values, FPC, identities and missing placeholder comments', (t) => {
-  const { root, update } = fixture(t);
+  const { root, update } = fixture(t, { unconfiguredMainnet: true });
   update('deployments/mainnet.template.json', (m) => {
     m.treasury = 'invented';
     m.chainId = '2';
@@ -613,7 +637,7 @@ test('mainnet launch readiness requires exactly one year and rejects all other c
 });
 
 test('V8 mainnet template pins free launch defaults, the reserved hash and a flagged placeholder administrator', (t) => {
-  const { root, update } = fixture(t);
+  const { root, update } = fixture(t, { unconfiguredMainnet: true });
   assert.deepEqual(mainnetTemplateProblems(root), []);
   const template = JSON.parse(
     readFileSync(new URL('deployments/mainnet.template.json', root), 'utf8'),
@@ -920,7 +944,7 @@ test('buildSite strips VITE_ALLOW_V8_REHEARSAL_SUCCESSOR from inherited environm
 });
 
 test('template and readiness require reserved minLength to equal deployment minPublicLength', (t) => {
-  const { root, update } = fixture(t);
+  const { root, update } = fixture(t, { unconfiguredMainnet: true });
   const template = JSON.parse(
     readFileSync(new URL('deployments/mainnet.template.json', root), 'utf8'),
   );
