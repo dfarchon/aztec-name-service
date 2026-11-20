@@ -52,6 +52,7 @@ test('build rejects eager execution artifacts in workspace and installed SDKs', 
   for (const path of [
     '/sdk/src/artifacts/Registry.js',
     '/node_modules/@fog/sdk/dist/artifacts/Registry.js',
+    '/node_modules/fog-sdk/dist/artifacts/Registry.js',
   ])
     await assert.rejects(
       bundle('import {artifact} from "artifact"; window.execution = artifact;', path),

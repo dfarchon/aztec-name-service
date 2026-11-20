@@ -122,8 +122,8 @@ test('holder can reset an unverified resolver; only the target binding is checke
 test('V7 wallet selection uses its exact artifact and refuses the legacy one-step admin API', async () => {
   const f = await fixture();
   const ctx = new FogContext(f.reader, { wallet: {} as any, account: f.owner });
-  assert.equal(ctx.contract().artifact, NameRegistryV7Contract.artifact);
-  assert.equal(ctx.extendedContract().artifact, NameRegistryV7Contract.artifact);
+  assert.equal((await ctx.contract()).artifact, NameRegistryV7Contract.artifact);
+  assert.equal((await ctx.extendedContract()).artifact, NameRegistryV7Contract.artifact);
   f.reader.getAdministrator = async () => f.owner;
   await assert.rejects(setAdministrator(ctx, f.recipient), (e: any) => e.code === 'unsupported');
 });

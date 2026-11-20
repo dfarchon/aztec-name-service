@@ -1,14 +1,14 @@
 import { translate } from "./i18n";
 import { useEffect, useState } from "react";
 import { AztecAddress } from "@aztec-labs/aztec.js/addresses";
-import { readFeeTokenMetadata, type RegistryReader } from "@fog/sdk/read";
-import type { FogContext } from "@fog/sdk";
+import { readFeeTokenMetadata, type RegistryReader } from "fog-sdk/read";
+import type { FogContext } from "fog-sdk";
 import { useSession } from "./session";
 import { formatUnits } from "./usability";
 
 /** Balance stays in memory and is read only through the selected account's wallet. */
 export async function readFeeBalance(ctx: FogContext, token: string): Promise<bigint> {
-  const { getPrivateFeeBalance } = await import("@fog/sdk");
+  const { getPrivateFeeBalance } = await import("fog-sdk");
   return getPrivateFeeBalance(ctx, AztecAddress.fromStringUnsafe(token));
 }
 

@@ -3,21 +3,8 @@ import type { ContractArtifact } from '@aztec-labs/aztec.js/abi';
 import type { InteractionFeeOptions } from '@aztec-labs/aztec.js/contracts';
 import type { Wallet } from '@aztec-labs/aztec.js/wallet';
 
-import { NameRegistryContract } from '../artifacts/NameRegistry.js';
-import { NameRegistryV8Contract } from '../artifacts/NameRegistryV8.js';
-import { NameRegistryV8RehearsalContract } from '../artifacts/NameRegistryV8Rehearsal.js';
 import { isV8Class, assertUpgradeInclusionMargin } from '../client/core-upgrade.js';
 import { BlockNumber } from '@aztec-labs/aztec.js/fields';
-import { NameRegistryV7Contract } from '../artifacts/NameRegistryV7.js';
-import { NameRegistryV6Contract } from '../artifacts/NameRegistryV6.js';
-import { NameRegistryV5Contract } from '../artifacts/NameRegistryV5.js';
-import { NameRegistryV4Contract } from '../artifacts/NameRegistryV4.js';
-import { NameRegistryV3Contract } from '../artifacts/NameRegistryV3.js';
-import { NameRegistrarContract } from '../artifacts/NameRegistrar.js';
-import { NameRegistrarLaunchContract } from '../artifacts/NameRegistrarLaunch.js';
-import { NameRegistrarTieredContract } from '../artifacts/NameRegistrarTiered.js';
-import { NameResolverContract } from '../artifacts/NameResolver.js';
-import { RegistryUpgradeTestContract } from '../artifacts/RegistryUpgradeTest.js';
 import { registryProtocols } from '../core/registry-protocol.js';
 import type { Snapshot } from '../core/types.js';
 import type { RegistryReader } from '../client/reader.js';
@@ -25,6 +12,18 @@ import { FogError } from '../core/errors.js';
 import { ExecutionQueue } from './queue.js';
 import { FEE_TOKEN_CLASS_ID } from '../client/fee-token.js';
 import { assertWalletNetwork } from './network.js';
+import {
+  type ExtendedRegistryContract,
+  type LegacyRegistryContract,
+  type ModuleContract,
+  type RegistryContract,
+  extendedRegistryContract,
+  legacyRegistryContract,
+  moduleArtifact,
+  moduleContract,
+  registryContract,
+  registryWalletArtifact,
+} from './bindings.js';
 
 /** An existing wallet plus the account acting in it. The SDK never receives keys. */
 export type FogSigner = {
@@ -37,17 +36,6 @@ export type FogSigner = {
 };
 
 const queues = new WeakMap<Wallet, ExecutionQueue>();
-const registryArtifacts = new Map<string, ContractArtifact>([
-  [registryProtocols.legacy.classId, NameRegistryContract.artifact],
-  [registryProtocols.modular.classId, NameRegistryV3Contract.artifact],
-  [registryProtocols.upgraded.classId, RegistryUpgradeTestContract.artifact],
-  [registryProtocols.extended.classId, NameRegistryV4Contract.artifact],
-  [registryProtocols.current.classId, NameRegistryV5Contract.artifact],
-  [registryProtocols.v6.classId, NameRegistryV6Contract.artifact],
-  [registryProtocols.v7.classId, NameRegistryV7Contract.artifact],
-  [registryProtocols.v8.classId, NameRegistryV8Contract.artifact],
-  [registryProtocols.v8Rehearsal.classId, NameRegistryV8RehearsalContract.artifact],
-]);
 
 /** Reader + signer. Write operations and wallet-local utilities go through here. */
 export class FogContext {
@@ -91,25 +79,13 @@ export class FogContext {
     return new FogContext(this.reader, { ...this.signer, account, fee });
   }
 
-  extendedContract() {
-    if (!this.reader.extended) {
-      throw new FogError('invalid_argument', 'this feature requires registry V4');
-    }
-    const { registry, classId } = this.reader;
-    if (classId === registryProtocols.v8.classId) return NameRegistryV8Contract.at(registry, this.wallet);
-    if (classId === registryProtocols.v8Rehearsal.classId) return NameRegistryV8RehearsalContract.at(registry, this.wallet);
-    if (classId === registryProtocols.v7.classId) return NameRegistryV7Contract.at(registry, this.wallet);
-    if (classId === registryProtocols.v6.classId) return NameRegistryV6Contract.at(registry, this.wallet);
-    return classId === registryProtocols.current.classId
-      ? NameRegistryV5Contract.at(registry, this.wallet)
-      : NameRegistryV4Contract.at(registry, this.wallet);
+  /** Typed binding for this registry's exact class. Loads only that class's artifact. */
+  extendedContract(): Promise<ExtendedRegistryContract> {
+    return extendedRegistryContract(this.reader.classId, this.reader.registry, this.wallet);
   }
 
-  contract() {
-    if (this.reader.extended) return this.extendedContract();
-    return this.reader.modular
-      ? NameRegistryV3Contract.at(this.reader.registry, this.wallet)
-      : NameRegistryContract.at(this.reader.registry, this.wallet);
+  contract(): Promise<RegistryContract> {
+    return registryContract(this.reader.classId, this.reader.registry, this.wallet);
   }
 
   async registrationContract(expected?: string) {
@@ -117,34 +93,31 @@ export class FogContext {
   }
 
   async registrationTarget(expected?: string): Promise<
-    | { kind: 'registry'; contract: NameRegistryContract }
-    | { kind: 'registrar'; contract: NameRegistrarContract }
-    | { kind: 'registrarTiered'; contract: NameRegistrarTieredContract }
-    | { kind: 'registrarLaunch'; contract: NameRegistrarLaunchContract }
+    | { kind: 'registry'; contract: LegacyRegistryContract }
+    | { kind: 'registrar'; contract: ModuleContract<'registrar'> }
+    | { kind: 'registrarTiered'; contract: ModuleContract<'registrarTiered'> }
+    | { kind: 'registrarLaunch'; contract: ModuleContract<'registrarLaunch'> }
   > {
     if (!this.reader.modular)
-      return { kind: 'registry', contract: NameRegistryContract.at(this.reader.registry, this.wallet) };
+      return { kind: 'registry', contract: await legacyRegistryContract(this.reader.registry, this.wallet) };
     const config = await this.reader.getConfig();
     const address = config.registrar!;
     if (expected && address.toString() !== expected)
       throw new FogError('fee_changed', 'registrar changed; prepare a new registration plan');
-    if (config.launch) {
-      await this.registerArtifact(address, NameRegistrarLaunchContract.artifact);
-      return { kind: 'registrarLaunch', contract: NameRegistrarLaunchContract.at(address, this.wallet) };
-    }
-    if (config.lengthPrices) {
-      await this.registerArtifact(address, NameRegistrarTieredContract.artifact);
-      return { kind: 'registrarTiered', contract: NameRegistrarTieredContract.at(address, this.wallet) };
-    }
-    await this.registerArtifact(address, NameRegistrarContract.artifact);
-    return { kind: 'registrar', contract: NameRegistrarContract.at(address, this.wallet) };
+    const kind = config.launch ? 'registrarLaunch' : config.lengthPrices ? 'registrarTiered' : 'registrar';
+    await this.registerArtifact(address, await moduleArtifact(kind));
+    // Narrowing a generic kind is not expressible; each branch above pairs the kind with its binding.
+    return { kind, contract: await moduleContract(kind, address, this.wallet) } as
+      | { kind: 'registrar'; contract: ModuleContract<'registrar'> }
+      | { kind: 'registrarTiered'; contract: ModuleContract<'registrarTiered'> }
+      | { kind: 'registrarLaunch'; contract: ModuleContract<'registrarLaunch'> };
   }
 
   async addressContract(node: bigint, generation: number, snapshot?: Snapshot) {
-    if (!this.reader.modular) return NameRegistryContract.at(this.reader.registry, this.wallet);
+    if (!this.reader.modular) return legacyRegistryContract(this.reader.registry, this.wallet);
     const address = await this.reader.getResolver(node, generation, snapshot);
-    await this.registerArtifact(address, NameResolverContract.artifact);
-    return NameResolverContract.at(address, this.wallet);
+    await this.registerArtifact(address, await moduleArtifact('resolver'));
+    return moduleContract('resolver', address, this.wallet);
   }
 
   private async registerArtifact(address: AztecAddress, artifact: ContractArtifact) {
@@ -174,9 +147,7 @@ export class FogContext {
     const classId = this.reader.modular
       ? await this.reader.assertCurrentClass()
       : registryProtocols.legacy.classId;
-    const artifact = registryArtifacts.get(classId);
-    if (!artifact)
-      throw new FogError('wrong_deployment', 'registry class has no supported wallet artifact');
+    const artifact = await registryWalletArtifact(classId);
     if (isV8Class(classId)) {
       const state = await this.reader.getCoreUpgradeState();
       assertUpgradeInclusionMargin(state);
@@ -191,11 +162,8 @@ export class FogContext {
       const modules = await this.reader.getModules(snap);
       const registrar = await this.reader.assertModule(modules.registrar, 'registrar', snap);
       await this.reader.assertModule(modules.resolver, 'resolver', snap);
-      await this.registerArtifact(
-        modules.registrar,
-        registrar === 'registrarLaunch' ? NameRegistrarLaunchContract.artifact : registrar === 'registrarTiered' ? NameRegistrarTieredContract.artifact : NameRegistrarContract.artifact,
-      );
-      await this.registerArtifact(modules.resolver, NameResolverContract.artifact);
+      await this.registerArtifact(modules.registrar, await moduleArtifact(registrar));
+      await this.registerArtifact(modules.resolver, await moduleArtifact('resolver'));
     }
     if (opts.feeToken) await this.registerArtifact(opts.feeToken.address, opts.feeToken.artifact);
   }

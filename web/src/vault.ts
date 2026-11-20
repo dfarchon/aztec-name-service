@@ -1,4 +1,4 @@
-import { parseWithBigInt, stringifyWithBigInt } from "@fog/sdk/read";
+import { parseWithBigInt, stringifyWithBigInt } from "fog-sdk/read";
 
 /**
  * Local secrets for one browser profile. A passphrase is stretched once per unlock (PBKDF2-SHA256); the result keys

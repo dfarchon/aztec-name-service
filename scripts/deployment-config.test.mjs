@@ -1,10 +1,12 @@
 import assert from 'node:assert/strict';
-import { mkdtempSync, mkdirSync, readFileSync, writeFileSync, rmSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { mkdtempSync, mkdirSync, readFileSync, realpathSync, writeFileSync, rmSync } from 'node:fs';
+import { tmpdir as osTmpdir } from 'node:os';
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { test } from 'node:test';
 import { assertDeploymentConfig, deploymentConfigMismatches } from './deployment-config.mjs';
+// macOS tmpdir() is under /var, a symlink to /private/var; path checks compare physical paths.
+const tmpdir = () => realpathSync(osTmpdir());
 
 function fixture(t) {
   const directory = mkdtempSync(join(tmpdir(), 'fog-deployment-config-'));

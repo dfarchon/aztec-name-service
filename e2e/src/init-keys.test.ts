@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { promises as fs } from 'node:fs';
 import { createHash } from 'node:crypto';
-import { tmpdir } from 'node:os';
+import { tmpdir } from './test-tmpdir.js';
 import { join } from 'node:path';
 import { Fr, Fq } from '@aztec-labs/aztec.js/fields';
 import { initKeys, readKeys, readPublicKeys, validateKeys, type KeysFile, type InitConfig } from './init-keys.js';

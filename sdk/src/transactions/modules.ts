@@ -1,8 +1,8 @@
 import { AztecAddress } from '@aztec-labs/aztec.js/addresses';
-import { NameRegistryV5Contract } from '../artifacts/NameRegistryV5.js';
+import type { NameRegistryV5Contract } from '../artifacts/NameRegistryV5.js';
 import { FogError } from '../core/errors.js';
 import { normalizeName } from '../core/label.js';
-import { registryProtocols } from '../core/registry-protocol.js';
+import { registryProtocol } from '../core/registry-protocol.js';
 import type { FogContext } from '../wallet/context.js';
 import { assertHoldingAccess, inspectHolding, type NameRef } from './holding.js';
 import { runTx, type TxOptions } from './tx.js';
@@ -11,7 +11,7 @@ async function core(ctx: FogContext) {
   if (!ctx.reader.modular) {
     throw new FogError('invalid_argument', 'this registry does not support contract modules');
   }
-  return ctx.contract() as {
+  return (await ctx.contract()) as {
     methods: Pick<NameRegistryV5Contract['methods'], 'migrate' | 'set_resolver'>;
   };
 }
@@ -77,7 +77,7 @@ export async function configureModules(
     ctx.reader.assertModule(args.registrar, 'registrar', snapshot),
     ctx.reader.assertModule(args.resolver, 'resolver', snapshot),
   ]);
-  const contract = ctx.extendedContract() as {
+  const contract = (await ctx.extendedContract()) as {
     methods: Pick<NameRegistryV5Contract['methods'], 'configure_modules'>;
   };
   return {
@@ -99,19 +99,14 @@ export async function setAdministrator(
     throw new FogError('invalid_argument', 'administrator must not be zero');
   }
   await configurationSnapshot(ctx);
-  if (
-    [
-      registryProtocols.v6.classId,
-      registryProtocols.v7.classId,
-      registryProtocols.v8.classId,
-      registryProtocols.v8Rehearsal.classId,
-    ].includes(ctx.reader.classId)
-  ) {
+  if (registryProtocol(ctx.reader.classId).version >= 6) {
     throw new FogError(
       'unsupported',
       'V6/V7/V8 administration requires nomination and acceptance via the matching bindings',
     );
   }
-  const contract = NameRegistryV5Contract.at(ctx.reader.registry, ctx.wallet);
+  const contract = (await ctx.contract()) as {
+    methods: Pick<NameRegistryV5Contract['methods'], 'set_administrator'>;
+  };
   return { tx: await runTx(ctx, contract.methods.set_administrator(administrator), opts) };
 }

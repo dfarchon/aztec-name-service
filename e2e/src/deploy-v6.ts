@@ -5,7 +5,9 @@ import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createRequire } from 'node:module';
 import { getSchnorrInitializerlessAccountContractAddress } from '@aztec-labs/accounts/schnorr';
-import { RegistryReader, NameRegistrarLaunchContract, NameRegistrarContract, NameRegistrarTieredContract, NameResolverContract, readFeeTokenMetadata, trackTx } from '@fog/sdk';
+import { RegistryReader, readFeeTokenMetadata, trackTx } from 'fog-sdk';
+import { NameRegistrarLaunchContract, NameRegistrarContract, NameRegistrarTieredContract, NameResolverContract } from 'fog-sdk/contracts';
+import { NameRegistryV8Contract } from '../../sdk/src/artifacts/NameRegistryV8.js';
 import { NameRegistryV7Contract } from '../../sdk/src/artifacts/NameRegistryV7.js';
 import { NameRegistryV6Contract } from '../../sdk/src/artifacts/NameRegistryV6.js';
 import baseline from '../../sdk/test/fixtures/classids-6.0.0.json' with { type: 'json' };
@@ -30,6 +32,7 @@ import { V6_PROFILES, assertV6Fpc, assertV6FeeJuice, assertV6Network, dryRunNode
 import { REPO, ZERO, DEPLOY_STEPS, deploymentSteps, deploymentTransactionSteps, assertPrivateDir, buildManifest, configHash, deploymentPlan, makePolicy, parseOptions, finalizeConfig, parseInitKeysArgs, within, type Config, type Policy } from './deploy-v6-plan.js';
 import { loadReservedList, reservedNodes, reservedBatches, verifyReservations } from './launch-policy.js';
 import { initKeys, readKeys, readPublicKeys, type KeysFile, type PublicKeys } from './init-keys.js';
+import { assertV8DeploymentOwner, v8BoundDeployment } from './v8-deployment.js';
 const { assertMainnetReady, mainnetBlockers } = createRequire(import.meta.url)('../../scripts/mainnet-readiness.mjs');
 const { v6ManifestProblems } = createRequire(import.meta.url)('../../scripts/deployment-config.mjs');
 export type V6State = {
@@ -55,10 +58,12 @@ export async function atomicJson(path: string, value: unknown, mode = 0o600) {
   await writeFile(`${path}.tmp`, JSON.stringify(value, null, 2) + '\n', { mode });
   await chmod(`${path}.tmp`, mode); await rename(`${path}.tmp`, path);
 }
-export async function v6Artifacts(token: Config['token'], registrar: Config['registrar'], registryVersion: 6 | 7 = 6) {
+export async function v6Artifacts(token: Config['token'], registrar: Config['registrar'], registryVersion: 6 | 7 | 8 = 6) {
   const tokenArtifact = token !== 'repo' ? TokenContractArtifact : loadContractArtifact(JSON.parse(await readFile(join(REPO, 'contracts/target/test_token-Token.json'), 'utf8')));
-  const artifacts = { token: tokenArtifact, registry: registryVersion === 7 ? NameRegistryV7Contract.artifact : NameRegistryV6Contract.artifact, resolver: NameResolverContract.artifact, registrar: registrar === 'launch' ? NameRegistrarLaunchContract.artifact : registrar === 'flat' ? NameRegistrarContract.artifact : NameRegistrarTieredContract.artifact };
-  const expected = { token: token !== 'repo' ? metadata.tokenClassId : baseline.classIds.testToken, registry: registryVersion === 7 ? baseline.classIds.v7 : baseline.classIds.v6, resolver: baseline.classIds.resolver, registrar: registrar === 'launch' ? baseline.classIds.registrarLaunch : registrar === 'flat' ? baseline.classIds.registrar : baseline.classIds.registrarTiered };
+  const registryArtifact = registryVersion === 8 ? NameRegistryV8Contract.artifact : registryVersion === 7 ? NameRegistryV7Contract.artifact : NameRegistryV6Contract.artifact;
+  const expectedRegistry = registryVersion === 8 ? baseline.classIds.v8 : registryVersion === 7 ? baseline.classIds.v7 : baseline.classIds.v6;
+  const artifacts = { token: tokenArtifact, registry: registryArtifact, resolver: NameResolverContract.artifact, registrar: registrar === 'launch' ? NameRegistrarLaunchContract.artifact : registrar === 'flat' ? NameRegistrarContract.artifact : NameRegistrarTieredContract.artifact };
+  const expected = { token: token !== 'repo' ? metadata.tokenClassId : baseline.classIds.testToken, registry: expectedRegistry, resolver: baseline.classIds.resolver, registrar: registrar === 'launch' ? baseline.classIds.registrarLaunch : registrar === 'flat' ? baseline.classIds.registrar : baseline.classIds.registrarTiered };
   const classIds: Record<string, string> = {};
   for (const key of Object.keys(artifacts) as (keyof typeof artifacts)[]) {
     classIds[key] = (await getContractClassFromArtifact(artifacts[key])).id.toString();
@@ -68,14 +73,16 @@ export async function v6Artifacts(token: Config['token'], registrar: Config['reg
   return { artifacts, classIds };
 }
 export async function instances(artifacts: Record<string, ContractArtifact>, p: Policy, owner: AztecAddress, salts: Record<string, string>) {
-  const make = (key: string, args: unknown[]) => getContractInstanceFromInstantiationParams(artifacts[key], { constructorArgs: args, salt: Fr.fromString(salts[key]), deployer: owner });
+  const isV8 = artifacts.registry.name === 'NameRegistryV8';
+  const registryArgs = isV8 ? [AztecAddress.ZERO, Fr.fromString(baseline.classIds.v8)] : [AztecAddress.ZERO];
+  const make = (key: string, args: unknown[]) => getContractInstanceFromInstantiationParams(artifacts[key], { constructorArgs: args, salt: Fr.fromString(salts[key]), ...(key === 'registry' && isV8 && !owner.isZero() ? v8BoundDeployment(owner) : { deployer: owner }) });
   const tokenInstance = await make('token', [owner, p.tokenName, p.tokenSymbol, p.decimals]);
   const token = p.token==='none' ? {...tokenInstance,address:AztecAddress.ZERO} : tokenInstance;
-  const registry = await make('registry', [AztecAddress.ZERO]);
+  const registry = await make('registry', registryArgs);
   const resolver = await make('resolver', [registry.address]);
   const args = [registry.address, token.address, AztecAddress.fromStringUnsafe(p.treasury), BigInt(p.annualPrice), ...(p.lengthPrices ? [BigInt(p.lengthPrices['3']), BigInt(p.lengthPrices['4'])] : []), p.priceVersion, ...(p.registrar==='launch'?[p.minPublicLength,p.initialPaused,BigInt(p.maxRenewAhead??'0')]:[])];
   const registrar = await make('registrar', args);
-  return { values: { token, registry, resolver, registrar }, args: { token: [owner, p.tokenName, p.tokenSymbol, p.decimals], registry: [AztecAddress.ZERO], resolver: [registry.address], registrar: args } };
+  return { values: { token, registry, resolver, registrar }, args: { token: [owner, p.tokenName, p.tokenSymbol, p.decimals], registry: registryArgs, resolver: [registry.address], registrar: args } };
 }
 /** Only this public projection can enter deterministic dry-run address construction. */
 export async function keyedAddresses(artifacts: Record<string, ContractArtifact>, p: Policy, keys: PublicKeys) {
@@ -267,11 +274,15 @@ export async function main(argv = process.argv.slice(2), dependencies = { create
       };
       for (const key of ['token', 'registry', 'resolver', 'registrar'] as const) {
         if(key==='token' && c.token==='none') continue;
-        const deploy = Contract.deploy(wallet, artifacts[key], prepared.args[key], undefined, { salt: Fr.fromString(state.salts[key]), deployer: owner });
+        const deploy = Contract.deploy(wallet, artifacts[key], prepared.args[key], undefined, { salt: Fr.fromString(state.salts[key]), ...(key === 'registry' && c.registryVersion === 8 ? v8BoundDeployment(owner) : { deployer: owner }) });
         await step(`deploy-${key}`, () => deploy.send({ from: owner, fee: fee(), wait: NO_WAIT }));
         await wallet.registerContract(prepared.values[key], artifacts[key]);
       }
-      const core = (c.registryVersion === 7 ? NameRegistryV7Contract : NameRegistryV6Contract).at(prepared.values.registry.address, wallet);
+      if (c.registryVersion === 8) {
+        const regCheck = await RegistryReader.connect(node, prepared.values.registry.address);
+        assertV8DeploymentOwner(owner, prepared.values.registry.deployer, await regCheck.getAdministrator());
+      }
+      const core = (c.registryVersion === 8 ? NameRegistryV8Contract : c.registryVersion === 7 ? NameRegistryV7Contract : NameRegistryV6Contract).at(prepared.values.registry.address, wallet);
       if(p.registrar==='launch') {
         const nodes=await reservedNodes(p.reservedLabels??[]),batches=reservedBatches(nodes);
         for(const [i,batch] of batches.entries()) await step(`seed-reserved-${i}`,()=>launch.methods.set_reserved(batch,true).send({from:owner,fee:fee(),wait:NO_WAIT}));

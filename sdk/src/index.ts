@@ -1,9 +1,4 @@
-export { NameRegistrarLaunchContract } from './artifacts/NameRegistrarLaunch.js';
-export { NameRegistrarContract } from './artifacts/NameRegistrar.js';
-export { NameRegistrarTieredContract } from './artifacts/NameRegistrarTiered.js';
-export { NameResolverContract } from './artifacts/NameResolver.js';
 export * from './transactions/modules.js';
-export { NameRegistryContract } from './artifacts/NameRegistry.js';
 
 export * from './core/constants.js';
 export * from './core/errors.js';
@@ -40,7 +35,6 @@ export * from './indexer/events.js';
 export * from './core/records.js';
 export * from './transactions/extensions.js';
 
-export { NameRegistryV5Contract } from './artifacts/NameRegistryV5.js';
 
 export * from './client/core-upgrade.js';
 export * from './transactions/core-upgrade.js';

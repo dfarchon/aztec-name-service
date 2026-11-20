@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { chmod, mkdir, mkdtemp, readFile, readdir, rm, stat, symlink, writeFile } from 'node:fs/promises';
-import { tmpdir } from 'node:os';
+import { tmpdir } from './test-tmpdir.js';
 import { join, relative } from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { AztecAddress } from '@aztec-labs/aztec.js/addresses';

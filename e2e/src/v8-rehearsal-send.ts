@@ -41,8 +41,6 @@ import { EmbeddedWallet } from '@aztec-labs/wallets/embedded';
 import {
   FogContext,
   CORE_UPGRADE_FAMILY,
-  NameRegistrarLaunchContract,
-  NameResolverContract,
   RegistryReader,
   acceptTransfer,
   administerCoreUpgrade,
@@ -67,8 +65,9 @@ import {
   trackTx,
   waitUntilRegistrable,
   type CoreUpgradeAction,
-} from '@fog/sdk';
-import { NameRegistryV8Contract, NameRegistryV8RehearsalContract } from '@fog/sdk/contracts/v8';
+} from 'fog-sdk';
+import { NameRegistrarLaunchContract, NameResolverContract } from 'fog-sdk/contracts';
+import { NameRegistryV8Contract, NameRegistryV8RehearsalContract } from 'fog-sdk/contracts/v8';
 import metadata from '../../sdk/src/artifacts/modular-metadata.json' with { type: 'json' };
 import reservations from '../../deployments/reserved-labels.json' with { type: 'json' };
 import { assertV8DeploymentOwner, v8BoundDeployment } from './v8-deployment.js';
@@ -745,30 +744,36 @@ export async function sendV8Rehearsal(
         fee: fee ? { paymentMethod: fee } : undefined,
       });
 
-    for (let len = 1; len <= 6; len++) {
-      await assert.rejects(() =>
-        prepareRegistration(makeCtx('B'), { name: 'a'.repeat(len), duration: YEAR }),
+    if (!state.l2Done.includes('commit-seven77')) {
+      for (let len = 1; len <= 6; len++) {
+        await assert.rejects(() =>
+          prepareRegistration(makeCtx('B'), { name: 'a'.repeat(len), duration: YEAR }),
+        );
+      }
+      for (const sec of [60n, 120n, 180n, 240n]) {
+        await assert.rejects(() =>
+          prepareRegistration(makeCtx('B'), {
+            name: 'quote-margin',
+            duration: YEAR,
+            quoteValiditySeconds: sec,
+          }),
+        );
+      }
+      const beforeQuote = (await reader.snapshot()).timestamp;
+      const valid300Plan = await prepareRegistration(makeCtx('B'), {
+        name: 'seven77',
+        duration: YEAR,
+        quoteValiditySeconds: 300n,
+      });
+      assert(
+        valid300Plan.quoteExpiry - beforeQuote >= 300n,
+        '300s quote validity margin must hold against preparation snapshot',
+      );
+      assert.equal(
+        (await getFeeQuote(reader, { operation: 'register', duration: YEAR, labelLength: 12 })).fee,
+        0n,
       );
     }
-    for (const sec of [60n, 120n, 180n, 240n]) {
-      await assert.rejects(() =>
-        prepareRegistration(makeCtx('B'), {
-          name: 'quote-margin',
-          duration: YEAR,
-          quoteValiditySeconds: sec,
-        }),
-      );
-    }
-    const valid300Plan = await prepareRegistration(makeCtx('B'), {
-      name: 'seven77',
-      duration: YEAR,
-      quoteValiditySeconds: 300n,
-    });
-    assert(valid300Plan.quoteExpiry - (await reader.snapshot()).timestamp >= 300n);
-    assert.equal(
-      (await getFeeQuote(reader, { operation: 'register', duration: YEAR, labelLength: 12 })).fee,
-      0n,
-    );
 
     const registerName = async (key: string, name: string, role: V8ActorRole) => {
       if (!state.plans[key]) {

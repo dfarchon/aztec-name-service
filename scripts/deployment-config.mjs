@@ -250,7 +250,7 @@ export function v6ManifestProblems(m, { expectNetwork } = {}) {
   if (m.network === 'local')
     check(m.chainId === '31337' && m.realProofs === false, 'v6 local identity');
   if (expectNetwork === 'testnet-v6' || m.network === 'testnet-v6') {
-    check(m.protocol === 6, 'testnet requires protocol 6');
+    check([6, 8].includes(m.protocol), 'testnet requires protocol 6 or 8');
     check(m.nodeUrl === 'https://aztec-testnet.drpc.org', 'v6 testnet nodeUrl');
     for (const key of ['chainId', 'rollupVersion', 'rollup', 'sponsoredFpc', 'realProofs'])
       check(

@@ -125,11 +125,11 @@ export const articles: Article[] = [
     body: [
       'Use Node 24.12 or newer. Download and extract the starter below; it includes the SDK package, example code and public testnet configuration. The SDK is distributed as a versioned download and is not published on public npm.',
       'Keep the Aztec 6.0.0 dependency versions and overrides in the application’s root package.json. Overrides from the SDK package do not apply to your application. Audit the installed dependencies after integration.',
-      'Names display as alice.fog, but the SDK, contracts and routes use the bare label alice. Strip the suffix from user input with normalizeName(input, { suffix: NAME_SUFFIX }) and show names with formatName(label). Import public read APIs from @fog/sdk/read; no wallet connection or proving runtime is required. Keep wallet execution imports behind user actions. resolveAddress returns the address and the block snapshot used for the read. Pass that snapshot to resolvePrimary to verify both directions at the same block.',
+      'Names display as alice.fog, but the SDK, contracts and routes use the bare label alice. Strip the suffix from user input with normalizeName(input, { suffix: NAME_SUFFIX }) and show names with formatName(label). Import public read APIs from fog-sdk/read; no wallet connection or proving runtime is required. Keep wallet execution imports behind user actions. resolveAddress returns the address and the block snapshot used for the read. Pass that snapshot to resolvePrimary to verify both directions at the same block.',
     ],
     code: `import { createAztecNodeClient } from '@aztec-labs/aztec.js/node';
 import { AztecAddress } from '@aztec-labs/aztec.js/addresses';
-import { RegistryReader, resolveAddress, resolvePrimary } from '@fog/sdk/read';
+import { RegistryReader, resolveAddress, resolvePrimary } from 'fog-sdk/read';
 
 const reader = await RegistryReader.connect(
   createAztecNodeClient('${deployment.nodeUrl}', { maxBatchSize: 3 }),
@@ -283,7 +283,7 @@ export function sectionsFor(article: Article): DocSection[] {
       blocks: [
         {
           type: 'paragraph',
-          text: 'Before preparing a plan or sending commit, the quote needs at least 300 chain seconds remaining: 60 minimum commit age, 60 reveal margin and 180 proving, inclusion and checkpoint slack. COMMIT_QUOTE_MARGIN is 300n and REVEAL_MARGIN is 60n; insufficient lifetime returns quote_expired before wallet submission. Read config.launch and eligibility(name, snapshot) through @fog/sdk/read. Results are open, too_short, reserved or paused. The SDK rechecks before commit and reveal, and rejects non-year leases. A free quote creates no token AuthWit and reads no token balance. Public policy reads reserve nothing; encrypted recovery stores secrets and transaction hashes, while ownership and policy remain chain state. Unknown RPC or wallet errors never clear a saved transaction hash.',
+          text: 'Before preparing a plan or sending commit, the quote needs at least 300 chain seconds remaining: 60 minimum commit age, 60 reveal margin and 180 proving, inclusion and checkpoint slack. COMMIT_QUOTE_MARGIN is 300n and REVEAL_MARGIN is 60n; insufficient lifetime returns quote_expired before wallet submission. Read config.launch and eligibility(name, snapshot) through fog-sdk/read. Results are open, too_short, reserved or paused. The SDK rechecks before commit and reveal, and rejects non-year leases. A free quote creates no token AuthWit and reads no token balance. Public policy reads reserve nothing; encrypted recovery stores secrets and transaction hashes, while ownership and policy remain chain state. Unknown RPC or wallet errors never clear a saved transaction hash.',
         },
         {
           type: 'code',
@@ -451,7 +451,7 @@ export function sectionsFor(article: Article): DocSection[] {
   if (article.id === 'sdk') {
     sections[2].blocks.push({
       type: 'paragraph',
-      text: 'For repeated primary-name display, import Resolver from @fog/sdk/read. The memory cache deduplicates concurrent queries and checks cached block hashes for reorgs. Its default TTL is 30 seconds, capped by the name’s expiry. Invalidate it when switching accounts or deployments; payment checks use fresh chain reads. Owned-name pagination cursors include the chain and rollup version. Restart discovery without a cursor if an older saved cursor lacks that identity.',
+      text: 'For repeated primary-name display, import Resolver from fog-sdk/read. The memory cache deduplicates concurrent queries and checks cached block hashes for reorgs. Its default TTL is 30 seconds, capped by the name’s expiry. Invalidate it when switching accounts or deployments; payment checks use fresh chain reads. Owned-name pagination cursors include the chain and rollup version. Restart discovery without a cursor if an older saved cursor lacks that identity.',
     });
     sections[0].blocks.push({
       type: 'table',
@@ -489,7 +489,7 @@ export function sectionsFor(article: Article): DocSection[] {
       },
       {
         type: 'paragraph',
-        text: 'The initial browser page imports @fog/sdk/read. Wallet discovery and registration load on user actions. The shared bundle-budget.ts build check limits initial JavaScript to 400 kB gzip and rejects eagerly loaded Fog execution artifacts; the build writes its measurements to bundle-budget.json.',
+        text: 'The initial browser page imports fog-sdk/read. Wallet discovery and registration load on user actions. The shared bundle-budget.ts build check limits initial JavaScript to 400 kB gzip and rejects eagerly loaded Fog execution artifacts; the build writes its measurements to bundle-budget.json.',
       },
     );
     sections[2].blocks.push(

@@ -5,7 +5,7 @@ import {
   type RegistrationPlan,
   type RegistrationPlanStore,
   type Sealed,
-} from '@fog/sdk';
+} from 'fog-sdk';
 
 /** Encryption and storage errors propagate; never replace an unreadable plan. */
 export function encryptedPlanStore(

@@ -2,7 +2,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { mkdtemp, rm, chmod, stat, writeFile, symlink, readFile } from 'node:fs/promises';
-import { tmpdir } from 'node:os';
+import { tmpdir } from './test-tmpdir.js';
 import { join } from 'node:path';
 import { TxStatus } from '@aztec-labs/aztec.js/tx';
 import { loadE2EKeys, runSafely } from './testnet-v6-e2e.js';

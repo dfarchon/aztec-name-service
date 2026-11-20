@@ -1,9 +1,9 @@
 import assert from 'node:assert/strict';
 import { chmod, mkdtemp, readFile, rm, stat, writeFile } from 'node:fs/promises';
 import { createRequire } from 'node:module';
-import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
+import { tmpdir } from './test-tmpdir.js';
 import { encodeAbiParameters, encodeEventTopics, type Hex } from 'viem';
 import { FeeJuicePortalAbi } from '@aztec-foundation/l1-artifacts/FeeJuicePortalAbi';
 import { AztecAddress } from '@aztec-labs/aztec.js/addresses';

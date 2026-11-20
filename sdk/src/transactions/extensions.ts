@@ -14,7 +14,7 @@ import { runTx, type TxOptions } from './tx.js';
 
 async function state(ctx: FogContext, name: NameRef, access: 'owner' | 'editor' = 'owner') {
   await ctx.reader.assertCurrentClass();
-  const contract = ctx.extendedContract();
+  const contract = await ctx.extendedContract();
   const h = await inspectHolding(ctx, name);
   assertHoldingAccess(h, access);
   return { contract, ...h };
@@ -71,7 +71,7 @@ export async function acceptTransfer(
   opts?: TxOptions,
 ) {
   await ctx.reader.assertCurrentClass();
-  const contract = ctx.extendedContract();
+  const contract = await ctx.extendedContract();
   const h = await inspectHolding(ctx, args.name);
   const offer = await ctx.reader.getTransfer(h.node, h.record.generation, h.snapshot);
   if (

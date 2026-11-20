@@ -23,7 +23,7 @@ import {
   offerTransfer,
   acceptTransfer,
   trackTx,
-} from '@fog/sdk';
+} from 'fog-sdk';
 import { AztecAddress } from '@aztec-labs/aztec.js/addresses';
 import { Contract, NO_WAIT } from '@aztec-labs/aztec.js/contracts';
 import { Fr, Fq } from '@aztec-labs/aztec.js/fields';

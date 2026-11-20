@@ -15,8 +15,8 @@ Transitive `follow-redirects` resolves to `1.16.2` in `package-lock.json`, addre
 
 ## SDK consumer boundary
 
-npm applies `overrides` only from the installing application's root `package.json`, and this workspace lockfile does not ship inside the `@fog/sdk` tarball. Applications installing `@fog/sdk` must evaluate and configure their own root `overrides`, then audit and test their resolved dependency graph.
+npm applies `overrides` only from the installing application's root `package.json`, and this workspace lockfile does not ship inside the `fog-sdk` tarball. Applications installing `fog-sdk` must evaluate and configure their own root `overrides`, then audit and test their resolved dependency graph.
 
 ## Public read hashing
 
-Poseidon2 hashing for labels, commitments, and public storage slots uses the exact pinned [`@zkpassport/poseidon2@0.6.2`](https://github.com/zkpassport/poseidon2), allowing `@fog/sdk/read` to resolve names without loading the Barretenberg proving runtime. Inputs are range-checked through Aztec `Fr`. `sdk/test/hash-compatibility.test.ts` cross-checks protocol domain separators, input lengths, field boundaries, and public map slots against the official Aztec implementation; this verifies output parity rather than auditing the library itself.
+Poseidon2 hashing for labels, commitments, and public storage slots uses the exact pinned [`@zkpassport/poseidon2@0.6.2`](https://github.com/zkpassport/poseidon2), allowing `fog-sdk/read` to resolve names without loading the Barretenberg proving runtime. Inputs are range-checked through Aztec `Fr`. `sdk/test/hash-compatibility.test.ts` cross-checks protocol domain separators, input lengths, field boundaries, and public map slots against the official Aztec implementation; this verifies output parity rather than auditing the library itself.

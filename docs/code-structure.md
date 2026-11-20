@@ -1,6 +1,6 @@
 # Code structure
 
-This document describes the module boundaries, transaction recovery rules, and extension points across `@fog/sdk` and `@fog/web`.
+This document describes the module boundaries, transaction recovery rules, and extension points across `fog-sdk` and `@fog/web`.
 
 ## Module responsibilities
 

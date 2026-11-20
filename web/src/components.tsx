@@ -1,5 +1,5 @@
 import { translate } from "./i18n";
-import { type TxUpdate } from "@fog/sdk";
+import { type TxUpdate } from "fog-sdk";
 import { type ReactNode, useEffect, useRef, useState } from "react";
 
 import { errorMessage, txStateText } from "./format";

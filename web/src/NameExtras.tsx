@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { formatName, type RegistryReader, type Snapshot } from '@fog/sdk/read';
+import { formatName, type RegistryReader, type Snapshot } from 'fog-sdk/read';
 import { Card, CopyValue } from './components';
 import { translate as t } from './i18n';
 import { favoriteKey, readFavorites, toggleFavorite } from './portfolio';

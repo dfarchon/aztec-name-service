@@ -51,12 +51,14 @@ try {
       `
     import assert from 'node:assert/strict';
     import { AztecAddress } from '@aztec-labs/aztec.js/addresses';
-    import { Resolver, parseWithBigInt, stringifyWithBigInt } from '@fog/sdk/read';
-    import { connectFog } from '@fog/sdk';
-    import { NameRegistryV6Contract } from '@fog/sdk/contracts/v6';
-    import { NameRegistryV7Contract } from '@fog/sdk/contracts/v7';
-    import { NameRegistryV8Contract } from '@fog/sdk/contracts/v8';
+    import { Resolver, parseWithBigInt, stringifyWithBigInt } from 'fog-sdk/read';
+    import { connectFog } from 'fog-sdk';
+    import { NameResolverContract } from 'fog-sdk/contracts';
+    import { NameRegistryV6Contract } from 'fog-sdk/contracts/v6';
+    import { NameRegistryV7Contract } from 'fog-sdk/contracts/v7';
+    import { NameRegistryV8Contract } from 'fog-sdk/contracts/v8';
     assert.equal(typeof connectFog, 'function');
+    assert.equal(NameResolverContract.artifact.name, 'NameResolver');
     assert.equal(NameRegistryV6Contract.artifact.name, 'NameRegistryV6');
     assert.equal(NameRegistryV7Contract.artifact.name, 'NameRegistryV7');
     assert.equal(NameRegistryV8Contract.artifact.name, 'NameRegistryV8');

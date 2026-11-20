@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { mkdtemp, stat, readFile, rm } from 'node:fs/promises';
-import { tmpdir } from 'node:os';
+import { tmpdir } from './test-tmpdir.js';
 import { join } from 'node:path';
 import {
   generateActualAccounts,

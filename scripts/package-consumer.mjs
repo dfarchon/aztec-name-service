@@ -36,7 +36,7 @@ export function packageConsumer(output, release, deployment) {
   const sdk = JSON.parse(readFileSync('sdk/package.json', 'utf8'));
   const root = JSON.parse(readFileSync('package.json', 'utf8'));
   const pricing = validateAztecPricing(JSON.parse(readFileSync('deployments/aztec-pricing.json', 'utf8')));
-  const [pack] = JSON.parse(execFileSync('npm', ['pack', '-w', '@fog/sdk', '--ignore-scripts', '--json', '--pack-destination', output], { encoding: 'utf8' }));
+  const [pack] = JSON.parse(execFileSync('npm', ['pack', '-w', 'fog-sdk', '--ignore-scripts', '--json', '--pack-destination', output], { encoding: 'utf8' }));
   const sdkPath = join(output, pack.filename);
   const sha256 = path => createHash('sha256').update(readFileSync(path)).digest('hex');
   const sdkSha = sha256(sdkPath);
@@ -57,7 +57,7 @@ export function packageConsumer(output, release, deployment) {
     writeFileSync(join(starter, 'package.json'), JSON.stringify({
       name: 'fog-consumer-example', private: true, type: 'module', engines: { node: '>=24.12.0' },
       scripts: { read: 'tsx read.ts', doctor: 'tsx doctor.ts', dev: 'vite --host 127.0.0.1', build: 'vite build', check: 'tsc --noEmit' },
-      dependencies: { '@fog/sdk': 'file:./fog-sdk.tgz', '@aztec-labs/aztec.js': '6.0.0', '@aztec-labs/foundation': '6.0.0', '@aztec-labs/stdlib': '6.0.0', '@aztec-labs/noir-contracts.js': '6.0.0', '@aztec-labs/wallet-sdk': '6.0.0' },
+      dependencies: { 'fog-sdk': 'file:./fog-sdk.tgz', '@aztec-labs/aztec.js': '6.0.0', '@aztec-labs/foundation': '6.0.0', '@aztec-labs/stdlib': '6.0.0', '@aztec-labs/noir-contracts.js': '6.0.0', '@aztec-labs/wallet-sdk': '6.0.0' },
       devDependencies: { tsx: '4.23.15', typescript: '5.9.3', '@types/node': '24.10.7', vite: '7.3.7', 'vite-plugin-node-polyfills': '0.25.0' },
       overrides: root.overrides,
     }, null, 2) + '\n');

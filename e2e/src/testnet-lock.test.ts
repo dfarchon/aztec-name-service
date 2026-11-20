@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { mkdtempSync, rmSync, statSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { tmpdir } from './test-tmpdir.js';
 import { join } from 'node:path';
 import test from 'node:test';
 import { acquireTestnetLock } from './testnet-lock.js';

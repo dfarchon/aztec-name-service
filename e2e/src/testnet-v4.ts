@@ -6,12 +6,13 @@ import { homedir } from 'node:os';
 import { isAbsolute, join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import {
-  FogContext, RegistryReader, NameRegistrarContract, NameResolverContract,
+  FogContext, RegistryReader,
   checkRegistration, deserializePlan, getAvailability, inspectHolding, listOwnedNames, migrateName,
   prepareRegistration, resolveAddress, resolveChainAddress, resolvePrimary, serializePlan,
   setAddress, setPrimary, setManager, setTextRecord, setChainAddress, issueSubname,
   offerTransfer, acceptTransfer, submitCommit, submitRegistration, trackTx, waitUntilRegistrable,
-} from '@fog/sdk';
+} from 'fog-sdk';
+import { NameRegistrarContract, NameResolverContract } from 'fog-sdk/contracts';
 import { AztecAddress } from '@aztec-labs/aztec.js/addresses';
 import { NO_WAIT } from '@aztec-labs/aztec.js/contracts';
 import { Fq, Fr } from '@aztec-labs/aztec.js/fields';

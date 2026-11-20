@@ -34,9 +34,7 @@ export async function setPrimary(
       "the name does not point to this account",
     );
   }
-  const call = ctx
-    .contract()
-    .methods.set_primary(node, rec.generation, forward.bindingVersion);
+  const call = (await ctx.contract()).methods.set_primary(node, rec.generation, forward.bindingVersion);
   const tx = await runTx(ctx, call, opts);
   return {
     tx,
@@ -47,5 +45,5 @@ export async function setPrimary(
 }
 
 export async function clearPrimary(ctx: FogContext, opts?: TxOptions) {
-  return { tx: await runTx(ctx, ctx.contract().methods.clear_primary(), opts) };
+  return { tx: await runTx(ctx, (await ctx.contract()).methods.clear_primary(), opts) };
 }

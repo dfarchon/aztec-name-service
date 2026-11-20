@@ -56,8 +56,6 @@ import type { Tx } from '@aztec-labs/stdlib/tx';
 import { EmbeddedWallet } from '@aztec-labs/wallets/embedded';
 import {
   NAME_SUFFIX,
-  NameRegistrarLaunchContract,
-  NameResolverContract,
   RegistryReader,
   SECONDS_PER_YEAR,
   assertRegistrableLabel,
@@ -66,8 +64,9 @@ import {
   normalizeName,
   registerCommitment,
   trackTx,
-} from '@fog/sdk';
-import { NameRegistryV8Contract } from '@fog/sdk/contracts/v8';
+} from 'fog-sdk';
+import { NameRegistrarLaunchContract, NameResolverContract } from 'fog-sdk/contracts';
+import { NameRegistryV8Contract } from 'fog-sdk/contracts/v8';
 import metadata from '../../sdk/src/artifacts/modular-metadata.json' with { type: 'json' };
 import reservations from '../../deployments/reserved-labels.json' with { type: 'json' };
 import { REPO, ZERO, within } from './deploy-v6-plan.js';

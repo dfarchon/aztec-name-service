@@ -18,7 +18,7 @@ import {
   type AddressResolution,
   type FeeQuote,
   toFogError,
-} from "@fog/sdk";
+} from "fog-sdk";
 import { AztecAddress } from "@aztec-labs/aztec.js/addresses";
 import { useEffect, useState } from "react";
 import { NeedsAccount } from "../App";
@@ -27,8 +27,6 @@ import { NameModules } from "../modules";
 import { FeeAmount, FeeBalance, useFeeBalance } from "../fees";
 import { date, errorMessage, statusText } from "../format";
 import { useSession } from "../session";
-
-const YEAR = SECONDS_PER_YEAR;
 
 export function ManagePage({ name }: { name: string }) {
   const { ctx } = useSession();
@@ -95,7 +93,7 @@ export function ManagePage({ name }: { name: string }) {
       getFeeQuote(ctx.reader, {
         operation: "renew",
         expiresAt: h?.record.expiresAt,
-        duration: BigInt(years) * YEAR,
+        duration: BigInt(years) * SECONDS_PER_YEAR,
         labelLength: h?.label.len,
       })
         .then((q) => {
@@ -224,14 +222,14 @@ export function ManagePage({ name }: { name: string }) {
               {quote ? <FeeAmount amount={quote.fee} token={quote.feeToken.toString()} /> : quoteError ? "—" : translate("Searching…")}
             </span>
             <button
-              disabled={tx.busy || renewalTooEarly || !quote || quote.duration !== BigInt(years) * YEAR || (quote.fee > 0n && (balance.balance === undefined || balance.balance < quote.fee))}
+              disabled={tx.busy || renewalTooEarly || !quote || quote.duration !== BigInt(years) * SECONDS_PER_YEAR || (quote.fee > 0n && (balance.balance === undefined || balance.balance < quote.fee))}
               onClick={() =>
                 void tx.exec("Renew", async (onUpdate) => {
                   await renew(
                     ctx,
                     {
                       name,
-                      duration: BigInt(years) * YEAR,
+                      duration: BigInt(years) * SECONDS_PER_YEAR,
                       maxFee: quote!.maxFee,
                       acceptedQuote: quote,
                     },

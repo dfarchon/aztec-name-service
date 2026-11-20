@@ -2,7 +2,7 @@
 
 This file provides guidance when working with code in this repository.
 
-Fog Names is an ENS-like `.fog` name service on Aztec: Noir contracts, a TypeScript SDK (`@fog/sdk`), a React/Vite site, a Cloudflare monitor and chain acceptance scripts, in one npm-workspace repo (`sdk`, `web`, `e2e`, `ops`). **`AGENTS.md` holds the binding rules** (product boundary, legacy compatibility, verification and delivery rules); `README.md` holds the protocol rules; `docs/code-structure.md` holds module boundaries. Read them before changing behavior. All code, UI strings and documentation are strictly English-only.
+Fog Names is an ENS-like `.fog` name service on Aztec: Noir contracts, a TypeScript SDK (`fog-sdk`), a React/Vite site, a Cloudflare monitor and chain acceptance scripts, in one npm-workspace repo (`sdk`, `web`, `e2e`, `ops`). **`AGENTS.md` holds the binding rules** (product boundary, legacy compatibility, verification and delivery rules); `README.md` holds the protocol rules; `docs/code-structure.md` holds module boundaries. Read them before changing behavior. All code, UI strings and documentation are strictly English-only.
 
 ## Toolchain
 
@@ -58,7 +58,7 @@ contracts → artifacts (committed) → sdk → web, e2e, ops (monitor), example
 - bidirectional primary verification;
 - registration commitments that bind the chain, registry, Registrar, name, owner, duration, token, treasury, priceVersion, max fee and quote expiry.
 
-**SDK** (`sdk/src`), with entry points: `.`, `./read` (wallet-free, no contract artifacts), `./contracts/v6`, `./contracts/v7` and `./contracts/v8`.
+**SDK** (`sdk/src`), with entry points: `.` (no static contract artifacts; `FogContext` loads the connected class's artifact on demand through `wallet/bindings.ts`), `./read` (wallet-free, no contract artifacts), `./contracts` (Registrar, Resolver, V2 and V5 bindings), `./contracts/v6`, `./contracts/v7` and `./contracts/v8`. `sdk/package.json` declares `sideEffects: false`, so keep SDK modules free of top-level side effects.
 - `core/registry-protocol.ts` and `artifacts/modular-metadata.json` pick the protocol and storage layout from the exact on-chain class ID.
 - `RegistryReader` (`client/reader.ts`) reads raw storage slots at one snapshot. It rejects unknown registry or module classes with `wrong_deployment`, so supporting a new contract class always needs a new SDK release; older SDKs fail closed.
 - `getFeeQuote` / `chargeFor` need `labelLength` on a tiered Registrar, and `flow.quote(duration, name)` derives it. A quote binds its length.

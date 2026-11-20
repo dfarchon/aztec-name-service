@@ -1,7 +1,7 @@
-import type { FogContext, RegistrationPlan, TxState } from '@fog/sdk';
+import type { FogContext, RegistrationPlan, TxState } from 'fog-sdk';
 import type { Wallet } from '@aztec-labs/aztec.js/wallet';
 import type { WalletProvider } from '@aztec-labs/wallet-sdk/manager';
-import { FogError, RegistryReader, toFogError } from '@fog/sdk/read';
+import { FogError, RegistryReader, toFogError } from 'fog-sdk/read';
 import type { AztecAddress } from '@aztec-labs/aztec.js/addresses';
 
 import type { SponsoredFeePaymentMethod } from '@aztec-labs/aztec.js/fee';
@@ -322,7 +322,7 @@ export async function selectAccount(address: AztecAddress) {
   try {
     const { wallet, reader } = state;
     if (!wallet || !reader || !recordsKey) return;
-    const { FogContext } = await import('@fog/sdk');
+    const { FogContext } = await import('fog-sdk');
     const feeJuice = config.feePayment === 'fee-juice' ? await import('./fee-juice') : undefined;
     const ctx = new FogContext(reader, {
       wallet: feeJuice ? feeJuice.feeJuiceWallet(wallet, state.node) : wallet,
@@ -530,7 +530,7 @@ export async function connectExternal(connected: Wallet, provider: WalletProvide
     // Aztec 6 wallets refuse account and contract calls until Fog holds matching capabilities.
     // Test doubles without capability negotiation skip it; real wallet-sdk wallets always implement it.
     if (typeof (connected as Partial<Wallet>).requestCapabilities === 'function') {
-      const { requestFogCapabilities } = await import('@fog/sdk');
+      const { requestFogCapabilities } = await import('fog-sdk');
       const result = await walletStep('authorize accounts and Fog contracts', () =>
         requestFogCapabilities(reader, connected, {
           app: { name: 'Fog Names', version: sdkPackage.version, url: location.origin },
