@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import type { FogContext, TxState } from "@fog/sdk";
+import type { FogContext, TxState } from "fog-sdk";
 import { getSession, recordWriter, useSession } from "./session";
 import { errorMessage } from "./format";
 import { PENDING_TX } from "./usability";
@@ -12,7 +12,7 @@ export async function refreshTransaction(ctx: FogContext, id: string, hash: stri
   active.add(hash);
   try {
     const write = recordWriter(ctx);
-    const { trackTx, toFogError } = await import("@fog/sdk");
+    const { trackTx, toFogError } = await import("fog-sdk");
     let observed: TxState | undefined;
     try {
       const receipt = await trackTx(ctx.reader.node, hash, { timeoutMs: 15000, pollMs: 1500, waitFor: "confirmed", onUpdate: u => { observed = u.state; } });

@@ -16,7 +16,9 @@ export function initialBundleBudget(): Plugin {
               manualChunks(id) {
                 const clean = id.replace(/\\/g, '/').split('?')[0];
                 if (clean.endsWith('-metadata.json')) return;
-                const match = clean.match(/\/sdk\/(?:src|dist)\/artifacts\/([^/]+)\.json$/);
+                const match = clean.match(
+                  /(?:^|\/)(?:fog-)?sdk\/(?:src|dist)\/artifacts\/([^/]+)\.json$/,
+                );
                 if (match) return `artifact-${match[1]}`;
               },
             },
@@ -43,7 +45,8 @@ export function initialBundleBudget(): Plugin {
               chunk.type === 'chunk' &&
               Object.keys(chunk.modules).some(
                 (id) =>
-                  /\/sdk\/(?:src|dist)\/artifacts\//.test(id) && !id.endsWith('-metadata.json'),
+                  /(?:^|\/)(?:fog-)?sdk\/(?:src|dist)\/artifacts\//.test(id) &&
+                  !id.endsWith('-metadata.json'),
               ),
           )
           .map((chunk) => chunk.fileName);

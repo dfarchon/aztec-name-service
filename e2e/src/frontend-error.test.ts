@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { FogError } from '@fog/sdk';
+import { FogError } from 'fog-sdk';
 import { errorMessage } from '../../web/src/format.js';
 
 test('client setup failures do not imply a mined revert or expose internal field values', () => {

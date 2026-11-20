@@ -4,7 +4,7 @@ import { readFile } from 'node:fs/promises';
 import type { Wallet } from '@aztec-labs/aztec.js/wallet';
 import { AztecAddress } from '@aztec-labs/aztec.js/addresses';
 import { createAztecNodeClient } from '@aztec-labs/aztec.js/node';
-import { FogContext, RegistryReader, prepareRegistration, createRegistrationFlow, type RegistrationPlan } from '@fog/sdk';
+import { FogContext, RegistryReader, prepareRegistration, createRegistrationFlow, type RegistrationPlan } from 'fog-sdk';
 const url = process.env.NODE_URL ?? 'http://127.0.0.1:8082';
 assert.equal(new URL(url).hostname, '127.0.0.1');
 assert(process.env.FOG_V8_LOCAL_PUBLIC_STATE, 'explicit local public-state path required');

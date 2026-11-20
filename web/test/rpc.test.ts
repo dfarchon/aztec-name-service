@@ -153,7 +153,7 @@ test('RPC max attempts propagates an error through the actual Aztec client', asy
   assert.equal(attempts, 4);
 });
 test('reader boot classifies an aborted or unavailable node as network after bounded retries', async () => {
-  const { RegistryReader, FogError } = await import('@fog/sdk/read');
+  const { RegistryReader, FogError } = await import('fog-sdk/read');
   const { AztecAddress } = await import('@aztec-labs/aztec.js/addresses');
   const { createAztecNodeClient } = await import('@aztec-labs/aztec.js/node');
   for (const failure of [
@@ -295,7 +295,7 @@ test('RPC HTTP 400 with a JSON-RPC sendTx error returns the node error without r
 });
 test('node error behind HTTP 400 reaches the caller verbatim, not as a network error', async () => {
   const { createAztecNodeClient } = await import('@aztec-labs/aztec.js/node');
-  const { toFogError } = await import('@fog/sdk/read');
+  const { toFogError } = await import('fog-sdk/read');
   let requests = 0;
   const transport = makeRpcFetch(undefined, (async (_url, init) => {
     requests++;

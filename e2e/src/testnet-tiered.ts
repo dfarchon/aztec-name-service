@@ -12,8 +12,8 @@ import {
   FogContext, RegistryReader, checkRegistration, configureModules, deserializePlan,
   getAvailability, getFeeQuote, inspectHolding, prepareRegistration, readFeeTokenMetadata, serializePlan,
   submitCommit, submitRegistration, trackTx, waitUntilRegistrable,
-} from '@fog/sdk';
-import { NameRegistrarTieredContract } from '@fog/sdk/contracts';
+} from 'fog-sdk';
+import { NameRegistrarTieredContract } from 'fog-sdk/contracts';
 import { AztecAddress } from '@aztec-labs/aztec.js/addresses';
 import { NO_WAIT } from '@aztec-labs/aztec.js/contracts';
 import { Fq, Fr } from '@aztec-labs/aztec.js/fields';

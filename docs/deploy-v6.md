@@ -137,7 +137,7 @@ npm run deploy:mainnet
 npm run deploy:mainnet:v8 -- --admin-action unpause --state-dir "$S" --node-url '<MAINNET_HTTPS_RPC>' --dry-run
 ```
 
-`setPrimary(ctx, { name, acceptUnverifiedResolver? }, opts?)` refuses an unverified resolver with `invalid_argument` unless explicitly opted in with `true`. The override preserves transport, active-lease and forward-address checks and cannot make `resolvePrimary` report trust. Only `resolveAddress` and `resolvePrimary` validate resolver trust; raw `RegistryReader.getAddress` / `@fog/sdk/read` returns public chain records for callers to validate.
+`setPrimary(ctx, { name, acceptUnverifiedResolver? }, opts?)` refuses an unverified resolver with `invalid_argument` unless explicitly opted in with `true`. The override preserves transport, active-lease and forward-address checks and cannot make `resolvePrimary` report trust. Only `resolveAddress` and `resolvePrimary` validate resolver trust; raw `RegistryReader.getAddress` / `fog-sdk/read` returns public chain records for callers to validate.
 
 L-02 remains open before mainnet: administrator changes to the default resolver take effect immediately, and V7 registrations, reissues and accepted transfers use that current default. Administrator compromise therefore affects future recipients. The product retains a trusted single administrator and the immediate module-configuration risk; monitoring continues to watch `configure_modules`.
 

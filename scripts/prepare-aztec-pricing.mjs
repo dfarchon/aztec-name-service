@@ -1,5 +1,5 @@
 import { readFileSync, writeFileSync } from 'node:fs';
-import { RegistryReader } from '@fog/sdk/read';
+import { RegistryReader } from 'fog-sdk/read';
 import { createAztecNodeClient } from '@aztec-labs/aztec.js/node';
 import { AztecAddress } from '@aztec-labs/aztec.js/addresses';
 import { BlockNumber, Fr } from '@aztec-labs/aztec.js/fields';

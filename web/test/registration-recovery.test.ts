@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import type { RegistrationCheck, RegistrationPlan } from '@fog/sdk';
+import type { RegistrationCheck, RegistrationPlan } from 'fog-sdk';
 import { canDiscardUncertain, parseTxHash } from '../src/registration-recovery.ts';
 
 const plan = { quoteExpiry: 1000n } as RegistrationPlan;

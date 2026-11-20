@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { AztecAddress } from '@aztec-labs/aztec.js/addresses';
-import { acceptTransfer, getAvailability, inspectHolding, issueSubname, listOwnedNames, normalizeName, offerTransfer, resolveAddress, resolveChainAddress, resolvePrimary, revokeSubname, renew, setAddress, setChainAddress, setManager, setPrimary, setTextRecord, type FogContext } from '@fog/sdk';
+import { acceptTransfer, getAvailability, inspectHolding, issueSubname, listOwnedNames, normalizeName, offerTransfer, resolveAddress, resolveChainAddress, resolvePrimary, revokeSubname, renew, setAddress, setChainAddress, setManager, setPrimary, setTextRecord, type FogContext } from 'fog-sdk';
 
 /** Real local-chain calls, including direct contract attempts that bypass SDK authorization checks. */
 export async function exerciseExtensions(owner: FogContext, recipient: FogContext, warp: (seconds: number) => Promise<unknown>, check: (name: string, value: unknown) => void, registryLabel = 'V5') {

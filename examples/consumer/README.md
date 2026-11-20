@@ -1,6 +1,6 @@
 # Fog Names SDK integration
 
-This starter includes `@fog/sdk` 0.7.0, example code and public testnet configuration. Resolve `.fog` names without a wallet, then connect a wallet for registration and recovery.
+This starter includes `fog-sdk` 0.7.0, example code and public testnet configuration. Resolve `.fog` names without a wallet, then connect a wallet for registration and recovery.
 
 ## Environment and startup
 
@@ -38,13 +38,13 @@ npm run read
 | `plan-store.ts`                            | Encrypt and save plans in browser `localStorage`.       |
 | `browser/main.ts`                          | Connect the form, wallet approvals and saved plans.     |
 
-The initial browser page imports `@fog/sdk/read`. Wallet discovery and registration load on user actions. The shared `bundle-budget.ts` build check limits initial JavaScript to 400 kB gzip and rejects eagerly loaded Fog execution artifacts; the build writes its measurements to `bundle-budget.json`.
+The initial browser page imports `fog-sdk/read`. Wallet discovery and registration load on user actions. The shared `bundle-budget.ts` build check limits initial JavaScript to 400 kB gzip and rejects eagerly loaded Fog execution artifacts; the build writes its measurements to `bundle-budget.json`.
 
 Configuration files are release snapshots. Read the active Registrar and fee quote from the chain before payment. See [Pricing and payment assets](https://fog-testnet.huantian233.workers.dev/#/docs/pricing) for the current payment token and active collection configuration.
 
 ## Name resolution
 
-Import public read APIs from `@fog/sdk/read`; no wallet connection or proving runtime is required. Keep wallet execution imports behind user actions. `RegistryReader.connect` connects to the node and validates the registry contract class.
+Import public read APIs from `fog-sdk/read`; no wallet connection or proving runtime is required. Keep wallet execution imports behind user actions. `RegistryReader.connect` connects to the node and validates the registry contract class.
 
 `resolveAddress` returns a status, an address when resolved, and the block snapshot used for the read. Pass that snapshot to `resolvePrimary` to verify that the primary name resolves back to this address in the current registration generation. The runnable example is in `read.ts`.
 
@@ -57,7 +57,7 @@ Import public read APIs from `@fog/sdk/read`; no wallet connection or proving ru
 
 `connectFog` returns a `FogContext` containing the reader, wallet and account. It checks the wallet’s `chainId` and rollup version against the reader before registering contracts. Private balance reads, fee authorization and transaction submission recheck the wallet network inside its queue; a mismatch returns `wrong_deployment`. Reconnect after switching networks. Wallet keys remain in the wallet.
 
-For repeated primary-name display, import `Resolver` from `@fog/sdk/read`. Its memory cache deduplicates concurrent queries and checks cached block hashes for reorgs. The default TTL is 30 seconds, capped by the name’s expiry; invalidate it when switching accounts or deployments. Payment checks still use fresh chain reads. Owned-name pagination cursors are bound to the account, registry, chain and rollup version; restart discovery with no cursor when upgrading from a pre-0.4.3 cursor.
+For repeated primary-name display, import `Resolver` from `fog-sdk/read`. Its memory cache deduplicates concurrent queries and checks cached block hashes for reorgs. The default TTL is 30 seconds, capped by the name’s expiry; invalidate it when switching accounts or deployments. Payment checks still use fresh chain reads. Owned-name pagination cursors are bound to the account, registry, chain and rollup version; restart discovery with no cursor when upgrading from a pre-0.4.3 cursor.
 
 ## Registration data
 
@@ -100,7 +100,7 @@ In the browser example, enter a recovery passphrase of at least eight characters
 ```ts
 import type { AztecAddress } from '@aztec-labs/aztec.js/addresses';
 import type { Wallet } from '@aztec-labs/aztec.js/wallet';
-import type { RegistryReader } from '@fog/sdk/read';
+import type { RegistryReader } from 'fog-sdk/read';
 import { registrationActions } from './registration.js';
 import { encryptedPlanStore } from './plan-store.js';
 import deployment from './deployment.json' with { type: 'json' };
@@ -124,7 +124,7 @@ export async function connectRegistration(
 When `readiness.ready` is true, display the quote and obtain user acceptance. Then call `commitAcceptedPlan` with that quote:
 
 ```ts
-import type { FeeQuote, RegistrationPlan, TxUpdate } from '@fog/sdk';
+import type { FeeQuote, RegistrationPlan, TxUpdate } from 'fog-sdk';
 import type { RegistrationFlow } from './registration.js';
 
 export async function commitAcceptedPlan(
@@ -185,8 +185,8 @@ Before each write, the SDK reads the current registration generation and revisio
 `registration.ts` (`inspectLaunch`) reads public policy and a one-year quote without broadcasting. A free quote creates no token AuthWit and reads no private token balance. Eligibility is `open`, `too_short`, `reserved` or `paused`; the SDK rechecks before commit/reveal. Encrypted recovery data is separate from chain ownership, and an RPC exception is not a reverted receipt.
 
 ```typescript
-import type { RegistryReader } from '@fog/sdk/read';
-import { getFeeQuote } from '@fog/sdk';
+import type { RegistryReader } from 'fog-sdk/read';
+import { getFeeQuote } from 'fog-sdk';
 
 /** Read live public policy. This reserves nothing and does not open a wallet. */
 export async function inspectLaunch(reader: RegistryReader, name: string) {

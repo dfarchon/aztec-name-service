@@ -1,6 +1,6 @@
 /** Public reserved-list data and deterministic launch-policy operations; no wallet/key I/O. */
 import { createHash } from 'node:crypto';
-import { nodeOf, normalizeName } from '@fog/sdk';
+import { nodeOf, normalizeName } from 'fog-sdk';
 /** Validate public v1 category files or legacy arrays, returning sorted canonical root labels. */
 export function loadReservedList(value: unknown): string[] {
   let labels: unknown[], minimum = 7;

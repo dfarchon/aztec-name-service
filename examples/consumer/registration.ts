@@ -6,7 +6,7 @@ import {
   createRegistrationFlow,
   type RegistrationPlanStore,
   type RegistryReader,
-} from '@fog/sdk';
+} from 'fog-sdk';
 import deployment from './deployment.json' with { type: 'json' };
 
 export type RegistrationFlow = ReturnType<typeof createRegistrationFlow>;

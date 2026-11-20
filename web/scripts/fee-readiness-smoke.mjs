@@ -1,7 +1,7 @@
 // Real deployment reads and UI; wallet utility responses are fixtures and cannot sign or broadcast.
 import assert from 'node:assert/strict';
 import puppeteer from 'puppeteer-core';
-import { RegistryReader, readFeeTokenMetadata } from '@fog/sdk/read';
+import { RegistryReader, readFeeTokenMetadata } from 'fog-sdk/read';
 import { AztecAddress } from '@aztec-labs/aztec.js/addresses';
 import { createAztecNodeClient } from '@aztec-labs/aztec.js/node';
 import deployment from '../../deployments/testnet.json' with { type: 'json' };

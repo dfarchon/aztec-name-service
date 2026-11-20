@@ -10,7 +10,7 @@ import {
   inspectHolding, registrationPlanKey, renew, resolveAddress, resolvePrimary,
   seal, setAddress, setPrimary, trackTx, unseal, waitUntilRegistrable,
   type RegistrationPlan, type RegistrationPlanStore, type Sealed,
-} from '@fog/sdk';
+} from 'fog-sdk';
 import { AztecAddress } from '@aztec-labs/aztec.js/addresses';
 import { Fq, Fr } from '@aztec-labs/aztec.js/fields';
 import { createAztecNodeClient, type AztecNode } from '@aztec-labs/aztec.js/node';

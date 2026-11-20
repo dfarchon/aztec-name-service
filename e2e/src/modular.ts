@@ -11,8 +11,8 @@ import {
   resolveAddress, resolvePrimary, listOwnedNames, buildFeeAuthorization, renew, setResolver, migrateName,
   type RegistrationPlan,
   createRegistrationFlow, getFeeReadiness, configureModules, setAdministrator,
-} from '@fog/sdk';
-import { NameRegistryContract, NameRegistryV5Contract, NameRegistrarContract, NameResolverContract } from '@fog/sdk/contracts';
+} from 'fog-sdk';
+import { NameRegistryContract, NameRegistryV5Contract, NameRegistrarContract, NameResolverContract } from 'fog-sdk/contracts';
 import { getInitialTestAccountsData } from '@aztec-labs/accounts/testing';
 import { AztecAddress } from '@aztec-labs/aztec.js/addresses';
 import { Fr } from '@aztec-labs/aztec.js/fields';
@@ -104,7 +104,7 @@ try {
   await rejected('old plan cannot ask for another payment',()=>submitRegistration(owner,retiredPlan));
   const nextPolicy=await reader.getConfig();
   check('live reader refreshes the token and 18-decimal price instead of returning cached fees',nextPolicy.annualPrice===aztecPrice&&nextPolicy.feeToken.equals(pricingToken.address)&&nextPolicy.priceVersion===2);
-  const paymentQuote=await import('@fog/sdk').then(sdk=>sdk.getFeeQuote(reader,{operation:'register',duration:YEAR}));
+  const paymentQuote=await import('fog-sdk').then(sdk=>sdk.getFeeQuote(reader,{operation:'register',duration:YEAR}));
   const readiness=await getFeeReadiness(owner,paymentQuote);
   check('SDK preflight automatically registers the switched asset and reads its private balance',readiness.ready&&readiness.token?.decimals===18&&readiness.token?.symbol==='mAZTEC');
   const held=await getAvailability(reader,'modular-name');

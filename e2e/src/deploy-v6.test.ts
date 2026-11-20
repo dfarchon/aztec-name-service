@@ -298,10 +298,15 @@ test('sponsored testnet confirmation pins the original identity and explicit reg
 test('sponsored manifests deep-equal existing deployed output (current free, archived paid)', async () => {
   for (const file of [join(REPO, 'deployments/testnet-v6.json'), PAID_V6_MANIFEST]) {
     const text = await readFile(file, 'utf8'), current = JSON.parse(text);
+    const reservedFile =
+      current.reservedListHash === 'd3b5a6f138526e410311b4577f41bdcab0d24186405f4c51841f2906551028aa'
+        ? join(REPO, 'e2e/src/fixtures/reserved-labels-v1.json')
+        : join(REPO, 'deployments/reserved-labels.json');
     const launch = current.registrarKind === 'launch'
-      ? ['--min-public-length', String(current.minPublicLength), '--initial-paused', String(current.initialPaused), '--max-renew-ahead', current.maxRenewAhead, '--reserved-list', join(REPO, 'e2e/src/fixtures/reserved-labels-v1.json')]
+      ? ['--min-public-length', String(current.minPublicLength), '--initial-paused', String(current.initialPaused), '--max-renew-ahead', current.maxRenewAhead, '--reserved-list', reservedFile]
       : [];
-    const c = parseArgs(['--network', 'testnet-v6', '--registrar', current.registrarKind, '--token', current.feeTokenSource, '--price-version', String(current.priceVersion), '--treasury', current.treasury, ...launch, '--dry-run']);
+    const versionArg = current.registryVersion ? ['--registry-version', String(current.registryVersion)] : [];
+    const c = parseArgs(['--network', 'testnet-v6', ...versionArg, '--registrar', current.registrarKind, '--token', current.feeTokenSource, '--price-version', String(current.priceVersion), '--treasury', current.treasury, ...launch, '--dry-run']);
     if (c.registrar === 'launch') c.reservedLabels = loadReservedList(JSON.parse(await readFile(c.reservedList!, 'utf8')));
     const p = makePolicy(c, { decimals: current.feeDecimals, annualPrice: current.annualPrice, lengthPrices: current.lengthPrices }, current.treasury);
     const identity = { chainId: current.chainId, rollupVersion: current.rollupVersion, rollup: current.rollup };

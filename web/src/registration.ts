@@ -1,4 +1,4 @@
-import { createRegistrationFlow, registrationPlanKey, type FogContext } from '@fog/sdk';
+import { createRegistrationFlow, registrationPlanKey, type FogContext } from 'fog-sdk';
 import { rememberRegistrationProgress, recordReader, recordWriter, withPendingTx } from './session';
 
 const flows = new WeakMap<FogContext, ReturnType<typeof createRegistrationFlow>>();

@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { createRequire } from 'node:module';
-import { FogContext, RegistryReader, checkRegistration, getAvailability, getFeeQuote, inspectHolding, prepareRegistration, submitCommit, submitRegistration, waitUntilRegistrable, setAddress, resolveAddress, renew } from '@fog/sdk';
+import { FogContext, RegistryReader, checkRegistration, getAvailability, getFeeQuote, inspectHolding, prepareRegistration, submitCommit, submitRegistration, waitUntilRegistrable, setAddress, resolveAddress, renew } from 'fog-sdk';
 import { NameRegistryV6Contract } from '../../sdk/src/artifacts/NameRegistryV6.js';
 import { AztecAddress } from '@aztec-labs/aztec.js/addresses';
 import { Fr, Fq } from '@aztec-labs/aztec.js/fields';

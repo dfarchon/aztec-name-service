@@ -10,8 +10,8 @@ import {
   renew, configureModules, readFeeTokenMetadata, prepareRegistration, resolveAddress, resolveChainAddress, resolvePrimary, serializePlan,
   setAddress, setPrimary, setManager, setTextRecord, setChainAddress, issueSubname,
   offerTransfer, acceptTransfer, submitCommit, submitRegistration, trackTx, waitUntilRegistrable,
-} from '@fog/sdk';
-import { NameRegistryV5Contract, NameRegistrarContract, NameResolverContract } from '@fog/sdk/contracts';
+} from 'fog-sdk';
+import { NameRegistryV5Contract, NameRegistrarContract, NameResolverContract } from 'fog-sdk/contracts';
 import { AztecAddress } from '@aztec-labs/aztec.js/addresses';
 import { NO_WAIT } from '@aztec-labs/aztec.js/contracts';
 import { Fq, Fr } from '@aztec-labs/aztec.js/fields';

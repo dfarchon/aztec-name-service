@@ -5,7 +5,7 @@ import {
   type NameStatus,
   toFogError,
   type TxState,
-} from "@fog/sdk/read";
+} from "fog-sdk/read";
 import type { AztecAddress } from "@aztec-labs/aztec.js/addresses";
 
 export const shortAddr = (a: AztecAddress | string) => {

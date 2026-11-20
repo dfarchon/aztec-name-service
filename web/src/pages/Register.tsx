@@ -10,7 +10,7 @@ import {
   type RegistrationCheck,
   type RegistrationPlan,
   toFogError,
-} from '@fog/sdk';
+} from 'fog-sdk';
 import { useEffect, useState } from 'react';
 
 import { ChooseAccount, go, NeedsAccount } from '../App';

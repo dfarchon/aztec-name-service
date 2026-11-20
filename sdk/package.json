@@ -1,5 +1,5 @@
 {
-  "name": "@fog/sdk",
+  "name": "fog-sdk",
   "version": "0.7.0",
   "license": "Apache-2.0",
   "repository": {
@@ -7,7 +7,6 @@
     "url": "https://github.com/dfarchon/fog-names.git",
     "directory": "sdk"
   },
-  "private": true,
   "description": "Public Fog name service: registration, ownership discovery and verified address resolution.",
   "type": "module",
   "sideEffects": false,

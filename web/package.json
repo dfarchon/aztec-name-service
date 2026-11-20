@@ -34,7 +34,7 @@
     "smoke:upgrade": "node scripts/core-upgrade-smoke.mjs"
   },
   "dependencies": {
-    "@fog/sdk": "0.7.0",
+    "fog-sdk": "0.7.0",
     "@aztec-labs/accounts": "6.0.0",
     "@aztec-labs/aztec.js": "6.0.0",
     "@aztec-labs/constants": "6.0.0",

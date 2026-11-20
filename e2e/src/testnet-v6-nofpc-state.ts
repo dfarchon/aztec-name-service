@@ -5,7 +5,7 @@ import { constants } from 'node:fs';
 import { lstat, open, readFile } from 'node:fs/promises';
 import { createRequire } from 'node:module';
 import { dirname, join, resolve } from 'node:path';
-import { assertRegistrableLabel, labelFromCanonical } from '@fog/sdk';
+import { assertRegistrableLabel, labelFromCanonical } from 'fog-sdk';
 import { TxStatus } from '@aztec-labs/aztec.js/tx';
 import { PUBLIC_V6_MANIFESTS, REPO, assertPrivateDir, within, type Manifest } from './deploy-v6-plan.js';
 import { physicalPath } from './deploy-v6.js';

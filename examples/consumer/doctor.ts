@@ -1,7 +1,7 @@
 import { createAztecNodeClient } from '@aztec-labs/aztec.js/node';
 import { AztecAddress } from '@aztec-labs/aztec.js/addresses';
-import { RegistryReader, readFeeTokenMetadata, FogError } from '@fog/sdk/read';
-import { getFeeQuote } from '@fog/sdk';
+import { RegistryReader, readFeeTokenMetadata, FogError } from 'fog-sdk/read';
+import { getFeeQuote } from 'fog-sdk';
 import deployment from './deployment.json' with { type: 'json' };
 
 const reader = await RegistryReader.connect(

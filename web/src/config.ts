@@ -1,5 +1,5 @@
 import { AztecAddress } from "@aztec-labs/aztec.js/addresses";
-import { NAME_SUFFIX } from "@fog/sdk/read";
+import { NAME_SUFFIX } from "fog-sdk/read";
 
 import { parseNetworkConfig, parseRpcConfig } from "./network-config";
 

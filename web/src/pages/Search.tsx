@@ -8,7 +8,7 @@ import {
   getAvailability,
   normalizeName,
   resolveAddress,
-} from "@fog/sdk/read";
+} from "fog-sdk/read";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { go } from "../App";

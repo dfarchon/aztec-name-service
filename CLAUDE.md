@@ -2,7 +2,7 @@
 
 This file provides guidance when working with code in this repository.
 
-Fog Names is an ENS-like `.fog` name service on Aztec: Noir contracts, a TypeScript SDK (`@fog/sdk`), a React/Vite site, a Cloudflare monitor and chain acceptance scripts, in one npm-workspace repo (`sdk`, `web`, `e2e`, `ops`). **`AGENTS.md` holds the binding rules** (product boundary, legacy compatibility, verification and delivery rules); `README.md` holds the protocol rules; `docs/code-structure.md` holds module boundaries. Read them before changing behavior. All code, UI strings and documentation are strictly English-only.
+Fog Names is an ENS-like `.fog` name service on Aztec: Noir contracts, a TypeScript SDK (`fog-sdk`), a React/Vite site, a Cloudflare monitor and chain acceptance scripts, in one npm-workspace repo (`sdk`, `web`, `e2e`, `ops`). **`AGENTS.md` holds the binding rules** (product boundary, legacy compatibility, verification and delivery rules); `README.md` holds the protocol rules; `docs/code-structure.md` holds module boundaries. Read them before changing behavior. All code, UI strings and documentation are strictly English-only.
 
 ## Toolchain
 

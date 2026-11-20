@@ -7,8 +7,8 @@ import { Fr, BlockNumber } from '@aztec-labs/aztec.js/fields';
 import { createAztecNodeClient } from '@aztec-labs/aztec.js/node';
 import { getPublicEvents, type EventCursor } from '@aztec-labs/aztec.js/events';
 import { deriveStorageSlotInMap } from '@aztec-labs/stdlib/hash';
-import { RegistryReader, runTx, configureModules, assertRegistrableLabel, registerCommitment, hashWithSeparator, normalizeName, nodeOf, SECONDS_PER_YEAR, type FogContext } from '@fog/sdk';
-import { NameRegistrarLaunchContract } from '@fog/sdk/contracts';
+import { RegistryReader, runTx, configureModules, assertRegistrableLabel, registerCommitment, hashWithSeparator, normalizeName, nodeOf, SECONDS_PER_YEAR, type FogContext } from 'fog-sdk';
+import { NameRegistrarLaunchContract } from 'fog-sdk/contracts';
 import { executeLaunchSwitch, type SwitchState } from './launch-switch.js';
 import { loadReservedList, canonicalReservedLabels, reservedNodes, reservedBatches, reservedListHash, reservationParity, verifyReservations } from './launch-policy.js';
 

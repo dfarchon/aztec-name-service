@@ -1,5 +1,5 @@
 import { translate } from "../i18n";
-import { seal } from "@fog/sdk";
+import { seal } from "fog-sdk";
 import { useState } from "react";
 
 import { Card, download, Field } from "../components";

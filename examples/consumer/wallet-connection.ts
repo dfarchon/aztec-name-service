@@ -2,7 +2,7 @@ import { AztecAddress } from '@aztec-labs/aztec.js/addresses';
 import { Fr } from '@aztec-labs/aztec.js/fields';
 import { WalletManager, type WalletProvider } from '@aztec-labs/wallet-sdk/manager';
 import { hashToEmoji } from '@aztec-labs/wallet-sdk/crypto';
-import type { RegistryReader } from '@fog/sdk/read';
+import type { RegistryReader } from 'fog-sdk/read';
 import deployment from './deployment.json' with { type: 'json' };
 
 /** Browser host renders providers and cancels the returned discovery on unmount. */
@@ -43,7 +43,7 @@ export async function connectWallet(
       return undefined;
     }
     const wallet = await pending.confirm();
-    const { requestFogCapabilities } = await import('@fog/sdk');
+    const { requestFogCapabilities } = await import('fog-sdk');
     const sponsoredFpc = (deployment as { sponsoredFpc?: string | null }).sponsoredFpc;
     return await requestFogCapabilities(reader, wallet, {
       app: { name: appId, version: '1.0.0', url: location.origin },

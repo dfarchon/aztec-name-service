@@ -1,4 +1,4 @@
-import { normalizeName } from '@fog/sdk/read';
+import { normalizeName } from 'fog-sdk/read';
 export function favoriteKey(chain: bigint, registry: string) { return `fog:favorites:v1:${chain}:${registry}`; }
 export function readFavorites(key: string): string[] {
   try { const value: unknown = JSON.parse(localStorage.getItem(key) ?? '[]');

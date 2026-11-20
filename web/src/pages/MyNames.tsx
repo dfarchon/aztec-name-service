@@ -1,7 +1,7 @@
 import { favoriteKey, readFavorites, downloadCalendar } from "../portfolio";
 import { FavoriteButton } from "../NameExtras";
 import { translate } from "../i18n";
-import { formatName, listOwnedNames, type NamesCursor, type OwnedName } from "@fog/sdk";
+import { formatName, listOwnedNames, type NamesCursor, type OwnedName } from "fog-sdk";
 import { useEffect, useRef, useState } from "react";
 import { go, NeedsAccount } from "../App";
 import { Card, CopyValue, EmptyState } from "../components";

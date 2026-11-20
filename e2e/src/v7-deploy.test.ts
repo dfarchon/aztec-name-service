@@ -1,16 +1,21 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
+import { AztecAddress } from '@aztec-labs/aztec.js/addresses';
+import { Fr } from '@aztec-labs/aztec.js/fields';
+import { V6_PROFILES } from './v6-network.js';
 import { parseArgs, makePolicy, confirmation, configHash, buildManifest, ZERO } from './deploy-v6-plan.js';
-import { v6Artifacts } from './deploy-v6.js';
+import { instances, v6Artifacts } from './deploy-v6.js';
 import { createRequire } from 'node:module';
 const { v6ManifestProblems } = createRequire(import.meta.url)('../../scripts/deployment-config.mjs');
 const base = ['--network', 'local', '--registrar', 'launch', '--token', 'none', '--price-version', '1'];
 const mainnet = ['--network', 'mainnet', '--node-url', 'https://rpc.invalid', '--registrar', 'launch', '--token', 'none', '--price-version', '1', '--min-fee-juice', '1', '--state-dir', '/tmp/fog-v7-preview', '--manifest-out', '/tmp/fog-v7-manifest.json', '--dry-run'];
 const pricing = { decimals: 18, annualPrice: '1', lengthPrices: { '3': '128', '4': '32' } };
-test('registry version defaults preserve testnet V6 and require mainnet V7 with the exact renewal horizon', () => {
+test('registry version defaults preserve testnet V6, allow testnet V8 and require mainnet V7 with the exact renewal horizon', () => {
   assert.equal(parseArgs(base).registryVersion, 6);
   assert.equal(parseArgs([...base, '--registry-version', '7']).registryVersion, 7);
-  for (const value of ['5', '8', '6.0', '07']) assert.throws(() => parseArgs([...base, '--registry-version', value]), /registry-version/);
+  assert.equal(parseArgs([...base, '--registry-version', '8']).registryVersion, 8);
+  assert.equal(parseArgs(['--network', 'testnet-v6', ...base.slice(2), '--registry-version', '8', '--dry-run']).registryVersion, 8);
+  for (const value of ['5', '9', '6.0', '07']) assert.throws(() => parseArgs([...base, '--registry-version', value]), /registry-version/);
   assert.equal(parseArgs(mainnet).registryVersion, 7); assert.equal(parseArgs(mainnet).maxRenewAhead, '31536000');
   assert.throws(() => parseArgs([...mainnet, '--registry-version', '6']), /Mainnet requires/);
   assert.throws(() => parseArgs([...mainnet, '--max-renew-ahead', '0']), /31536000/);
@@ -33,4 +38,21 @@ test('V7 local manifests bind protocol, class and optional registryVersion consi
   assert.equal(manifest.protocol, 7); assert.equal(manifest.registryVersion, 7);
   assert.deepEqual(v6ManifestProblems(manifest), []);
   assert(v6ManifestProblems({ ...manifest, protocol: 6 }).length > 0);
+});
+test('V8 local and testnet manifests bind initial class ID, bound deployer and protocol 8', async () => {
+  const c = parseArgs(['--network', 'testnet-v6', ...base.slice(2), '--registry-version', '8', '--dry-run']);
+  const p = makePolicy(c, pricing, ZERO);
+  const { artifacts, classIds } = await v6Artifacts('none', 'launch', 8);
+  assert.equal(artifacts.registry.name, 'NameRegistryV8');
+  const owner = AztecAddress.fromBigIntUnsafe(7n);
+  const salts = { token: new Fr(1n).toString(), registry: new Fr(2n).toString(), resolver: new Fr(3n).toString(), registrar: new Fr(4n).toString() };
+  const prepared = await instances(artifacts, p, owner, salts);
+  assert.equal(prepared.values.registry.deployer.equals(owner), true);
+  assert.equal(prepared.args.registry.length, 2);
+  assert.equal((prepared.args.registry[1] as Fr).toString(), classIds.registry);
+  const hash = `0x${'1'.repeat(64)}`;
+  const tProfile = V6_PROFILES['testnet-v6'];
+  const manifest = buildManifest(c, p, { chainId: tProfile.chainId, rollupVersion: tProfile.rollupVersion, rollup: tProfile.rollup }, { registry: prepared.values.registry.address.toString(), resolver: prepared.values.resolver.address.toString(), registrar: prepared.values.registrar.address.toString(), token: ZERO, owner: owner.toString(), sponsoredFpc: tProfile.sponsoredFpc! }, classIds, Object.fromEntries(['deploy-registry', 'deploy-resolver', 'deploy-registrar', 'seed-reserved-0', 'bootstrap'].map(step => [step, hash])), new Date().toISOString());
+  assert.equal(manifest.protocol, 8); assert.equal(manifest.registryVersion, 8);
+  assert.deepEqual(v6ManifestProblems(manifest, { expectNetwork: 'testnet-v6' }), []);
 });

@@ -18,7 +18,7 @@ import {
   type AddressResolution,
   type FeeQuote,
   toFogError,
-} from "@fog/sdk";
+} from "fog-sdk";
 import { AztecAddress } from "@aztec-labs/aztec.js/addresses";
 import { useEffect, useState } from "react";
 import { NeedsAccount } from "../App";

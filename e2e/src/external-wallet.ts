@@ -13,7 +13,7 @@ import { WalletSchema, type Wallet } from '@aztec-labs/aztec.js/wallet';
 import { createSafeJsonRpcServer } from '@aztec-labs/foundation/json-rpc/server';
 import { TokenContractArtifact } from '@aztec-labs/noir-contracts.js/Token';
 import { EmbeddedWallet } from '@aztec-labs/wallets/embedded';
-import { getName, RegistryReader, resolveAddress, resolvePrimary, trackTx } from '@fog/sdk';
+import { getName, RegistryReader, resolveAddress, resolvePrimary, trackTx } from 'fog-sdk';
 import { AztecAddress } from '@aztec-labs/aztec.js/addresses';
 import { createServer as createViteServer } from 'vite';
 import puppeteer from 'puppeteer-core';

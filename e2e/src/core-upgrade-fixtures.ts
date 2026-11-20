@@ -6,8 +6,8 @@ import { publishContractClass } from '@aztec-labs/aztec.js/deployment';
 import { AztecAddress } from '@aztec-labs/aztec.js/addresses';
 import { Fr } from '@aztec-labs/aztec.js/fields';
 import { loadContractArtifact } from '@aztec-labs/stdlib/abi';
-import { NameRegistryV8RehearsalContract } from '@fog/sdk/contracts/v8';
-import type { FogContext } from '@fog/sdk';
+import { NameRegistryV8RehearsalContract } from 'fog-sdk/contracts/v8';
+import type { FogContext } from 'fog-sdk';
 import metadata from '../../sdk/src/artifacts/modular-metadata.json' with { type: 'json' };
 
 export async function exerciseV8Fixtures(ctx: FogContext, fixtureDirectory: string, warp: (timestamp: bigint) => Promise<void>, check: (label: string, value: unknown) => Promise<void>) {

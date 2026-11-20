@@ -1,7 +1,7 @@
 import { AztecAddress } from '@aztec-labs/aztec.js/addresses';
 import { Fr } from '@aztec-labs/aztec.js/fields';
 import type { AztecNode } from '@aztec-labs/aztec.js/node';
-import { readCoreUpgrade } from '@fog/sdk/read';
+import { readCoreUpgrade } from 'fog-sdk/read';
 import type { Check } from './monitor.js';
 
 type Rpc = <T>(method: string, params: unknown[]) => Promise<T>;

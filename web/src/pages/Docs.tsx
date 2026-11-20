@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import type { RegistryReader, RegistryConfig } from '@fog/sdk/read';
+import type { RegistryReader, RegistryConfig } from 'fog-sdk/read';
 import { articles, articleToMarkdown, groups, sectionsFor, summaries, type Article, type DocBlock } from '../docs-content';
 import { Card, CopyValue } from '../components';
 import { FeeAmount } from '../fees';

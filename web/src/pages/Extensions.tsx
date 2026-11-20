@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { FogError, acceptTransfer, formatName, listSubnames, getName, issueSubname, offerTransfer, revokeSubname, setManager, setTextRecord, setResolver, type FogContext, type Holding, type TxOptions } from '@fog/sdk';
+import { FogError, acceptTransfer, formatName, listSubnames, getName, issueSubname, offerTransfer, revokeSubname, setManager, setTextRecord, setResolver, type FogContext, type Holding, type TxOptions } from 'fog-sdk';
 import { AztecAddress } from '@aztec-labs/aztec.js/addresses';
 import { Card, CopyValue, Field, TxLine, useTx } from '../components';
 import { translate as t } from '../i18n';

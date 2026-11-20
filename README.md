@@ -1,6 +1,6 @@
 # Fog Names (`.fog`)
 
-Fog Names is a public `.fog` name registration and resolution service on Aztec: Noir contracts, a TypeScript SDK (`@fog/sdk`), a React web app, and a Cloudflare monitor in one npm-workspace repository (`sdk`, `web`, `e2e`, `ops`). It supports public names and holders, Aztec forward addresses, bidirectionally verified primary names, recipient-confirmed transfers, editor permissions, subnames, public profiles, and multi-chain address records.
+Fog Names is a public `.fog` name registration and resolution service on Aztec: Noir contracts, a TypeScript SDK (`fog-sdk`), a React web app, and a Cloudflare monitor in one npm-workspace repository (`sdk`, `web`, `e2e`, `ops`). It supports public names and holders, Aztec forward addresses, bidirectionally verified primary names, recipient-confirmed transfers, editor permissions, subnames, public profiles, and multi-chain address records.
 
 **Status**: Deployed on the Aztec public testnet only; contracts and SDK have not been audited. Testnet registration is currently free: the active Registrar is `NameRegistrarLaunch` with no payment token, and network fees are paid by the shared sponsor contract. See [docs/sdk-onboarding.md](docs/sdk-onboarding.md) for SDK integration and [SECURITY.md](SECURITY.md) for vulnerability reporting.
 
@@ -46,11 +46,11 @@ Registration and renewal are tiered by label length with target annual pricing o
 | `contracts/name_registrar`, `_tiered`, `_launch` | Single-price, length-tiered, and launch fee/policy Registrar modules |
 | `contracts/name_resolver` | Default forward-address Resolver module |
 | `contracts/test_token` | Standard Aztec Token fixture for TXE fee tests (see `third-party/`) |
-| `sdk` | Wallet-free reads (`@fog/sdk/read`), bidirectional resolution, discovery, transactions, fee authorization, and registration recovery |
+| `sdk` | Wallet-free reads (`fog-sdk/read`), bidirectional resolution, discovery, transactions, fee authorization, and registration recovery |
 | `web` | Search, registration, portfolio, name management, documentation center, and live service status |
 | `ops` | Cloudflare site Worker and per-minute health monitor backed by D1 |
 | `e2e` | Local-chain acceptance suites, public testnet runners, and V6 deployment tooling |
-| `examples/consumer` | Standalone consumer starter compiled against an independently packed `@fog/sdk` |
+| `examples/consumer` | Standalone consumer starter compiled against an independently packed `fog-sdk` |
 | `deployments` | Testnet deployment manifests, reserved label policy, and pricing metadata |
 
 See [Code structure](docs/code-structure.md) for module responsibilities and extension boundaries.
@@ -137,7 +137,7 @@ npm run pack:sdk                       # produces fog-sdk-<version>.tgz
 npm install /path/to/fog-sdk-<version>.tgz
 ```
 
-`@fog/sdk` is distributed as a tarball rather than published to public npm. It identifies V2–V8 registries and supported Registrars by exact on-chain class ID, failing closed with `wrong_deployment` on unknown classes. Registration flows encrypt and persist plans before sending, check receipts for known hashes first, and clear a hash only when a receipt proves the transaction reverted or dropped. See [SDK integration](docs/sdk-onboarding.md) and [Dependency security](docs/dependency-security.md).
+`fog-sdk` can be installed from npm or as a verified tarball (`npm run pack:sdk`). It identifies V2–V8 registries and supported Registrars by exact on-chain class ID, failing closed with `wrong_deployment` on unknown classes. Registration flows encrypt and persist plans before sending, check receipts for known hashes first, and clear a hash only when a receipt proves the transaction reverted or dropped. See [SDK integration](docs/sdk-onboarding.md) and [Dependency security](docs/dependency-security.md).
 
 ## Security and license
 
@@ -166,8 +166,8 @@ Before creating a plan or sending commit, the SDK requires 300 chain seconds of 
 ### Resolver integration
 
 ```typescript
-import { resolveAddress, type RegistryReader } from '@fog/sdk/read';
-import { setResolver, type FogContext } from '@fog/sdk';
+import { resolveAddress, type RegistryReader } from 'fog-sdk/read';
+import { setResolver, type FogContext } from 'fog-sdk';
 
 export async function receivingAddress(reader: RegistryReader, name: string) {
   const result = await resolveAddress(reader, name);
@@ -181,7 +181,7 @@ export async function restoreDefaultResolver(ctx: FogContext, name: string) {
 }
 ```
 
-`setPrimary(ctx, { name, acceptUnverifiedResolver? }, opts?)` refuses an unverified resolver with `invalid_argument` unless explicitly opted in with `true`. The override preserves transport, active-lease and forward-address checks and cannot make `resolvePrimary` report trust. Only `resolveAddress` and `resolvePrimary` validate resolver trust; raw `RegistryReader.getAddress` / `@fog/sdk/read` returns public chain records for callers to validate.
+`setPrimary(ctx, { name, acceptUnverifiedResolver? }, opts?)` refuses an unverified resolver with `invalid_argument` unless explicitly opted in with `true`. The override preserves transport, active-lease and forward-address checks and cannot make `resolvePrimary` report trust. Only `resolveAddress` and `resolvePrimary` validate resolver trust; raw `RegistryReader.getAddress` / `fog-sdk/read` returns public chain records for callers to validate.
 
 L-02 remains open before mainnet: administrator changes to the default resolver take effect immediately, and V7 registrations, reissues and accepted transfers use that current default. Administrator compromise therefore affects future recipients. The product retains a trusted single administrator and the immediate module-configuration risk; monitoring continues to watch `configure_modules`.
 

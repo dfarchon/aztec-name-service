@@ -10,14 +10,14 @@ import { createAztecNodeClient } from '@aztec-labs/aztec.js/node';
 import { Fr, Fq } from '@aztec-labs/aztec.js/fields';
 import { AztecAddress } from '@aztec-labs/aztec.js/addresses';
 import { publishContractClass } from '@aztec-labs/aztec.js/deployment';
-import { NameRegistryV8Contract, NameRegistryV8RehearsalContract } from '@fog/sdk/contracts/v8';
+import { NameRegistryV8Contract, NameRegistryV8RehearsalContract } from 'fog-sdk/contracts/v8';
 import {
   FogContext,
   CORE_UPGRADE_FAMILY,
   RegistryReader,
   administerCoreUpgrade,
-} from '@fog/sdk';
-import { NameRegistrarLaunchContract, NameResolverContract } from '@fog/sdk/contracts';
+} from 'fog-sdk';
+import { NameRegistrarLaunchContract, NameResolverContract } from 'fog-sdk/contracts';
 import metadata from '../../sdk/src/artifacts/modular-metadata.json' with { type: 'json' };
 import { sponsoredFpc } from './common.js';
 import { assertV8DeploymentOwner, v8BoundDeployment } from './v8-deployment.js';

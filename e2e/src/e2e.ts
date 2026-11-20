@@ -6,8 +6,8 @@ import {
   inspectHolding, listOwnedNames, normalizeName, prepareRegistration,
   RegistryReader, renew, resolveAddress, resolvePrimary, resolvePrimaryMany, serializePlan,
   setAddress, setPrimary, submitCommit, submitRegistration, type RegistrationPlan,
-} from '@fog/sdk';
-import { NameRegistryContract } from '@fog/sdk/contracts';
+} from 'fog-sdk';
+import { NameRegistryContract } from 'fog-sdk/contracts';
 import { getInitialTestAccountsData } from '@aztec-labs/accounts/testing';
 import { AztecAddress } from '@aztec-labs/aztec.js/addresses';
 import { Fr } from '@aztec-labs/aztec.js/fields';
