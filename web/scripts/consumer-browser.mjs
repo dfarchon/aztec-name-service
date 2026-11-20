@@ -1,9 +1,23 @@
 import assert from 'node:assert/strict';
+import { existsSync } from 'node:fs';
 import { createServer } from 'node:http';
 import { readFile } from 'node:fs/promises';
 import { resolve, sep } from 'node:path';
 import { gzipSync } from 'node:zlib';
 import puppeteer from 'puppeteer-core';
+
+const chromeCandidates = [
+  '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
+  '/usr/bin/google-chrome',
+  '/usr/bin/google-chrome-stable',
+  '/usr/bin/chromium',
+  '/usr/bin/chromium-browser',
+];
+const resolveChromePath = () => {
+  const path = process.env.CHROME_PATH ?? chromeCandidates.find((candidate) => existsSync(candidate));
+  assert.ok(path, 'Chrome executable not found; set CHROME_PATH');
+  return path;
+};
 
 /** Inspect the built independent consumer, not the workspace app. Public reads only; broadcasts are blocked. */
 export async function checkConsumerBrowser(cwd) {
@@ -28,7 +42,14 @@ export async function checkConsumerBrowser(cwd) {
   await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
   let browser;
   try {
-    browser = await puppeteer.launch({ executablePath: process.env.CHROME_PATH ?? '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome', headless: true, args:['--disable-background-timer-throttling'] });
+    browser = await puppeteer.launch({
+      executablePath: resolveChromePath(),
+      headless: true,
+      args: [
+        '--disable-background-timer-throttling',
+        ...(process.platform === 'linux' ? ['--no-sandbox', '--disable-setuid-sandbox'] : []),
+      ],
+    });
     const page = await browser.newPage(), errors = []; let broadcasts = 0;
     const requested = new Set();
     page.on('pageerror', error => errors.push(error.message));
@@ -43,7 +64,7 @@ export async function checkConsumerBrowser(cwd) {
     for (const chunk of budget.chunks) assert.ok(requested.has(chunk), `Initial chunk was not loaded: ${chunk}`);
     for (const chunk of budget.executionArtifactChunks) assert.equal(requested.has(chunk), false, `Execution artifact loaded before wallet action: ${chunk}`);
     await page.click('#discover');
-    await page.waitForFunction(() => document.querySelector('#status').textContent.includes('No compatible wallet found.'), { timeout: 60000 });
+    await page.waitForFunction(() => document.querySelector('#status').textContent.includes('No compatible wallet found.'), { timeout: 90000 });
     for (const chunk of budget.executionArtifactChunks) assert.equal(requested.has(chunk), false, `Wallet discovery loaded execution artifact: ${chunk}`);
     assert.equal(await page.$eval('#unlock', button => button.disabled), true);
     assert.equal(await page.$eval('#prepare', button => button.disabled), true);

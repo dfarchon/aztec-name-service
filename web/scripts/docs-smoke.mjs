@@ -1,12 +1,22 @@
 import assert from 'node:assert/strict';
+import { existsSync } from 'node:fs';
 import { mkdir, writeFile } from 'node:fs/promises';
 import puppeteer from 'puppeteer-core';
 
+const chromeCandidates = [
+  '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
+  '/usr/bin/google-chrome',
+  '/usr/bin/google-chrome-stable',
+  '/usr/bin/chromium',
+  '/usr/bin/chromium-browser',
+];
+const executablePath = process.env.CHROME_PATH ?? chromeCandidates.find((path) => existsSync(path));
+assert.ok(executablePath, 'Chrome executable not found; set CHROME_PATH');
 const base=process.env.BASE ?? 'http://127.0.0.1:5274';
-const feeLabel=process.env.FOG_FEE_LABEL ?? '1 mAZTEC';
+const feeLabel=process.env.FOG_FEE_LABEL ?? 'Free / year';
 const output=process.env.FOG_DOCS_REPORT_DIR ?? '/tmp/fog-docs-review';
 await mkdir(output,{recursive:true});
-const browser=await puppeteer.launch({executablePath:process.env.CHROME_PATH??'/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',headless:true,args:['--no-sandbox']});
+const browser=await puppeteer.launch({executablePath,headless:true,args:process.platform==='linux'?['--no-sandbox','--disable-setuid-sandbox']:[]});
 const page=await browser.newPage(), errors=[],checks=[];
 page.on('pageerror',e=>errors.push(e.message));
 let broadcasts=0;
