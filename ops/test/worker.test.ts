@@ -3,7 +3,7 @@ import { test } from 'node:test';
 import { DatabaseSync } from 'node:sqlite';
 import { readFileSync } from 'node:fs';
 import { URL as NodeURL } from 'node:url';
-import worker, { probe, deliverAlerts, readBounded, tokenMatches, appRedirect, ALERT_OUTBOX_MAX, type Env } from '../src/worker.js';
+import worker, { probe, proxyRpc, deliverAlerts, readBounded, tokenMatches, appRedirect, ALERT_OUTBOX_MAX, type Env } from '../src/worker.js';
 import { deploymentConfigMismatches } from '../../scripts/deployment-config.mjs';
 import metadata from '../../web/src/public-metadata.json' with { type: 'json' };
 import registry from '../../sdk/src/artifacts/read-metadata.json' with { type: 'json' };
@@ -309,4 +309,255 @@ test('monitor recognizes launch registrar class with the exact registry binding'
   };
   const result=await inspectModules(rpc as any,registry,modular.v6.classId,10);
   assert(result.checks.every(c=>c.ok));
+});
+
+test('RPC proxy handles CORS preflight and rejects non-POST methods', async () => {
+  const f = fixture();
+  try {
+    const preflight = await worker.fetch(new Request('https://fog.test/api/rpc', { method: 'OPTIONS' }), f.env);
+    assert.equal(preflight.status, 204);
+    assert.equal(preflight.headers.get('access-control-allow-origin'), '*');
+    assert.equal(preflight.headers.get('access-control-allow-methods'), 'POST, OPTIONS');
+    assert.equal(preflight.headers.get('access-control-allow-headers'), 'Content-Type');
+    assert.equal(
+      preflight.headers.get('access-control-expose-headers'),
+      'x-aztec-l1ChainId, x-aztec-l1RollupAddress, x-aztec-rollupVersion, x-aztec-l2ProtocolContractsHash, x-aztec-l2CircuitsVkTreeRoot, x-aztec-packageVersion',
+    );
+    assert.equal(preflight.headers.get('access-control-max-age'), '86400');
+
+    const getRes = await worker.fetch(new Request('https://fog.test/api/rpc', { method: 'GET' }), f.env);
+    assert.equal(getRes.status, 405);
+    assert.equal(getRes.headers.get('allow'), 'POST, OPTIONS');
+    assert.equal(getRes.headers.get('cache-control'), 'no-store');
+    assert.equal(getRes.headers.get('x-content-type-options'), 'nosniff');
+    assert.equal(getRes.headers.get('access-control-allow-origin'), '*');
+    assert.deepEqual(await getRes.json(), {
+      jsonrpc: '2.0',
+      id: null,
+      error: { code: -32600, message: 'Method not allowed' },
+    });
+  } finally {
+    f.sqlite.close();
+  }
+});
+
+test('RPC proxy rejects missing, non-HTTPS, invalid, and self-referential UPSTREAM_RPC_URL without leaking URLs', async () => {
+  const body = JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'aztec_getBlockNumber', params: [] });
+  for (const candidate of [
+    undefined,
+    '',
+    'not-a-valid-url',
+    'http://upstream.example/secret-token',
+    'https://fog.test/api/rpc',
+    'https://fog.test/api/rpc/',
+  ]) {
+    let called = false;
+    const res = await proxyRpc(
+      new Request('https://fog.test/api/rpc', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body }),
+      { UPSTREAM_RPC_URL: candidate },
+      (async () => {
+        called = true;
+        return Response.json({ jsonrpc: '2.0', id: 1, result: 1 });
+      }) as typeof fetch,
+    );
+    assert.equal(called, false);
+    assert.equal(res.status, 503);
+    const text = await res.text();
+    if (candidate) assert.ok(!text.includes(candidate));
+    assert.ok(!text.includes('fog.test'));
+    assert.deepEqual(JSON.parse(text), {
+      jsonrpc: '2.0',
+      id: null,
+      error: { code: -32603, message: 'RPC upstream unavailable' },
+    });
+  }
+});
+
+test('RPC proxy forwards single and batched Aztec requests, filters headers, and redacts upstream errors', async () => {
+  const secretUrl = 'https://private-node.example/v1/secret-key-987654';
+  const calls: Array<{ url: string; init: RequestInit }> = [];
+  const versionHeaders: Record<string, string> = {
+    'x-aztec-l1ChainId': '1',
+    'x-aztec-l1RollupAddress': '0xe37a2663cc9c119ba41572c40fab0bbb23a5402f',
+    'x-aztec-rollupVersion': '2070860440',
+    'x-aztec-l2ProtocolContractsHash': '0xabc',
+    'x-aztec-l2CircuitsVkTreeRoot': '0xdef',
+    'x-aztec-packageVersion': '6.0.0',
+  };
+  const fetcher = (async (input: unknown, init?: RequestInit) => {
+    calls.push({ url: String(input), init: init! });
+    const parsed = JSON.parse(String(init?.body));
+    const reply = Array.isArray(parsed)
+      ? parsed.map((c: any) => ({ jsonrpc: '2.0', id: c.id, result: c.method === 'aztec_getBlockNumber' ? 42 : { nodeVersion: '6.0.0' } }))
+      : { jsonrpc: '2.0', id: parsed.id, result: 42 };
+    return new Response(JSON.stringify(reply), {
+      status: 200,
+      headers: {
+        'Content-Type': 'application/json',
+        ...versionHeaders,
+        'x-provider-request-id': 'provider-internal-123',
+        'set-cookie': 'session=secret',
+        server: 'private-rpc-gateway',
+      },
+    });
+  }) as typeof fetch;
+
+  const singleReq = new Request('https://fog.test/api/rpc', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'aztec_getBlockNumber', params: [] }),
+  });
+  const singleRes = await proxyRpc(singleReq, { UPSTREAM_RPC_URL: secretUrl }, fetcher);
+  assert.equal(singleRes.status, 200);
+  assert.equal(calls.length, 1);
+  assert.equal(calls[0].url, secretUrl);
+  assert.deepEqual(calls[0].init.headers, { 'Content-Type': 'application/json', Accept: 'application/json' });
+  assert.equal(singleRes.headers.get('cache-control'), 'no-store');
+  assert.equal(singleRes.headers.get('x-content-type-options'), 'nosniff');
+  assert.equal(singleRes.headers.get('access-control-allow-origin'), '*');
+  for (const [k, v] of Object.entries(versionHeaders)) assert.equal(singleRes.headers.get(k), v);
+  assert.equal(singleRes.headers.get('x-provider-request-id'), null);
+  assert.equal(singleRes.headers.get('set-cookie'), null);
+  assert.equal(singleRes.headers.get('server'), null);
+  assert.deepEqual(await singleRes.json(), { jsonrpc: '2.0', id: 1, result: 42 });
+
+  const batchReq = new Request('https://fog.test/api/rpc', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify([
+      { jsonrpc: '2.0', id: 1, method: 'aztec_getBlockNumber', params: [] },
+      { jsonrpc: '2.0', id: 2, method: 'aztec_getNodeInfo' },
+    ]),
+  });
+  const batchRes = await proxyRpc(batchReq, { UPSTREAM_RPC_URL: secretUrl }, fetcher);
+  assert.equal(batchRes.status, 200);
+  assert.deepEqual(await batchRes.json(), [
+    { jsonrpc: '2.0', id: 1, result: 42 },
+    { jsonrpc: '2.0', id: 2, result: { nodeVersion: '6.0.0' } },
+  ]);
+
+  const failRes = await proxyRpc(
+    new Request('https://fog.test/api/rpc', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'aztec_getBlockNumber', params: [] }),
+    }),
+    { UPSTREAM_RPC_URL: secretUrl },
+    (async () => {
+      throw new Error('connect failed to ' + secretUrl);
+    }) as typeof fetch,
+  );
+  assert.equal(failRes.status, 502);
+  const failText = await failRes.text();
+  assert.ok(!failText.includes(secretUrl));
+  assert.ok(!failText.includes('connect failed'));
+  assert.deepEqual(JSON.parse(failText), {
+    jsonrpc: '2.0',
+    id: null,
+    error: { code: -32000, message: 'RPC upstream unreachable' },
+  });
+
+  const timeoutRes = await proxyRpc(
+    new Request('https://fog.test/api/rpc', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'aztec_getBlockNumber', params: [] }),
+    }),
+    { UPSTREAM_RPC_URL: secretUrl },
+    (async () => {
+      throw new DOMException('timed out contacting ' + secretUrl, 'TimeoutError');
+    }) as typeof fetch,
+  );
+  assert.equal(timeoutRes.status, 504);
+  const timeoutText = await timeoutRes.text();
+  assert.ok(!timeoutText.includes(secretUrl));
+  assert.deepEqual(JSON.parse(timeoutText), {
+    jsonrpc: '2.0',
+    id: null,
+    error: { code: -32000, message: 'RPC upstream timeout' },
+  });
+});
+
+test('RPC proxy rejects unsupported methods, invalid batches, malformed JSON, and oversized bodies before fetching', async () => {
+  const env = { UPSTREAM_RPC_URL: 'https://private-node.example/rpc' };
+  let calls = 0;
+  const neverFetch = (async () => {
+    calls++;
+    return Response.json({ jsonrpc: '2.0', id: 1, result: 1 });
+  }) as typeof fetch;
+  const postRaw = (body: BodyInit, headers: Record<string, string> = { 'Content-Type': 'application/json' }) =>
+    proxyRpc(new Request('https://fog.test/api/rpc', { method: 'POST', headers, body, duplex: 'half' } as RequestInit), env, neverFetch);
+
+  const parseErr = await postRaw('{not-json');
+  assert.equal(parseErr.status, 400);
+  assert.deepEqual(await parseErr.json(), { jsonrpc: '2.0', id: null, error: { code: -32700, message: 'Parse error' } });
+
+  for (const invalidPayload of [
+    { jsonrpc: '2.0', id: 1, method: 'eth_blockNumber', params: [] },
+    { jsonrpc: '1.0', id: 1, method: 'aztec_getBlockNumber', params: [] },
+    { jsonrpc: '2.0', id: 1, method: 'aztec_getBlockNumber', params: { bad: true } },
+    [],
+    Array.from({ length: 101 }, (_, i) => ({ jsonrpc: '2.0', id: i, method: 'aztec_getBlockNumber', params: [] })),
+    null,
+    'aztec_getBlockNumber',
+  ]) {
+    const res = await postRaw(JSON.stringify(invalidPayload));
+    assert.equal(res.status, 400);
+    assert.deepEqual(await res.json(), {
+      jsonrpc: '2.0',
+      id: null,
+      error: { code: -32601, message: 'Unsupported RPC request' },
+    });
+  }
+
+  const headerTooLarge = await postRaw('{}', {
+    'Content-Type': 'application/json',
+    'Content-Length': String(4 * 1024 * 1024 + 1),
+  });
+  assert.equal(headerTooLarge.status, 413);
+  assert.deepEqual(await headerTooLarge.json(), {
+    jsonrpc: '2.0',
+    id: null,
+    error: { code: -32600, message: 'Payload too large' },
+  });
+
+  const oversizedStream = new ReadableStream<Uint8Array>({
+    start(controller) {
+      controller.enqueue(new Uint8Array(2 * 1024 * 1024));
+      controller.enqueue(new Uint8Array(2 * 1024 * 1024 + 1));
+      controller.close();
+    },
+  });
+  const streamTooLarge = await postRaw(oversizedStream);
+  assert.equal(streamTooLarge.status, 413);
+  assert.deepEqual(await streamTooLarge.json(), {
+    jsonrpc: '2.0',
+    id: null,
+    error: { code: -32600, message: 'Payload too large' },
+  });
+
+  assert.equal(calls, 0);
+});
+
+test('probe uses UPSTREAM_RPC_URL when configured and falls back to RPC_URL otherwise', async () => {
+  const f = fixture();
+  const rpcTargets: string[] = [];
+  const trackingFetcher = (async (input: any, init?: RequestInit) => {
+    const url = String(input);
+    if (!url.startsWith(f.env.SITE_URL)) rpcTargets.push(url);
+    return f.fetcher(input, init);
+  }) as typeof fetch;
+  try {
+    await probe(f.env, 1000, trackingFetcher);
+    assert.ok(rpcTargets.length > 0);
+    assert.ok(rpcTargets.every((u) => u === f.env.RPC_URL));
+
+    rpcTargets.length = 0;
+    f.env.UPSTREAM_RPC_URL = 'https://upstream-secret.example/rpc';
+    await probe(f.env, 70000, trackingFetcher);
+    assert.ok(rpcTargets.length > 0);
+    assert.ok(rpcTargets.every((u) => u === 'https://upstream-secret.example/rpc'));
+  } finally {
+    f.sqlite.close();
+  }
 });

@@ -17,7 +17,7 @@
     "enabled": true
   },
   "vars": {
-    "RPC_URL": "https://aztec-mainnet.drpc.org",
+    "RPC_URL": "https://fog-mainnet.huantian233.workers.dev/api/rpc",
     "REGISTRY": "0x1fa493d7fe8b41fff6b6dc9999b3c8a64d3cb47c50283aa75da089a16c20b7e1",
     "SITE_URL": "https://fog-mainnet.huantian233.workers.dev",
     "CHAIN_ID": "1",
