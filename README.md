@@ -39,9 +39,9 @@ Registration and renewal are tiered by label length with target annual pricing o
 
 | Directory | Contents |
 | --- | --- |
-| `contracts/name_registry_v6` | Current core Registry on the Aztec 6 testnet (frozen) |
+| `contracts/name_registry_v6` | Archived Aztec 6 testnet Registry implementation (frozen) |
 | `contracts/name_registry_v7` | Frozen successor implementation with transfer resolver reset and separate record revisions |
-| `contracts/name_registry_v8`, `_v8_rehearsal` | Independent V8 suite and exact-layout rehearsal successor with fixed core upgrade delays |
+| `contracts/name_registry_v8`, `_v8_rehearsal` | Active core V8 suite on the Aztec 6 testnet and exact-layout rehearsal successor with fixed core upgrade delays |
 | `contracts/name_registry`, `_v3`, `_v4`, `_v5` | Frozen legacy Registry sources and storage baselines (read-only archive) |
 | `contracts/name_registrar`, `_tiered`, `_launch` | Single-price, length-tiered, and launch fee/policy Registrar modules |
 | `contracts/name_resolver` | Default forward-address Resolver module |
@@ -104,7 +104,7 @@ RPC configuration accepts one `VITE_NODE_URL`. DEV defaults to `local` when `VIT
 
 ## Public testnet
 
-The active deployment is `deployments/testnet-v6.json` (Aztec 6 testnet, V6 Registry, free `NameRegistrarLaunch` with a 5-character public minimum). Deployed on 2026-11-11, it replaced the earlier paid tiered V6 deployment archived at `deployments/legacy/testnet-v6-tiered.json` without migrating names. Earlier V2–V5 deployments on the Aztec 5.2.1 rollup are archived read-only under `deployments/testnet.json` and `deployments/legacy/`.
+The active deployment is `deployments/testnet-v6.json` (Aztec 6 testnet, V8 Registry `NameRegistryV8`, free `NameRegistrarLaunch` with a 7-character public minimum and 1-year renewal horizon). Deployed on 2026-11-20, it replaced the prior free-launch V6 deployment archived at `deployments/legacy/testnet-v6-launch.json` (and the earlier paid tiered V6 deployment at `deployments/legacy/testnet-v6-tiered.json`) without migrating names. Earlier V2–V5 deployments on the Aztec 5.2.1 rollup are archived read-only under `deployments/testnet.json` and `deployments/legacy/`.
 
 ```sh
 # Read-only preflight: calls getNodeInfo / getContract only, generates no keys, and sends no transactions
@@ -145,7 +145,7 @@ Report vulnerabilities privately following [SECURITY.md](SECURITY.md). First-par
 
 ## Launch Registrar
 
-`NameRegistrarLaunch` is an optional V6/V7 module. The current testnet runs it in free mode with a 5-character public minimum; this does not announce a mainnet deployment. Public registration defaults to at least 7 characters; the live administrator can choose 3–31. Short names show “Not yet available”; reserved names show “Reserved”. Reservations use node keys, batches of 32 and zero padding. `deployments/reserved-labels.json` contains the categorized v3 content-policy list of 325 labels (all original v2 276 plus 49 additions; file schema `fog-reserved-labels/1`), all at least 7 characters. The loader rejects illegal labels and duplicates before hashing the sorted flat list; categories, corporate identity sources and change procedure are in `deployments/reserved-labels.md`. Support/official compounds are our anti-impersonation policy and do not claim an official company service, endorsement, ownership or partnership.
+`NameRegistrarLaunch` is an optional V6–V8 module. The current testnet runs it in free mode with a 7-character public minimum and a 1-year renewal horizon (`maxRenewAhead = 31536000`); this does not announce a mainnet deployment. Public registration defaults to at least 7 characters; the live administrator can choose 3–31. Short names show “Not yet available”; reserved names show “Reserved”. Reservations use node keys, batches of 32 and zero padding. `deployments/reserved-labels.json` contains the categorized v3 content-policy list of 325 labels (all original v2 276 plus 49 additions; file schema `fog-reserved-labels/1`), all at least 7 characters. The loader rejects illegal labels and duplicates before hashing the sorted flat list; categories, corporate identity sources and change procedure are in `deployments/reserved-labels.md`. Support/official compounds are our anti-impersonation policy and do not claim an official company service, endorsement, ownership or partnership.
 
 Each registration and renewal is exactly 365 days. `max_renew_ahead` is seconds, bounded at construction to 0–315360000 (10 years): 0 (the local/testnet script default) allows repeated renewal without a horizon; otherwise current expiry must be at most chain time plus the horizon. Mainnet sets `maxRenewAhead = 31536000`: renewal opens 1 year before expiry. Admin and treasury use placeholder address `0x2419a5bafa9cd88d6a625c21b96f16f79bf6e279253b1993609a3edc169f8c68` (offline-generated, never deployed), with `adminPlaceholder: true`; replace with the actual trusted administrator and pass readiness before launch (single administrator is the product choice; multisig is optional). Pause blocks only public registration; holder renewal and administrator mint stay available, protecting holders during the grace period.
 
@@ -155,7 +155,7 @@ Administrator mint uses a separate commit-reveal domain, waits 60 seconds to 24 
 
 ## V7/V8 resolver and revision rules
 
-Mainnet targets a fresh V8 free-launch deployment (`protocol: 8`, `registryVersion: 8`, retaining schema `fog-deployment-v6/1` and V7 public business rules). The current testnet stays on frozen V6; V2–V5 remain archives on the old rollup, with no migration to Aztec 6. Acceptance on V7/V8 resets the resolver to the current default and emits ResolverChanged. Old-generation addresses, profiles, editors, primary consent and descendants cannot revive. A resolver can write only in the generation bound by that holder or default policy, and the supplied actor must be the current holder or editor. The SDK and web also verify its class and Registry binding.
+Mainnet targets a fresh V8 free-launch deployment (`protocol: 8`, `registryVersion: 8`, retaining schema `fog-deployment-v6/1` and V7 public business rules). The current testnet runs fresh V8 (`deployments/testnet-v6.json`), while prior V6 deployments (`deployments/legacy/testnet-v6-launch.json`, `deployments/legacy/testnet-v6-tiered.json`) and V2–V5 on the old rollup remain archives with no migration. Acceptance on V7/V8 resets the resolver to the current default and emits ResolverChanged. Old-generation addresses, profiles, editors, primary consent and descendants cannot revive. A resolver can write only in the generation bound by that holder or default policy, and the supplied actor must be the current holder or editor. The SDK and web also verify its class and Registry binding.
 
 V7 separates holder `NameRecord.revision` from editor `Holding.recordRevision`: editor writes cannot stale holder renewal, editor removal, resolver replacement or transfer acceptance. Resolver replacement clears the address and advances record revision, invalidating pending editor writes. V3–V6 retain a shared revision. `get_record_revision(node, generation)` / `getRecordRevision(node, generation, snapshot)` returns the generation's record revision as u32 / number.
 

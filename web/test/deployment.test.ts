@@ -5,7 +5,7 @@ import manifest from '../../deployments/testnet-v6.json' with { type: 'json' };
 import { registryProtocol } from '../../sdk/src/core/registry-protocol.ts';
 import { articles, articleToMarkdown } from '../src/docs-content.ts';
 
-test('connected manifest class displays V6, preserving V2/V3/V4/V5 labels', () => {
+test('connected manifest class displays matching protocol label, preserving V2–V8 labels', () => {
   const protocol = registryProtocol(manifest.classIds.registry);
   assert.equal(protocol.version, manifest.protocol);
   assert.equal(
@@ -13,13 +13,15 @@ test('connected manifest class displays V6, preserving V2/V3/V4/V5 labels', () =
       deployment: { protocolVersion: protocol.version } as any,
       ...protocol,
     }),
-    'V6',
+    `V${manifest.protocol}`,
   );
   for (const [version, modular, extended, label] of [
     [2, false, false, 'V2'],
     [3, true, false, 'V3'],
     [3, true, true, 'V4'],
     [5, true, true, 'V5'],
+    [6, true, true, 'V6'],
+    [8, true, true, 'V8'],
   ] as const) {
     assert.equal(
       deploymentProtocolLabel({
