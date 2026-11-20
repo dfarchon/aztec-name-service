@@ -1,4 +1,5 @@
-import deployment from '../../deployments/testnet-v6.json';
+import testnet from '../../deployments/testnet-v6.json';
+import mainnet from '../../deployments/mainnet.json';
 import pricing from '../../deployments/aztec-pricing.json';
 import { formatUnits } from './usability';
 import {
@@ -12,7 +13,20 @@ import {
 const aztecAnnualPrice = formatUnits(BigInt(pricing.annualPrice), pricing.decimals);
 const aztecPrice3 = formatUnits(BigInt(pricing.lengthPrices['3']), pricing.decimals);
 const aztecPrice4 = formatUnits(BigInt(pricing.lengthPrices['4']), pricing.decimals);
-/** Minimum public label length of the live free test Registrar. */
+/**
+ * The docs describe the network the site is built for: Vite injects VITE_NETWORK into the web build, and the
+ * Markdown export reads the same variable from the build environment. Anything else uses the test deployment.
+ */
+const buildNetwork =
+  import.meta.env?.VITE_NETWORK ??
+  (globalThis as { process?: { env?: Record<string, string | undefined> } }).process?.env
+    ?.VITE_NETWORK;
+export const docsNetwork: 'mainnet' | 'testnet-v6' =
+  buildNetwork === 'mainnet' ? 'mainnet' : 'testnet-v6';
+const onMainnet = docsNetwork === 'mainnet';
+const deployment = onMainnet ? mainnet : testnet;
+const siteUrl = onMainnet ? mainnet.domain : 'https://fog-testnet.huantian233.workers.dev';
+/** Minimum public label length of the live free launch Registrar. */
 const testMinLength = deployment.minPublicLength;
 export type Article = {
   id: string;
@@ -27,7 +41,7 @@ export const articles: Article[] = [
     group: 'developer',
     title: 'Independent V8 core upgrades',
     body: [
-      'V8 is a fresh independent registry awaiting review. Existing V6 has no upgrade entry and old names are not migrated. Mainnet remains blocked; local proof-disabled tests establish no real-proof readiness.',
+      'V8 is a fresh independent registry, used by both the Aztec Mainnet and the test deployment. Existing V6 has no upgrade entry and old names are not migrated. Local proof-disabled tests establish no real-proof readiness.',
       'A trusted single administrator may approve exact registered releases and revocable directed edges. Family/sequence labels are attestations, not semantic compatibility proofs; malicious code remains within administrator trust. Placeholder administrators remain blocked. Module configuration remains immediate.',
       'Core execution waits 86400 application seconds, then 86400 protocol seconds. Cancellation after execution is strictly before activation and can only retain the running source class. At or after activation, rollback requires the full ordinary delays and preserves business writes.',
       'SDK and monitoring pin raw application/protocol reads to one canonical block N. Public simulation is a next-block prediction. Unknown classes/edges or mismatches fail closed. Wallet identity and current artifacts refresh inside the shared queue; private proving needs a conservative activation margin.',
@@ -39,8 +53,12 @@ export const articles: Article[] = [
     title: 'Register your first name',
     body: [
       'Search for a name, connect an Aztec wallet, and review the lease and exact fee. Root labels use 3–31 ASCII letters, digits or hyphens; no leading or trailing hyphen, no "--" and no "0x" prefix.',
-      `You need a desktop browser with an Aztec 6 wallet extension, such as Nulo for Chrome or Firefox (open source, not independently audited; mobile wallets are not supported yet). Install it from the official listing linked at nulo.sh, unlock it and switch its network to Aztec Testnet; Nulo starts on Aztec mainnet. When you connect, the wallet asks to let Fog read your account, sign payment authorizations and use the Fog contracts. Approve it; if a name uses its own resolver, or the Registrar changes, the wallet asks again for that contract only. If the wallet asks for network details, enter: node ${deployment.nodeUrl}, chain ID ${deployment.chainId} and rollup version ${deployment.rollupVersion}. The chain ID identifies Ethereum Sepolia, the public test network that Aztec Testnet settles on; the rollup version identifies the current Aztec Testnet release. Both must match exactly, otherwise Fog stops before any transaction so nothing is sent to the wrong network.`,
-      `Registration on this test deployment is free: the Registrar has no payment token, so there is nothing to buy, approve or hold. Public names need at least ${testMinLength} characters; shorter names show Not yet available and reserved names show Reserved. Network fees are paid by a shared sponsor contract, so you do not need Fee Juice either. See “Which token do I need?” for AZTEC, mAZTEC, FOGF and Fee Juice.`,
+      onMainnet
+        ? `You need a desktop browser with an Aztec 6 wallet extension, such as Nulo for Chrome or Firefox (open source, not independently audited; mobile wallets are not supported yet). Install it from the official listing linked at nulo.sh, unlock it and keep its network on Aztec Mainnet. When you connect, the wallet asks to let Fog read your account, sign payment authorizations and use the Fog contracts. Approve it; if a name uses its own resolver, or the Registrar changes, the wallet asks again for that contract only. If the wallet asks for network details, enter: node ${deployment.nodeUrl}, chain ID ${deployment.chainId} and rollup version ${deployment.rollupVersion}. The chain ID identifies Ethereum mainnet, which Aztec Mainnet settles on; the rollup version identifies the current Aztec Mainnet release. Both must match exactly, otherwise Fog stops before any transaction so nothing is sent to the wrong network.`
+        : `You need a desktop browser with an Aztec 6 wallet extension, such as Nulo for Chrome or Firefox (open source, not independently audited; mobile wallets are not supported yet). Install it from the official listing linked at nulo.sh, unlock it and switch its network to Aztec Testnet; Nulo starts on Aztec mainnet. When you connect, the wallet asks to let Fog read your account, sign payment authorizations and use the Fog contracts. Approve it; if a name uses its own resolver, or the Registrar changes, the wallet asks again for that contract only. If the wallet asks for network details, enter: node ${deployment.nodeUrl}, chain ID ${deployment.chainId} and rollup version ${deployment.rollupVersion}. The chain ID identifies Ethereum Sepolia, the public test network that Aztec Testnet settles on; the rollup version identifies the current Aztec Testnet release. Both must match exactly, otherwise Fog stops before any transaction so nothing is sent to the wrong network.`,
+      onMainnet
+        ? `Registration on Aztec Mainnet is free: the Registrar has no payment token, so there is nothing to buy or approve for the name itself. Public names need at least ${testMinLength} characters; shorter names show Not yet available and reserved names show Reserved. There is no fee sponsor: your account pays its own network fees in Fee Juice, so fund it before you start. See “Which token do I need?”.`
+        : `Registration on this test deployment is free: the Registrar has no payment token, so there is nothing to buy, approve or hold. Public names need at least ${testMinLength} characters; shorter names show Not yet available and reserved names show Reserved. Network fees are paid by a shared sponsor contract, so you do not need Fee Juice either. See “Which token do I need?” for AZTEC, mAZTEC, FOGF and Fee Juice.`,
       'Registration has two transactions: first a commit (a sealed fingerprint that hides which name you want, so nobody can grab it first), then the registration after about one minute. Keep the registration plan until the second transaction is confirmed. If interrupted, open Register again and resume the saved plan.',
       'After registration, open Manage, set an Aztec address, then connect that address’s wallet to confirm its primary name. Registration alone does not set a receiving address.',
     ],
@@ -50,10 +68,10 @@ export const articles: Article[] = [
     group: 'guide',
     title: 'Pricing and payment assets',
     body: [
-      `Registration and renewal will be priced in AZTEC. Shorter names cost more: the provisional annual rate is ${aztecPrice3} AZTEC for 3 characters, ${aztecPrice4} AZTEC for 4 characters and ${aztecAnnualPrice} AZTEC for 5 or more, for one to five whole years. Renewals use the same tier. This is the target policy; AZTEC collection is not active on this test deployment. Today the test deployment is free: no registration or renewal fee for any length, with one-year leases. The Register page always shows the exact on-chain quote.`,
+      `Registration and renewal will be priced in AZTEC. Shorter names cost more: the provisional annual rate is ${aztecPrice3} AZTEC for 3 characters, ${aztecPrice4} AZTEC for 4 characters and ${aztecAnnualPrice} AZTEC for 5 or more, for one to five whole years. Renewals use the same tier. This is the target policy; AZTEC collection is not active yet. Today ${onMainnet ? 'the Aztec Mainnet deployment' : 'the test deployment'} is free: no registration or renewal fee for any length, with one-year leases. The Register page always shows the exact on-chain quote.`,
       'AZTEC is the official 18-decimal Ethereum token. Fee Juice is network fee credit obtained by depositing AZTEC; it cannot be transferred to a registration treasury. FOGF is an older project test token from earlier deployments. Receiving Fee Juice does not fund any registration payment; see “Which token do I need?”.',
       'The payment asset must be verified on the connected network before AZTEC collection can start. A website update or a token with the same symbol cannot change the active Registrar. The payment screen continues to show the current on-chain quote and token address.',
-      `When the connected module is NameRegistrarLaunch, public registration uses a live minimum length (initial default 7), reserved-name list and pause switch. A launch lease and each renewal are exactly 365 days. Free means no registration-token transfer or authorization; Fee Juice or sponsorship still pays network fees. Short names show Not yet available, reserved names show Reserved, and a pause blocks only public registration. The current test deployment uses a free NameRegistrarLaunch with a public minimum of ${testMinLength} characters; this does not announce a mainnet deployment.`,
+      `When the connected module is NameRegistrarLaunch, public registration uses a live minimum length (initial default 7), reserved-name list and pause switch. A launch lease and each renewal are exactly 365 days. Free means no registration-token transfer or authorization; Fee Juice or sponsorship still pays network fees. Short names show Not yet available, reserved names show Reserved, and a pause blocks only public registration. The current ${onMainnet ? 'Aztec Mainnet' : 'test'} deployment uses a free NameRegistrarLaunch with a public minimum of ${testMinLength} characters.`,
       'The administrator selects the active Registrar directly. A confirmed change takes effect immediately. Review the current token, treasury and exact quote before authorizing payment; prepare a new plan if its policy changed.',
     ],
   },
@@ -62,9 +80,17 @@ export const articles: Article[] = [
     group: 'guide',
     title: 'Which token do I need?',
     body: [
-      'You need no token to register on this test deployment. Its Registrar is free: it has no payment token, so registration creates no token authorization and reads no private balance. A shared sponsor contract pays the network fees.',
-      'AZTEC is the official token and the planned pricing currency; it is not accepted here. mAZTEC is the 18-decimal test stand-in that the previous paid test deployment charged; it is no longer needed. FOGF is an older 6-decimal Fog test token from earlier deployments. Fee Juice is Aztec network fee credit; you do not need it because the sponsor pays network fees, and it can never pay a registration fee.',
-      `There is nothing to obtain: free registration needs no faucet, balance or request channel, so treat any site offering Fog test tokens for this deployment as unrelated. The testnet-v6 manifest records the payment token as ${deployment.feeToken} (none). Names registered on the previous paid test deployment are not carried over.`,
+      ...(onMainnet
+        ? [
+            'Registration on Aztec Mainnet needs no payment token. Its Registrar is free: registration creates no token authorization and reads no private token balance. You do need Fee Juice, because every transaction pays its own network fee and there is no fee sponsor.',
+            'AZTEC is the official token and the planned pricing currency; it is not accepted for registration yet. Fee Juice is Aztec network fee credit; it pays transaction fees and can never pay a registration fee. mAZTEC and FOGF are test tokens from earlier test deployments and have no use on Aztec Mainnet.',
+            `Fee Juice is obtained by bridging AZTEC from Ethereum mainnet to your Aztec account. Before sending, Fog checks that the account holds enough Fee Juice and stops with a clear message if it does not. The mainnet manifest records the payment token as ${deployment.feeToken} (none).`,
+          ]
+        : [
+            'You need no token to register on this test deployment. Its Registrar is free: it has no payment token, so registration creates no token authorization and reads no private balance. A shared sponsor contract pays the network fees.',
+            'AZTEC is the official token and the planned pricing currency; it is not accepted here. mAZTEC is the 18-decimal test stand-in that the previous paid test deployment charged; it is no longer needed. FOGF is an older 6-decimal Fog test token from earlier deployments. Fee Juice is Aztec network fee credit; you do not need it because the sponsor pays network fees, and it can never pay a registration fee.',
+            `There is nothing to obtain: free registration needs no faucet, balance or request channel, so treat any site offering Fog test tokens for this deployment as unrelated. The testnet-v6 manifest records the payment token as ${deployment.feeToken} (none). Names registered on the previous paid test deployment are not carried over.`,
+          ]),
     ],
   },
   {
@@ -74,7 +100,9 @@ export const articles: Article[] = [
     body: [
       'Name: your readable Fog name, like alice.fog. Every name ends in .fog (Fully Obfuscated Glyph); you register only the part before it. It is not an internet domain or website address. Primary name: the one name your account shows by default; it is only shown when the name also points back to your address, so nobody can claim to be you.',
       'Commit: the first registration step. It records a sealed fingerprint of your request so nobody can see or front-run the name; after about one minute you send the actual registration.',
-      'Sponsored fee payer (FPC): a shared contract that pays Aztec network fees for you, so you do not need Fee Juice. It does not pay the registration fee.',
+      onMainnet
+        ? 'Fee Juice: Aztec network fee credit. Each transaction, including the commit and the registration, pays its network fee in Fee Juice from your account. It does not pay a registration fee.'
+        : 'Sponsored fee payer (FPC): a shared contract that pays Aztec network fees for you, so you do not need Fee Juice. It does not pay the registration fee.',
       'Registrar: the contract that takes the registration fee and creates or renews names. Resolver: the contract that stores where a name points, such as its Aztec address and profile records.',
       'Generation and revision: internal counters Fog uses so an old or stale action cannot change a name. Generation changes on registration or accepted transfer. V7 keeps holder changes and editor writes on separate revision counters; V6 shares one counter. If you see a mismatch, reload and try again.',
       'Generating proof: Aztec transactions are private, so your browser builds a cryptographic proof before sending. This can take a minute and uses a lot of CPU; keep the tab open. Dropped by network: the network discarded the transaction; nothing was charged, and you can retry.',
@@ -123,7 +151,7 @@ export const articles: Article[] = [
     group: 'developer',
     title: 'SDK setup and name resolution',
     body: [
-      'Use Node 24.12 or newer. Download and extract the starter below; it includes the SDK package, example code and public testnet configuration. The SDK is distributed as a versioned download and is not published on public npm.',
+      `Use Node 24.12 or newer. Download and extract the starter below; it includes the SDK package, example code and the public ${onMainnet ? 'Aztec Mainnet' : 'testnet'} configuration. The SDK is distributed as a versioned download and is not published on public npm.`,
       'Keep the Aztec 6.0.0 dependency versions and overrides in the application’s root package.json. Overrides from the SDK package do not apply to your application. Audit the installed dependencies after integration.',
       'Names display as alice.fog, but the SDK, contracts and routes use the bare label alice. Strip the suffix from user input with normalizeName(input, { suffix: NAME_SUFFIX }) and show names with formatName(label). Import public read APIs from fog-sdk/read; no wallet connection or proving runtime is required. Keep wallet execution imports behind user actions. resolveAddress returns the address and the block snapshot used for the read. Pass that snapshot to resolvePrimary to verify both directions at the same block.',
     ],
@@ -157,7 +185,7 @@ if (result.status === 'resolved') {
     title: 'Networks, versions and migration',
     body: [
       'A deployment is identified by its chain, rollup, registry address and contract class. Check these values on Status before connecting a wallet. The table below lists supported features by protocol version.',
-      'V6 preserves name transfers, editors, subnames and profile records on Aztec 6. Module configuration takes effect after confirmation; administrator handover requires nomination and acceptance. This fresh testnet deployment has no legacy registry and imports or reserves no old names.',
+      `V6 preserves name transfers, editors, subnames and profile records on Aztec 6. Module configuration takes effect after confirmation; administrator handover requires nomination and acceptance. This fresh ${onMainnet ? 'Aztec Mainnet' : 'testnet'} deployment has no legacy registry and imports or reserves no old names.`,
       'The values below are read from the connected node: registry, contract class and protocol features. Protocol features identifies the Fog contract version verified by class ID, separately from the Aztec rollup version. The SDK connects only to recognized contract classes. For an unknown class, verify the deployment and SDK version before continuing.',
     ],
   },
@@ -185,12 +213,15 @@ if (result.status === 'resolved') {
 export const summaries: Record<string, string> = {
   'core-upgrades-v8':
     'Exact-class approvals, fixed delays, strict cancellation and compatible rollback for an independent V8 registry.',
-  tokens:
-    'Why registration needs no token on this test deployment, and the role of network fee credit.',
+  tokens: onMainnet
+    ? 'Why registration needs no payment token on Aztec Mainnet, and why you need Fee Juice.'
+    : 'Why registration needs no token on this test deployment, and the role of network fee credit.',
   glossary:
     'Definitions of names, registration commitments, contract modules and transaction states.',
   'getting-started': 'Search, register and set up your name.',
-  pricing: 'AZTEC target pricing, free test registration and launch policy.',
+  pricing: onMainnet
+    ? 'AZTEC target pricing, free registration and launch policy.'
+    : 'AZTEC target pricing, free test registration and launch policy.',
   manage: 'Keep your name active and confirm its primary address.',
   profile: 'Publish a profile and addresses for other chains.',
   permissions: 'Delegate record editing or transfer your name.',
@@ -236,11 +267,13 @@ const headings: Record<string, string[]> = {
     'Delays, cancellation and rollback',
     'Pinned reads and wallet execution',
   ],
-  tokens: ['The token you need', 'AZTEC, test tokens and Fee Juice', 'Nothing to obtain'],
+  tokens: onMainnet
+    ? ['The token you need', 'AZTEC, Fee Juice and test tokens', 'Getting Fee Juice']
+    : ['The token you need', 'AZTEC, test tokens and Fee Juice', 'Nothing to obtain'],
   glossary: [
     'Names',
     'Commit',
-    'Sponsored fees',
+    onMainnet ? 'Network fees' : 'Sponsored fees',
     'Registrar and resolver',
     'Generation and revision',
     'Proofs and dropped transactions',
@@ -642,8 +675,10 @@ export function sectionsFor(article: Article): DocSection[] {
           },
           {
             type: 'callout',
-            title: 'Test-token funding',
-            text: 'Current test payment tokens have no self-serve faucet. Obtain private balance in the exact quoted token from the testnet operator. Fee Juice pays network fees; it cannot pay the registration treasury. doctor checks public configuration, while readiness checks the selected account’s balance.',
+            title: onMainnet ? 'Payment-token funding' : 'Test-token funding',
+            text: onMainnet
+              ? 'The Aztec Mainnet Registrar is free and needs no payment token. Each account pays its own network fees in Fee Juice; Fee Juice cannot pay the registration treasury. doctor checks public configuration, while readiness checks the selected account’s balance.'
+              : 'Current test payment tokens have no self-serve faucet. Obtain private balance in the exact quoted token from the testnet operator. Fee Juice pays network fees; it cannot pay the registration treasury. doctor checks public configuration, while readiness checks the selected account’s balance.',
           },
           {
             type: 'links',
@@ -753,9 +788,10 @@ export function sectionsFor(article: Article): DocSection[] {
         ['V3', 'Registrar, Resolver and holder migration'],
         ['V4', 'Profiles, accepted transfers, editors and subnames'],
         ['V5', 'All V4 name features; direct administrator configuration and holder migration'],
+        ['V7', 'Resolver reset on transfer and independent holder/record revisions'],
         [
-          'V7',
-          'Fresh mainnet target; resolver reset on transfer and independent holder/record revisions; frozen V6 remains the testnet class',
+          'V8',
+          'Independent registry with exact-class core upgrades; the current Aztec Mainnet and test deployments',
         ],
         [
           'V6',
@@ -769,8 +805,8 @@ export function sectionsFor(article: Article): DocSection[] {
         items: [
           'The current administrator calls configureModules to select Registrar and default Resolver, effective after confirmation. V5 uses setAdministrator for direct handover. V6/V7 require nominate_administrator and accept_administrator through their matching bindings; the SDK setAdministrator helper rejects both.',
           'Payment changes preserve name records but invalidate obsolete quotes and unconsumed plans. A new default Resolver applies to subsequent names; existing names retain their selected Resolver.',
-          'The mainnet template targets protocol 7, retaining schema fog-deployment-v6/1, minPublicLength 7, the v3 content-policy reserved hash (list schema fog-reserved-labels/1) and maxRenewAhead 31536000. Readiness rejects the adminPlaceholder marker, protocol 6 on mainnet and any other launch renewal horizon. No mainnet deployment is implied.',
-          'A new implementation has a new contract address. The current V6 deployment starts fresh with legacy set to zero; names on the old rollup are not migrated, reserved or snapshotted.',
+          'The Aztec Mainnet deployment runs protocol 8 with a free launch Registrar, keeping schema fog-deployment-v6/1, minPublicLength 7, the v3 content-policy reserved hash (list schema fog-reserved-labels/1) and maxRenewAhead 31536000. Mainnet readiness rejects the adminPlaceholder marker, protocol 6 and any other launch renewal horizon.',
+          'A new implementation has a new contract address. The current deployment starts fresh with legacy set to zero; names on the old rollup are not migrated, reserved or snapshotted.',
           'For historical deployments with an explicitly configured legacy registry, holders may migrate root names during their lease or 30-day grace period, preserving owner, expiry and default address. Configure editors, profiles and subnames on the destination and confirm reverse consent again. These legacy migration rules do not apply to the fresh V6 testnet.',
           'A website release does not change the active contract class.',
         ],
@@ -832,13 +868,13 @@ export function articleToMarkdown(article: Article): string {
           lines.push(
             ...block.items.map(
               (link) =>
-                `- [${link.title}](${link.href.startsWith('#/') ? `https://fog-testnet.huantian233.workers.dev/${link.href}` : link.href})`,
+                `- [${link.title}](${link.href.startsWith('#/') ? `${siteUrl}/${link.href}` : link.href})`,
             ),
           );
           break;
         case 'downloads':
           lines.push(
-            `[${'Download SDK and runnable starter'}](https://fog-testnet.huantian233.workers.dev/#/docs/sdk)`,
+            `[${'Download SDK and runnable starter'}](${siteUrl}/#/docs/sdk)`,
             '',
             '```sh',
             'npm install',
@@ -861,7 +897,7 @@ export function articleToMarkdown(article: Article): string {
           break;
         case 'fees':
           lines.push(
-            `[${'Read the current on-chain quote and payment token'}](https://fog-testnet.huantian233.workers.dev/#/docs/pricing)`,
+            `[${'Read the current on-chain quote and payment token'}](${siteUrl}/#/docs/pricing)`,
             '',
             'This export has no live price snapshot. Check the on-chain quote before paying.',
           );

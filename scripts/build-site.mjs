@@ -94,7 +94,8 @@ export function buildSite(
       stdio: 'inherit',
     });
   } else exec('npm', ['run', 'build'], { env, stdio: 'inherit' });
-  exec('node', ['--import', 'tsx', 'scripts/export-docs.mjs', out, release], { stdio: 'inherit' });
+  // The Markdown export reads VITE_NETWORK so it describes the same network as the site.
+  exec('node', ['--import', 'tsx', 'scripts/export-docs.mjs', out, release], { env, stdio: 'inherit' });
   packageConsumer(`${out}/downloads/sdk`, release, deployment);
   writeFileSync(`${out}/health.txt`, `fog:${release}\n`);
   // Wallet key material lives in this origin's storage, so script sources are restricted to the site itself.
