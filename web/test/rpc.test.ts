@@ -244,6 +244,7 @@ test('RPC explicit noRetry overrides reads and dRPC batching remains three', asy
   assert.equal(f.requests.length, 1);
   const create = (_url: string, options: any) => options;
   assert.equal(createWebNode('https://aztec-testnet.drpc.org', create as any).maxBatchSize, 3);
+  assert.equal(createWebNode('https://aztec-mainnet.drpc.org', create as any).maxBatchSize, 3);
   assert.equal(createWebNode('http://127.0.0.1', create as any).maxBatchSize, undefined);
   assert.equal(RPC_RETRY.maxAttempts, 4);
 });

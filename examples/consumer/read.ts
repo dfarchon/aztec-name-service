@@ -11,7 +11,7 @@ if (
   String(reader.deployment.chainId) !== deployment.chainId ||
   String(reader.deployment.rollupVersion) !== deployment.rollupVersion
 )
-  throw new FogError('wrong_deployment', 'Unexpected testnet identity');
+  throw new FogError('wrong_deployment', 'Unexpected deployment identity');
 const name = process.argv[2] ?? 'alice';
 const address = await resolveAddress(reader, name);
 const primary =

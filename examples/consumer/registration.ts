@@ -23,11 +23,12 @@ export async function registrationActions(
   account: AztecAddress,
   store: RegistrationPlanStore,
 ): Promise<RegistrationFlow> {
+  const sponsoredFpc = (deployment as { sponsoredFpc?: string | null }).sponsoredFpc;
   const ctx = await connectFog(reader, {
     wallet,
     account,
     deployment,
-    sponsoredFpc: AztecAddress.fromStringUnsafe(deployment.sponsoredFpc),
+    ...(sponsoredFpc ? { sponsoredFpc: AztecAddress.fromStringUnsafe(sponsoredFpc) } : {}),
   });
   return createRegistrationFlow(ctx, store);
 }

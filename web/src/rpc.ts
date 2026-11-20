@@ -230,11 +230,12 @@ export function makeRpcFetch(
   };
 }
 
-/** VITE_NODE_URL may target the V6 free RPC, which accepts at most three requests per batch. */
+/** VITE_NODE_URL may target dRPC endpoints, whose free tier accepts at most three requests per batch. */
 export function createWebNode(nodeUrl: string, createNode = createAztecNodeClient) {
+  const host = new URL(nodeUrl).hostname.toLowerCase();
   const options = {
     fetch: makeRpcFetch(),
-    ...(new URL(nodeUrl).hostname === 'aztec-testnet.drpc.org' ? { maxBatchSize: 3 } : {}),
+    ...(host === 'drpc.org' || host.endsWith('.drpc.org') ? { maxBatchSize: 3 } : {}),
   };
   return createNode(nodeUrl, options);
 }

@@ -1,6 +1,6 @@
 import { isPlaceholderAdmin } from './mainnet-readiness.mjs';
 import { createHash } from 'node:crypto';
-import { readFileSync, realpathSync } from 'node:fs';
+import { existsSync, readFileSync, realpathSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { resolve } from 'node:path';
 import { operatorSlotProblems } from './operator-slot.mjs';
@@ -74,7 +74,11 @@ export function deploymentConfigMismatches(root = repository) {
 }
 
 export function assertDeploymentConfig(root = repository) {
-  const problems = [...deploymentConfigMismatches(root), ...mainnetTemplateProblems(root)];
+  const problems = [
+    ...deploymentConfigMismatches(root),
+    ...mainnetTemplateProblems(root),
+    ...mainnetDeploymentConfigMismatches(root),
+  ];
   if (problems.length) throw new Error(`Deployment configuration drift:\n${problems.join('\n')}`);
 }
 
@@ -98,7 +102,7 @@ export function v6ManifestProblems(m, { expectNetwork } = {}) {
     if (!ok) problems.push(label);
   };
   check(m.schema === 'fog-deployment-v6/1', 'v6 schema');
-  check(m.aztecVersion === '6.0.0' && [6, 7].includes(m.protocol), 'v6 version/protocol');
+  check(m.aztecVersion === '6.0.0' && [6, 7, 8].includes(m.protocol), 'v6 version/protocol');
   check(['local', 'testnet-v6', 'mainnet'].includes(m.network), 'v6 network');
   if (expectNetwork) check(m.network === expectNetwork, 'v6 expected network');
   if (m.registryVersion !== undefined)
@@ -175,8 +179,10 @@ export function v6ManifestProblems(m, { expectNetwork } = {}) {
   for (const key of ['registry', 'resolver', 'registrar', 'token'])
     check(address(m.classIds?.[key]), `v6 classIds.${key}`);
   const baseline = read('sdk/test/fixtures/classids-6.0.0.json', repository).classIds;
+  const expectedRegistryClass =
+    m.protocol === 8 ? baseline.v8 : m.protocol === 7 ? baseline.v7 : baseline.v6;
   check(
-    m.classIds?.registry === (m.protocol === 7 ? baseline.v7 : baseline.v6) &&
+    m.classIds?.registry === expectedRegistryClass &&
       m.classIds?.resolver === baseline.resolver &&
       m.classIds?.registrar ===
         (launch
@@ -200,8 +206,12 @@ export function v6ManifestProblems(m, { expectNetwork } = {}) {
     'bootstrap',
   ])
     check(/^0x[0-9a-f]{64}$/i.test(m.transactions?.[key] ?? ''), `v6 transaction ${key}`);
+  const allowedGenerators = [
+    'e2e/src/deploy-v6.ts',
+    ...(m.protocol === 8 ? ['e2e/src/mainnet-v8-launch.ts'] : []),
+  ];
   check(
-    m.generator === 'e2e/src/deploy-v6.ts' &&
+    allowedGenerators.includes(m.generator) &&
       typeof m.deployedAt === 'string' &&
       Number.isFinite(Date.parse(m.deployedAt)),
     'v6 generator/date',
@@ -251,8 +261,19 @@ export function v6ManifestProblems(m, { expectNetwork } = {}) {
       );
   }
   if (m.network === 'mainnet') {
-    check(m.protocol === 7, 'mainnet requires protocol 7');
-    check(m.adminPlaceholder !== true && !isPlaceholderAdmin(m.admin), 'admin placeholder');
+    check(m.protocol === 8 && m.registryVersion === 8, 'mainnet requires protocol 8');
+    check(m.allowRehearsalSuccessor !== true, 'mainnet allowRehearsalSuccessor forbidden');
+    check(
+      m.adminPlaceholder !== true &&
+        !isPlaceholderAdmin(m.admin) &&
+        !isPlaceholderAdmin(m.owner) &&
+        !isPlaceholderAdmin(m.treasury),
+      'admin placeholder',
+    );
+    check(
+      address(m.admin) && m.admin !== zero && m.admin === m.owner,
+      'mainnet admin must match bound owner',
+    );
     if (launch) check(m.maxRenewAhead === '31536000', 'mainnet maxRenewAhead must be 31536000');
     check(fee === 'fee-juice', 'v6 mainnet feePayment');
     for (const key of ['chainId', 'rollupVersion', 'rollup', 'realProofs'])
@@ -281,14 +302,118 @@ export const V6_MAINNET = Object.freeze({
   feeAssetHandler: null,
   l1FeeJuice: '0xa27ec0006e59f245217ff08cd52a7e8b169e62d2',
 });
+function parseCleanHttpsUrl(raw) {
+  if (typeof raw !== 'string') return null;
+  try {
+    const url = new URL(raw);
+    if (url.protocol !== 'https:' || url.username || url.password || url.search || url.hash)
+      return null;
+    return url;
+  } catch {
+    return null;
+  }
+}
+
+export function mainnetDeploymentConfigMismatches(root = repository) {
+  const manifestUrl = new URL('deployments/mainnet.json', root);
+  if (!existsSync(manifestUrl)) return [];
+  const deployment = read('deployments/mainnet.json', root);
+  if (deployment.template === true) return ['deployments/mainnet.json cannot be a template'];
+  const manifestProblems = v6ManifestProblems(deployment, { expectNetwork: 'mainnet' });
+  if (deployment.sample === true)
+    manifestProblems.push('sample cannot be a canonical mainnet deployment');
+  if (manifestProblems.length) return manifestProblems;
+  const problems = [];
+  const paths = ['ops/wrangler-mainnet.jsonc', 'ops/wrangler-monitor-mainnet.jsonc'];
+  const configs = paths.map((path) => read(path, root));
+  const expected = {
+    RPC_URL: deployment.nodeUrl,
+    REGISTRY: deployment.registry,
+    CHAIN_ID: deployment.chainId,
+    ROLLUP_VERSION: deployment.rollupVersion,
+    ROLLUP: deployment.rollup,
+    FEE_PAYMENT: 'fee-juice',
+    NETWORK_LABEL: 'mainnet',
+  };
+  configs.forEach((c, i) => {
+    for (const [key, value] of Object.entries(expected))
+      if (c.vars?.[key] !== value)
+        problems.push(`${paths[i]} vars.${key}=${c.vars?.[key]} expected ${value}`);
+    const siteUrl = parseCleanHttpsUrl(c.vars?.SITE_URL);
+    if (!siteUrl) {
+      problems.push(`${paths[i]} vars.SITE_URL must be clean HTTPS`);
+    } else {
+      if (i === 0 && siteUrl.hostname.endsWith('.workers.dev') && c.workers_dev !== true)
+        problems.push(
+          'ops/wrangler-mainnet.jsonc workers_dev must be true for workers.dev SITE_URL',
+        );
+      if (deployment.domain) {
+        const expectedHost = deployment.domain.startsWith('https://')
+          ? new URL(deployment.domain).host
+          : deployment.domain;
+        if (siteUrl.host !== expectedHost)
+          problems.push(`${paths[i]} vars.SITE_URL host ${siteUrl.host} expected ${expectedHost}`);
+      }
+    }
+    if (!c.name || c.name === 'UNDECIDED' || /PLACEHOLDER/i.test(c.name))
+      problems.push(`${paths[i]} worker name undecided`);
+    const db = c.d1_databases?.[0];
+    if (
+      !db?.database_name ||
+      db.database_name === 'UNDECIDED' ||
+      !db.database_id ||
+      db.database_id === '00000000-0000-0000-0000-000000000000'
+    )
+      problems.push(`${paths[i]} D1 binding undecided`);
+    const op = c.vars?.OPERATOR;
+    if (op && op !== 'UNDECIDED') {
+      if (!/^0x[0-9a-f]{64}$/i.test(op) || BigInt(op) === 0n)
+        problems.push(`${paths[i]} invalid OPERATOR`);
+      if (!/^0x[0-9a-f]{64}$/i.test(c.vars?.OPERATOR_BALANCE_SLOT ?? ''))
+        problems.push(`${paths[i]} invalid OPERATOR_BALANCE_SLOT`);
+      if (!/^[0-9]+$/.test(c.vars?.OPERATOR_LOW_WATERMARK ?? ''))
+        problems.push(`${paths[i]} invalid OPERATOR_LOW_WATERMARK`);
+    } else if (
+      (c.vars?.OPERATOR_BALANCE_SLOT ?? 'UNDECIDED') !== 'UNDECIDED' ||
+      (c.vars?.OPERATOR_LOW_WATERMARK ?? 'UNDECIDED') !== 'UNDECIDED'
+    ) {
+      problems.push(`${paths[i]} partial OPERATOR configuration`);
+    }
+    if (
+      'account_id' in c ||
+      'RELEASE' in (c.vars ?? {}) ||
+      'SPONSORED_FPC' in (c.vars ?? {}) ||
+      'ALLOW_V8_REHEARSAL_SUCCESSOR' in (c.vars ?? {})
+    )
+      problems.push(`${paths[i]} forbidden configuration`);
+  });
+  const [site, monitor] = configs;
+  for (const key of new Set([...Object.keys(site.vars ?? {}), ...Object.keys(monitor.vars ?? {})]))
+    if (site.vars?.[key] !== monitor.vars?.[key])
+      problems.push(`mainnet vars.${key} differs between Worker configs`);
+  if (JSON.stringify(site.d1_databases) !== JSON.stringify(monitor.d1_databases))
+    problems.push('mainnet D1 bindings differ between Worker configs');
+  if (!site.services?.[0]?.service || site.services[0].service !== monitor.name)
+    problems.push('ops/wrangler-mainnet.jsonc MONITOR service must match monitor Worker name');
+  if (!site.ratelimits?.[0]?.namespace_id || site.ratelimits[0].namespace_id === 'UNDECIDED')
+    problems.push('ops/wrangler-mainnet.jsonc RUM_LIMITER namespace_id undecided');
+  if (
+    !Array.isArray(monitor.compatibility_flags) ||
+    !monitor.compatibility_flags.includes('global_fetch_strictly_public')
+  )
+    problems.push('ops/wrangler-monitor-mainnet.jsonc requires global_fetch_strictly_public');
+  return problems;
+}
 export function mainnetTemplateProblems(root = repository) {
   const m = read('deployments/mainnet.template.json', root),
-    problems = [];
+    problems = [],
+    zero = '0x' + '0'.repeat(64);
   if (
     m.template !== true ||
     m.network !== 'mainnet' ||
-    m.protocol !== 7 ||
-    m.registryVersion !== 7 ||
+    m.protocol !== 8 ||
+    m.registryVersion !== 8 ||
+    m.allowRehearsalSuccessor !== false ||
     m.aztecVersion !== '6.0.0'
   )
     problems.push('mainnet template marker/identity');
@@ -300,9 +425,6 @@ export function mainnetTemplateProblems(root = repository) {
     'registry',
     'resolver',
     'registrar',
-    'feeToken',
-    'annualPrice',
-    'lengthPrices',
     'priceVersion',
     'owner',
     'operator',
@@ -310,6 +432,16 @@ export function mainnetTemplateProblems(root = repository) {
     'operatorLowWatermark',
   ])
     if (m[key] !== null) problems.push(`mainnet undecided ${key} must be null`);
+  if (
+    m.feeToken !== zero ||
+    m.feeTokenSource !== 'none' ||
+    m.feeSymbol !== 'FREE' ||
+    m.feeDecimals !== 18 ||
+    m.annualPrice !== '0' ||
+    m.lengthPrices?.['3'] !== '0' ||
+    m.lengthPrices?.['4'] !== '0'
+  )
+    problems.push('mainnet template free launch defaults');
   const address = (value) =>
     typeof value === 'string' &&
     /^0x[0-9a-f]{64}$/i.test(value) &&
@@ -331,6 +463,9 @@ export function mainnetTemplateProblems(root = repository) {
     .update(JSON.stringify(Object.values(reserved.categories).flat().sort()))
     .digest('hex');
   if (m.reservedListHash !== hash) problems.push('mainnet template reservedListHash');
+  const liveMainnetUrl = new URL('deployments/mainnet.json', root);
+  if (existsSync(liveMainnetUrl) && read('deployments/mainnet.json', root).template !== true)
+    return problems;
   const paths = ['ops/wrangler-mainnet.jsonc', 'ops/wrangler-monitor-mainnet.jsonc'];
   const configs = paths.map((path) => read(path, root));
   const expected = {
@@ -343,24 +478,47 @@ export function mainnetTemplateProblems(root = repository) {
   configs.forEach((c, i) => {
     for (const [key, value] of Object.entries(expected))
       if (c.vars?.[key] !== value) problems.push(`${paths[i]} ${key}`);
-    for (const key of [
-      'RPC_URL',
-      'REGISTRY',
-      'SITE_URL',
-      'OPERATOR',
-      'OPERATOR_BALANCE_SLOT',
-      'OPERATOR_LOW_WATERMARK',
-    ])
+    for (const key of ['REGISTRY', 'OPERATOR', 'OPERATOR_BALANCE_SLOT', 'OPERATOR_LOW_WATERMARK'])
       if (c.vars?.[key] !== 'UNDECIDED') problems.push(`${paths[i]} placeholder ${key}`);
+    for (const key of ['RPC_URL', 'SITE_URL']) {
+      const value = c.vars?.[key];
+      if (value !== 'UNDECIDED') {
+        const parsed = parseCleanHttpsUrl(value);
+        if (!parsed) problems.push(`${paths[i]} preconfigured ${key}`);
+        else if (
+          i === 0 &&
+          key === 'SITE_URL' &&
+          parsed.hostname.endsWith('.workers.dev') &&
+          c.workers_dev !== true
+        )
+          problems.push(
+            'ops/wrangler-mainnet.jsonc workers_dev must be true for workers.dev SITE_URL',
+          );
+      }
+    }
     if (
-      c.name !== 'UNDECIDED' ||
+      (c.name !== 'UNDECIDED' &&
+        (!c.name || typeof c.name !== 'string' || /PLACEHOLDER/i.test(c.name))) ||
       c.d1_databases?.[0]?.database_id !== '00000000-0000-0000-0000-000000000000' ||
       !readFileSync(new URL(paths[i], root), 'utf8').includes('// PLACEHOLDER')
     )
       problems.push(`${paths[i]} resource placeholders`);
-    if ('account_id' in c || 'RELEASE' in (c.vars ?? {}) || 'SPONSORED_FPC' in (c.vars ?? {}))
+    if (
+      'account_id' in c ||
+      'RELEASE' in (c.vars ?? {}) ||
+      'SPONSORED_FPC' in (c.vars ?? {}) ||
+      'ALLOW_V8_REHEARSAL_SUCCESSOR' in (c.vars ?? {})
+    )
       problems.push(`${paths[i]} forbidden configuration`);
   });
+  if (
+    configs[1].name &&
+    configs[1].name !== 'UNDECIDED' &&
+    configs[0].services?.[0]?.service &&
+    configs[0].services[0].service !== 'UNDECIDED' &&
+    configs[0].services[0].service !== configs[1].name
+  )
+    problems.push('ops/wrangler-mainnet.jsonc MONITOR service must match monitor Worker name');
   if (
     JSON.stringify(configs[0].vars) !== JSON.stringify(configs[1].vars) ||
     JSON.stringify(configs[0].d1_databases) !== JSON.stringify(configs[1].d1_databases)

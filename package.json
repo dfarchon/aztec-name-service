@@ -46,6 +46,7 @@
     "testnet:v8-upgrade-rehearsal": "npm run testnet:v8-upgrade-rehearsal -w fog-e2e --",
     "testnet:v6-nofpc-register": "npm run testnet:v6-nofpc-register -w fog-e2e --",
     "bridge:fee-juice": "npm run bridge:fee-juice -w fog-e2e --",
+    "deploy:mainnet:v8": "npm run deploy:mainnet:v8 -w fog-e2e --",
     "deploy:mainnet": "node scripts/deploy-site.mjs --network mainnet",
     "build:mainnet": "node scripts/build-site.mjs --network mainnet",
     "check:v8-compatibility": "node scripts/check-v8-compatibility.mjs",

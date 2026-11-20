@@ -55,9 +55,11 @@ try {
     import { connectFog } from '@fog/sdk';
     import { NameRegistryV6Contract } from '@fog/sdk/contracts/v6';
     import { NameRegistryV7Contract } from '@fog/sdk/contracts/v7';
+    import { NameRegistryV8Contract } from '@fog/sdk/contracts/v8';
     assert.equal(typeof connectFog, 'function');
     assert.equal(NameRegistryV6Contract.artifact.name, 'NameRegistryV6');
     assert.equal(NameRegistryV7Contract.artifact.name, 'NameRegistryV7');
+    assert.equal(NameRegistryV8Contract.artifact.name, 'NameRegistryV8');
     assert.deepEqual(parseWithBigInt(stringifyWithBigInt({ amount: 1000000n })), { amount: 1000000n });
     let reads = 0, canonical = true;
     const reader = {
@@ -83,6 +85,34 @@ try {
   execFileSync('node', ['--import', 'tsx', 'scripts/check-docs.mjs', cwd], { stdio: 'inherit' });
   execFileSync('npm', ['run', 'check'], { cwd, stdio: 'inherit' });
   execFileSync('npm', ['run', 'build'], { cwd, stdio: 'inherit' });
+  // Also verify consumer typecheck and browser build against a mainnet fee-juice (null sponsor, V8) manifest.
+  const originalDeployment = readFileSync(join(cwd, 'deployment.json'), 'utf8');
+  try {
+    const baseline = JSON.parse(
+      readFileSync('sdk/test/fixtures/classids-6.0.0.json', 'utf8'),
+    ).classIds;
+    const mainnetSample = {
+      ...deployment,
+      network: 'mainnet',
+      protocol: 8,
+      registryVersion: 8,
+      allowRehearsalSuccessor: false,
+      chainId: '1',
+      rollupVersion: '2070860440',
+      rollup: '0xe37a2663cc9c119ba41572c40fab0bbb23a5402f',
+      nodeUrl: 'https://aztec-mainnet.drpc.org',
+      feePayment: 'fee-juice',
+      sponsoredFpc: null,
+      classIds: { ...deployment.classIds, registry: baseline.v8 },
+    };
+    const { writeFileSync } = await import('node:fs');
+    writeFileSync(join(cwd, 'deployment.json'), JSON.stringify(mainnetSample, null, 2) + '\n');
+    execFileSync('npm', ['run', 'check'], { cwd, stdio: 'inherit' });
+    execFileSync('npm', ['run', 'build'], { cwd, stdio: 'inherit' });
+  } finally {
+    const { writeFileSync } = await import('node:fs');
+    writeFileSync(join(cwd, 'deployment.json'), originalDeployment);
+  }
   if (process.env.FOG_CONSUMER_BROWSER === '1') {
     const { checkConsumerBrowser } = await import('../web/scripts/consumer-browser.mjs');
     await checkConsumerBrowser(cwd);

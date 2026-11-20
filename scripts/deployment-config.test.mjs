@@ -323,7 +323,7 @@ import { mainnetBlockers } from './mainnet-readiness.mjs';
 import { buildSite } from './build-site.mjs';
 import { deploySite } from './deploy-site.mjs';
 import { operatorSlotProblems } from './operator-slot.mjs';
-test('mainnet template validates and each undecided item has a named blocker', () => {
+test('mainnet template validates and each undecided item has a named blocker', (t) => {
   assert.deepEqual(mainnetTemplateProblems(), []);
   const blockers = mainnetBlockers();
   for (const item of [
@@ -333,17 +333,43 @@ test('mainnet template validates and each undecided item has a named blocker', (
     'treasury',
     'domain',
     'nodeUrl',
-    'site.SITE_URL',
-    'site.RPC_URL',
-    'site.worker name',
+    'site.REGISTRY',
     'site.D1 id',
-    'monitor.SITE_URL',
-    'monitor.RPC_URL',
-    'monitor.worker name',
+    'monitor.REGISTRY',
     'monitor.D1 id',
     'deployments/mainnet.json absent',
   ])
     assert.ok(blockers.includes(item), item);
+
+  const { root } = fixture(t);
+  for (const file of ['ops/wrangler-mainnet.jsonc', 'ops/wrangler-monitor-mainnet.jsonc']) {
+    writeFileSync(
+      new URL(file, root),
+      JSON.stringify({
+        name: 'UNDECIDED',
+        d1_databases: [
+          {
+            binding: 'DB',
+            database_name: 'UNDECIDED',
+            database_id: '00000000-0000-0000-0000-000000000000',
+          },
+        ],
+        vars: { RPC_URL: 'UNDECIDED', REGISTRY: 'UNDECIDED', SITE_URL: 'UNDECIDED' },
+      }),
+    );
+  }
+  const undecidedBlockers = mainnetBlockers(root);
+  for (const item of [
+    'site.SITE_URL',
+    'site.RPC_URL',
+    'site.worker name',
+    'site.monitor service',
+    'site.RUM_LIMITER namespace_id',
+    'monitor.SITE_URL',
+    'monitor.RPC_URL',
+    'monitor.worker name',
+  ])
+    assert.ok(undecidedBlockers.includes(item), item);
 });
 test('mainnet build and site deploy refuse before any exec spy', () => {
   let calls = 0;
@@ -584,7 +610,7 @@ test('mainnet launch readiness requires exactly one year and rejects all other c
   }
 });
 
-test('V7 mainnet template pins the reserved hash and a flagged placeholder administrator', (t) => {
+test('V8 mainnet template pins free launch defaults, the reserved hash and a flagged placeholder administrator', (t) => {
   const { root, update } = fixture(t);
   assert.deepEqual(mainnetTemplateProblems(root), []);
   const template = JSON.parse(
@@ -592,14 +618,17 @@ test('V7 mainnet template pins the reserved hash and a flagged placeholder admin
   );
   assert.match(template.admin, /^0x[0-9a-f]{64}$/);
   assert.equal(template.treasury, template.admin);
-  assert.equal(template.protocol, 7);
-  assert.equal(template.registryVersion, 7);
+  assert.equal(template.protocol, 8);
+  assert.equal(template.registryVersion, 8);
+  assert.equal(template.allowRehearsalSuccessor, false);
+  assert.equal(template.feeTokenSource, 'none');
+  assert.equal(template.annualPrice, '0');
   assert.equal(template.adminPlaceholder, true);
   assert.equal(template.maxRenewAhead, '31536000');
   writeFileSync(new URL('deployments/mainnet.json', root), JSON.stringify(template));
   assert(mainnetBlockers(root).includes('admin placeholder'));
   update('deployments/mainnet.template.json', (m) => {
-    m.protocol = 6;
+    m.protocol = 7;
     m.maxRenewAhead = '0';
     m.reservedListHash = '0'.repeat(64);
   });
@@ -607,15 +636,285 @@ test('V7 mainnet template pins the reserved hash and a flagged placeholder admin
   for (const text of ['identity', 'maxRenewAhead', 'reservedListHash'])
     assert(errors.some((error) => error.includes(text)));
 });
-test('readiness rejects V6 mainnet and every launch renewal horizon other than one year', (t) => {
+test('readiness rejects V6/V7 mainnet, rehearsal successor flags and every launch renewal horizon other than one year', (t) => {
   const { root } = fixture(t);
+  for (const protocol of [6, 7]) {
+    writeFileSync(
+      new URL('deployments/mainnet.json', root),
+      JSON.stringify({ protocol, registrarKind: 'launch', maxRenewAhead: '31536000' }),
+    );
+    assert(mainnetBlockers(root).includes('protocol 8 required'));
+    assert(!mainnetBlockers(root).includes('maxRenewAhead'));
+  }
   writeFileSync(
     new URL('deployments/mainnet.json', root),
-    JSON.stringify({ protocol: 6, registrarKind: 'launch', maxRenewAhead: '31536000' }),
+    JSON.stringify({
+      protocol: 8,
+      registryVersion: 8,
+      allowRehearsalSuccessor: true,
+      registrarKind: 'launch',
+      maxRenewAhead: '31536000',
+    }),
   );
-  assert(mainnetBlockers(root).includes('protocol 7 required'));
-  assert(!mainnetBlockers(root).includes('maxRenewAhead'));
+  assert(mainnetBlockers(root).includes('allowRehearsalSuccessor forbidden'));
   assert.deepEqual(v6ManifestProblems(v6Canonical), []);
+});
+
+test('configured V8 free-launch mainnet manifest and Wrangler configs pass readiness and deploy cleanly', (t) => {
+  const { root } = fixture(t);
+  const baseline = JSON.parse(
+    readFileSync(new URL('../sdk/test/fixtures/classids-6.0.0.json', import.meta.url), 'utf8'),
+  ).classIds;
+  const zero = '0x' + '0'.repeat(64);
+  const admin = `0x${'0'.repeat(63)}1`;
+  const registry = `0x${'0'.repeat(63)}2`;
+  const resolver = `0x${'0'.repeat(63)}3`;
+  const registrar = `0x${'0'.repeat(63)}4`;
+  const tx = `0x${'5'.repeat(64)}`;
+  const template = JSON.parse(
+    readFileSync(new URL('deployments/mainnet.template.json', root), 'utf8'),
+  );
+  const mainnetManifest = {
+    schema: 'fog-deployment-v6/1',
+    network: 'mainnet',
+    aztecVersion: '6.0.0',
+    protocol: 8,
+    registryVersion: 8,
+    allowRehearsalSuccessor: false,
+    nodeUrl: 'https://aztec-mainnet.drpc.org',
+    domain: 'https://fog.example',
+    chainId: '1',
+    rollupVersion: '2070860440',
+    rollup: '0xe37a2663cc9c119ba41572c40fab0bbb23a5402f',
+    realProofs: true,
+    feePayment: 'fee-juice',
+    sponsoredFpc: null,
+    admin,
+    owner: admin,
+    treasury: null,
+    registry,
+    resolver,
+    registrar,
+    registrarKind: 'launch',
+    legacy: zero,
+    feeToken: zero,
+    feeTokenSource: 'none',
+    feeTokenClassId: zero,
+    feeSymbol: 'FREE',
+    feeDecimals: 18,
+    annualPrice: '0',
+    lengthPrices: { 3: '0', 4: '0' },
+    priceVersion: 1,
+    minPublicLength: 7,
+    initialPaused: true,
+    maxRenewAhead: '31536000',
+    reservedListHash: template.reservedListHash,
+    reservedVerified: true,
+    classIds: {
+      registry: baseline.v8,
+      resolver: baseline.resolver,
+      registrar: baseline.registrarLaunch,
+      token: zero,
+    },
+    transactions: {
+      'deploy-registry': tx,
+      'deploy-resolver': tx,
+      'deploy-registrar': tx,
+      bootstrap: tx,
+    },
+    generator: 'e2e/src/mainnet-v8-launch.ts',
+    deployedAt: '2026-11-19T00:00:00.000Z',
+  };
+  assert.deepEqual(v6ManifestProblems(mainnetManifest, { expectNetwork: 'mainnet' }), []);
+  assert(
+    v6ManifestProblems(
+      {
+        ...mainnetManifest,
+        classIds: { ...mainnetManifest.classIds, registry: baseline.v8Rehearsal },
+      },
+      { expectNetwork: 'mainnet' },
+    ).includes('v6 frozen Fog classes'),
+  );
+  writeFileSync(
+    new URL('deployments/mainnet.json', root),
+    JSON.stringify(mainnetManifest, null, 2),
+  );
+  const sharedVars = {
+    RPC_URL: 'https://aztec-mainnet.drpc.org',
+    REGISTRY: registry,
+    SITE_URL: 'https://fog.example',
+    CHAIN_ID: '1',
+    ROLLUP_VERSION: '2070860440',
+    ROLLUP: '0xe37a2663cc9c119ba41572c40fab0bbb23a5402f',
+    FEE_PAYMENT: 'fee-juice',
+    NETWORK_LABEL: 'mainnet',
+    OPERATOR: 'UNDECIDED',
+    OPERATOR_BALANCE_SLOT: 'UNDECIDED',
+    OPERATOR_LOW_WATERMARK: 'UNDECIDED',
+    BLOCK_STALE_SECONDS: '600',
+  };
+  const d1 = [
+    {
+      binding: 'DB',
+      database_name: 'fog-mainnet-monitor',
+      database_id: '11111111-2222-3333-4444-555555555555',
+    },
+  ];
+  writeFileSync(
+    new URL('ops/wrangler-monitor-mainnet.jsonc', root),
+    JSON.stringify({
+      name: 'fog-mainnet-monitor',
+      main: 'src/probe-worker.ts',
+      compatibility_date: '2026-10-08',
+      workers_dev: false,
+      preview_urls: false,
+      d1_databases: d1,
+      vars: sharedVars,
+      triggers: { crons: ['* * * * *'] },
+      compatibility_flags: ['global_fetch_strictly_public'],
+    }),
+  );
+  writeFileSync(
+    new URL('ops/wrangler-mainnet.jsonc', root),
+    JSON.stringify({
+      name: 'fog-mainnet',
+      main: 'src/worker.ts',
+      compatibility_date: '2026-10-08',
+      workers_dev: false,
+      preview_urls: false,
+      d1_databases: d1,
+      vars: sharedVars,
+      assets: { directory: '../web/dist', binding: 'ASSETS', run_worker_first: ['/api/*'] },
+      services: [{ binding: 'MONITOR', service: 'fog-mainnet-monitor' }],
+      ratelimits: [
+        { name: 'RUM_LIMITER', namespace_id: '1001', simple: { limit: 12, period: 60 } },
+      ],
+    }),
+  );
+  assert.deepEqual(mainnetBlockers(root), []);
+  assert.doesNotThrow(() => assertDeploymentConfig(root));
+  mkdirSync(new URL('web/dist', root), { recursive: true });
+  writeFileSync(new URL('web/dist/health.txt', root), 'fog:abc1234\n');
+  const commands = [];
+  const release = deploySite(['--network', 'mainnet'], {
+    root,
+    env: { CLOUDFLARE_ACCOUNT_ID: 'cf-acc' },
+    exec: (cmd, args) => {
+      commands.push([cmd, ...args]);
+      return '';
+    },
+  });
+  assert.equal(release, 'abc1234');
+  assert.deepEqual(commands, [
+    ['git', 'status', '--porcelain'],
+    ['node', 'scripts/deployment-config.mjs'],
+    ['node', 'scripts/build-site.mjs', '--network', 'mainnet'],
+    [
+      'wrangler',
+      'deploy',
+      '--config',
+      'ops/wrangler-monitor-mainnet.jsonc',
+      '--var',
+      'RELEASE:abc1234',
+    ],
+    ['wrangler', 'deploy', '--config', 'ops/wrangler-mainnet.jsonc', '--var', 'RELEASE:abc1234'],
+  ]);
+  assert.throws(
+    () =>
+      deploySite(['--network', 'mainnet'], {
+        root,
+        env: { CLOUDFLARE_ACCOUNT_ID: 'cf-acc' },
+        exec: (cmd) => (cmd === 'git' ? ' M README.md\n' : ''),
+      }),
+    /Commit source changes/,
+  );
+
+  // Partial OPERATOR configuration (OPERATOR UNDECIDED with concrete slot) fails assertDeploymentConfig.
+  const siteCfg = JSON.parse(readFileSync(new URL('ops/wrangler-mainnet.jsonc', root), 'utf8'));
+  const monitorCfg = JSON.parse(
+    readFileSync(new URL('ops/wrangler-monitor-mainnet.jsonc', root), 'utf8'),
+  );
+  writeFileSync(
+    new URL('ops/wrangler-mainnet.jsonc', root),
+    JSON.stringify({
+      ...siteCfg,
+      vars: { ...siteCfg.vars, OPERATOR_BALANCE_SLOT: `0x${'1'.repeat(64)}` },
+    }),
+  );
+  writeFileSync(
+    new URL('ops/wrangler-monitor-mainnet.jsonc', root),
+    JSON.stringify({
+      ...monitorCfg,
+      vars: { ...monitorCfg.vars, OPERATOR_BALANCE_SLOT: `0x${'1'.repeat(64)}` },
+    }),
+  );
+  assert.throws(() => assertDeploymentConfig(root), /partial OPERATOR configuration/);
+
+  // Mismatched REGISTRY and monitor service name are flagged by mainnetBlockers.
+  writeFileSync(new URL('ops/wrangler-monitor-mainnet.jsonc', root), JSON.stringify(monitorCfg));
+  writeFileSync(
+    new URL('ops/wrangler-mainnet.jsonc', root),
+    JSON.stringify({
+      ...siteCfg,
+      vars: { ...siteCfg.vars, REGISTRY: `0x${'0'.repeat(63)}9` },
+      services: [{ binding: 'MONITOR', service: 'wrong-monitor' }],
+    }),
+  );
+  const mismatchBlockers = mainnetBlockers(root);
+  assert(mismatchBlockers.includes('site.REGISTRY mismatch'));
+  assert(mismatchBlockers.includes('site.monitor service mismatch'));
+
+  // Temporary workers.dev SITE_URL requires workers_dev: true and monitor requires global_fetch_strictly_public.
+  const workersDomain = 'https://fog-mainnet.huantian233.workers.dev';
+  writeFileSync(
+    new URL('deployments/mainnet.json', root),
+    JSON.stringify({ ...mainnetManifest, domain: workersDomain }, null, 2),
+  );
+  const workersVars = { ...sharedVars, SITE_URL: workersDomain };
+  writeFileSync(
+    new URL('ops/wrangler-mainnet.jsonc', root),
+    JSON.stringify({ ...siteCfg, workers_dev: false, vars: workersVars }),
+  );
+  writeFileSync(
+    new URL('ops/wrangler-monitor-mainnet.jsonc', root),
+    JSON.stringify({ ...monitorCfg, vars: workersVars, compatibility_flags: [] }),
+  );
+  assert.throws(() => assertDeploymentConfig(root), /workers_dev must be true/);
+  assert.throws(() => assertDeploymentConfig(root), /global_fetch_strictly_public/);
+  writeFileSync(
+    new URL('ops/wrangler-mainnet.jsonc', root),
+    JSON.stringify({ ...siteCfg, workers_dev: true, vars: workersVars }),
+  );
+  writeFileSync(
+    new URL('ops/wrangler-monitor-mainnet.jsonc', root),
+    JSON.stringify({ ...monitorCfg, vars: workersVars }),
+  );
+  assert.deepEqual(mainnetBlockers(root), []);
+  assert.doesNotThrow(() => assertDeploymentConfig(root));
+});
+
+test('buildSite strips VITE_ALLOW_V8_REHEARSAL_SUCCESSOR from inherited environment', (t) => {
+  const { root } = fixture(t);
+  const out = new URL('web/dist', root).pathname;
+  mkdirSync(out, { recursive: true });
+  const seenEnvs = [];
+  const prior = process.env.VITE_ALLOW_V8_REHEARSAL_SUCCESSOR;
+  process.env.VITE_ALLOW_V8_REHEARSAL_SUCCESSOR = 'true';
+  try {
+    buildSite(['--network', 'testnet-v6'], {
+      root,
+      exec: (command, args, opts) => {
+        if (command === 'npm') seenEnvs.push(opts?.env);
+        return command === 'git' ? (args[0] === 'rev-parse' ? 'abc123' : '') : '';
+      },
+      packageConsumer: () => {},
+    });
+  } finally {
+    if (prior === undefined) delete process.env.VITE_ALLOW_V8_REHEARSAL_SUCCESSOR;
+    else process.env.VITE_ALLOW_V8_REHEARSAL_SUCCESSOR = prior;
+  }
+  assert.equal(seenEnvs.length, 1);
+  assert.equal('VITE_ALLOW_V8_REHEARSAL_SUCCESSOR' in seenEnvs[0], false);
 });
 
 test('template and readiness require reserved minLength to equal deployment minPublicLength', (t) => {
