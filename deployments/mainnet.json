@@ -5,7 +5,7 @@
   "protocol": 8,
   "registryVersion": 8,
   "allowRehearsalSuccessor": false,
-  "nodeUrl": "https://aztec-mainnet.drpc.org",
+  "nodeUrl": "https://fog-mainnet.huantian233.workers.dev/api/rpc",
   "domain": "https://fog-mainnet.huantian233.workers.dev",
   "chainId": "1",
   "rollupVersion": "2070860440",

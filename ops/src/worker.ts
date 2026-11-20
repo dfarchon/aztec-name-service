@@ -7,7 +7,7 @@ import { metricSample, transition, type Check, type State } from "./monitor";
 
 export interface MonitorEnv {
   DB: D1Database;
-  RPC_URL: string; REGISTRY: string; SPONSORED_FPC?: string; SITE_URL: string;
+  RPC_URL: string; UPSTREAM_RPC_URL?: string; REGISTRY: string; SPONSORED_FPC?: string; SITE_URL: string;
   CHAIN_ID: string; ROLLUP_VERSION: string; ROLLUP: string; RELEASE: string;
   FPC_LOW_WATERMARK: string; BLOCK_STALE_SECONDS: string;
   FEE_PAYMENT?: 'sponsored' | 'fee-juice'; NETWORK_LABEL?: string;
@@ -21,8 +21,8 @@ export interface Env extends MonitorEnv {
 
 type NodeInfo = { nodeVersion: string; l1ChainId: number; rollupVersion: number; realProofs: boolean; l1ContractAddresses: { rollupAddress: string } };
 const json = (value: unknown, status = 200) => Response.json(value, { status, headers: { "Cache-Control": "no-store", "X-Content-Type-Options": "nosniff" } });
-export async function rpc<T>(env: Pick<Env, "RPC_URL">, method: string, params: unknown[] = [], fetcher: typeof fetch = fetch): Promise<T> {
-  const r = await fetcher(env.RPC_URL, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: `aztec_${method}`, params }), signal: AbortSignal.timeout(7000) });
+export async function rpc<T>(env: Pick<MonitorEnv, "RPC_URL" | "UPSTREAM_RPC_URL">, method: string, params: unknown[] = [], fetcher: typeof fetch = fetch): Promise<T> {
+  const r = await fetcher(env.UPSTREAM_RPC_URL || env.RPC_URL, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: `aztec_${method}`, params }), signal: AbortSignal.timeout(7000) });
   if (!r.ok) throw new Error("rpc_http_error");
   const body = await r.json<{ error?: unknown; result?: T }>();
   if (body.error || body.result === undefined) throw new Error("rpc_response_error");
@@ -181,6 +181,99 @@ export async function tokenMatches(given: string | null, expected: string): Prom
   return diff === 0 && given !== null;
 }
 
+const RPC_MAX_BODY_BYTES = 4 * 1024 * 1024;
+const RPC_MAX_BATCH_SIZE = 100;
+const AZTEC_VERSION_HEADERS = [
+  "x-aztec-l1ChainId",
+  "x-aztec-l1RollupAddress",
+  "x-aztec-rollupVersion",
+  "x-aztec-l2ProtocolContractsHash",
+  "x-aztec-l2CircuitsVkTreeRoot",
+  "x-aztec-packageVersion",
+] as const;
+const RPC_CORS_HEADERS: Record<string, string> = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Methods": "POST, OPTIONS",
+  "Access-Control-Allow-Headers": "Content-Type",
+  "Access-Control-Expose-Headers": AZTEC_VERSION_HEADERS.join(", "),
+  "Access-Control-Max-Age": "86400",
+};
+const RPC_RESPONSE_HEADERS: Record<string, string> = {
+  ...RPC_CORS_HEADERS,
+  "Cache-Control": "no-store",
+  "X-Content-Type-Options": "nosniff",
+};
+const rpcError = (status: number, code: number, message: string, extraHeaders?: Record<string, string>) =>
+  Response.json(
+    { jsonrpc: "2.0", id: null, error: { code, message } },
+    { status, headers: { ...RPC_RESPONSE_HEADERS, ...extraHeaders } },
+  );
+
+function isValidRpcCall(value: unknown): boolean {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return false;
+  const proto = Object.getPrototypeOf(value);
+  if (proto !== Object.prototype && proto !== null) return false;
+  const call = value as Record<string, unknown>;
+  return (
+    call.jsonrpc === "2.0" &&
+    typeof call.method === "string" &&
+    /^aztec_[A-Za-z0-9_]{1,64}$/.test(call.method) &&
+    (call.params === undefined || Array.isArray(call.params))
+  );
+}
+
+/** Forward validated Aztec JSON-RPC 2.0 requests to a private HTTPS upstream without exposing upstream URLs or errors. */
+export async function proxyRpc(request: Request, env: Pick<MonitorEnv, "UPSTREAM_RPC_URL">, fetcher: typeof fetch = fetch): Promise<Response> {
+  if (request.method === "OPTIONS") return new Response(null, { status: 204, headers: RPC_CORS_HEADERS });
+  if (request.method !== "POST") return rpcError(405, -32600, "Method not allowed", { Allow: "POST, OPTIONS" });
+  const url = new URL(request.url);
+  let upstream: URL | undefined;
+  if (env.UPSTREAM_RPC_URL) {
+    try {
+      const parsed = new URL(env.UPSTREAM_RPC_URL);
+      if (parsed.protocol === "https:" && !(parsed.origin === url.origin && parsed.pathname.replace(/\/+$/, "") === "/api/rpc")) {
+        upstream = parsed;
+      }
+    } catch {
+      upstream = undefined;
+    }
+  }
+  if (!upstream) return rpcError(503, -32603, "RPC upstream unavailable");
+  if (Number(request.headers.get("content-length") ?? 0) > RPC_MAX_BODY_BYTES) return rpcError(413, -32600, "Payload too large");
+  const body = await readBounded(request, RPC_MAX_BODY_BYTES);
+  if (body === undefined) return rpcError(413, -32600, "Payload too large");
+  let payload: unknown;
+  try {
+    payload = JSON.parse(body);
+  } catch {
+    return rpcError(400, -32700, "Parse error");
+  }
+  const valid = Array.isArray(payload)
+    ? payload.length >= 1 && payload.length <= RPC_MAX_BATCH_SIZE && payload.every(isValidRpcCall)
+    : isValidRpcCall(payload);
+  if (!valid) return rpcError(400, -32601, "Unsupported RPC request");
+  try {
+    const upstreamResponse = await fetcher(upstream.toString(), {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Accept: "application/json" },
+      body,
+      signal: AbortSignal.timeout(25000),
+    });
+    const responseBody = await upstreamResponse.arrayBuffer();
+    const headers = new Headers({ ...RPC_RESPONSE_HEADERS, "Content-Type": "application/json" });
+    for (const name of AZTEC_VERSION_HEADERS) {
+      const value = upstreamResponse.headers.get(name);
+      if (value !== null) headers.set(name, value);
+    }
+    return new Response(responseBody, { status: upstreamResponse.status, headers });
+  } catch (err) {
+    const isTimeout = Boolean(err && typeof err === "object" && (err as { name?: unknown }).name === "TimeoutError");
+    return isTimeout
+      ? rpcError(504, -32000, "RPC upstream timeout")
+      : rpcError(502, -32000, "RPC upstream unreachable");
+  }
+}
+
 const APP_ROUTES = new Set(["docs", "help", "changelog", "status", "names", "register", "manage", "name"]);
 /** Map /docs/pricing to /#/docs/pricing and /favicon.ico to the SVG icon; undefined for anything else. */
 export function appRedirect(url: URL): string | undefined {
@@ -193,6 +286,7 @@ export function appRedirect(url: URL): string | undefined {
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
     const url = new URL(request.url);
+    if (url.pathname === "/api/rpc") return proxyRpc(request, env);
     if (url.pathname === "/api/status" && request.method === "GET") {
       if (!env.RELEASE) return json({ error: "release_unset" }, 503);
       // One D1 round trip for all status reads.
