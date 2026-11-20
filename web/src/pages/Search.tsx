@@ -61,6 +61,11 @@ export function SearchPage({ initial, page = "name" }: { initial?: string; page?
     [],
   );
   const [loading, setLoading] = useState(false);
+  // A search submitted while the network is still connecting runs as soon as the reader is ready.
+  const [queued, setQueued] = useState<string>();
+  useEffect(() => {
+    if (unavailable) setQueued(undefined);
+  }, [unavailable]);
   useEffect(() => {
     if (reader) return;
     generation.current++;
@@ -113,9 +118,16 @@ export function SearchPage({ initial, page = "name" }: { initial?: string; page?
   }, [input, reader]);
 
   useEffect(() => {
+    if (!reader || queued === undefined) return;
+    setQueued(undefined);
+    void query(queued);
+  }, [reader, queued, query]);
+
+  useEffect(() => {
     if (route.current === initial) return;
     route.current = initial;
     generation.current++;
+    setQueued(undefined);
     setInput(initial ? formatName(initial) : "");
     setResult(undefined);
     setError(undefined);
@@ -136,10 +148,11 @@ export function SearchPage({ initial, page = "name" }: { initial?: string; page?
         <label className="search-label" htmlFor="name-query">{translate("Name")}</label>
         <form
           className="row search-form"
-          aria-busy={loading}
+          aria-busy={loading || queued !== undefined}
           onSubmit={(e) => {
             e.preventDefault();
-            void query();
+            if (reader) void query();
+            else if (!unavailable && preview && !("error" in preview)) setQueued(input);
           }}
         >
           <input
@@ -152,6 +165,7 @@ export function SearchPage({ initial, page = "name" }: { initial?: string; page?
             placeholder={translate("Enter a name, e.g. alice.fog")}
             onChange={(e) => {
               generation.current++;
+              setQueued(undefined);
               setInput(e.target.value);
               setResult(undefined);
               setError(undefined);
@@ -160,9 +174,9 @@ export function SearchPage({ initial, page = "name" }: { initial?: string; page?
           />
           <button
             className="primary"
-            disabled={!reader || loading || !preview || "error" in preview}
+            disabled={unavailable || loading || queued !== undefined || !preview || "error" in preview}
           >
-            {loading ? translate("Searching…") : translate("Search")}
+            {loading || queued !== undefined ? translate("Searching…") : translate("Search")}
           </button>
         </form>
         <div id="search-feedback" className="field-feedback" aria-live="polite">

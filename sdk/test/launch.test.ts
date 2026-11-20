@@ -18,10 +18,14 @@ const addr = (n: bigint) => AztecAddress.fromBigIntUnsafe(n);
 const YEAR = 31536000n;
 async function fixture() {
   const registry = addr(1n), registrar = addr(2n), resolver = addr(3n), account = addr(5n);
+  // Readers share reads per block hash, so every fixture state change models a new block.
   const snap = { blockNumber: 10, blockHash: 'block-10', timestamp: 1000n, finality: 'checkpointed' as const };
+  let version = 0;
+  const nextBlock = () => { snap.blockHash = `block-10-${++version}`; };
   const classes = new Map([[registry.toString(),metadata.v6.classId],[registrar.toString(),metadata.registrarLaunch.classId],[resolver.toString(),metadata.resolver.classId]]);
   const state = new Map<string,bigint>();
-  const write = (address: AztecAddress, slot: string | bigint, values: bigint[]) => values.forEach((v,i)=>state.set(`${address}:${BigInt(slot)+BigInt(i)}`,v));
+  const counts = { reads: 0, fail: false };
+  const write = (address: AztecAddress, slot: string | bigint, values: bigint[]) => { nextBlock(); values.forEach((v,i)=>state.set(`${address}:${BigInt(slot)+BigInt(i)}`,v)); };
   write(registry,metadata.v6.storage.modules,[2n,3n,1n]);
   write(registrar,metadata.registrarLaunch.storage.registry,[1n]);
   write(resolver,metadata.resolver.storage.registry,[1n]);
@@ -32,7 +36,7 @@ async function fixture() {
   const node = {
     getNodeInfo:async()=>({l1ChainId:31337,rollupVersion:1}),
     getContract:async(a:AztecAddress)=>({currentContractClassId:Fr.fromString(classes.get(a.toString())!)}),
-    getPublicStorageAt:async(_:unknown,a:AztecAddress,slot:Fr)=>new Fr(state.get(`${a}:${slot.toBigInt()}`)??0n),
+    getPublicStorageAt:async(_:unknown,a:AztecAddress,slot:Fr)=>{counts.reads++;if(counts.fail)throw new Error('fetch failed');return new Fr(state.get(`${a}:${slot.toBigInt()}`)??0n);},
     getBlockData:async()=>({blockHash:snap.blockHash,header:{globalVariables:{blockNumber:10,timestamp:1000}}}),
   } as any;
   const reader = await RegistryReader.connect(node,registry);
@@ -42,7 +46,7 @@ async function fixture() {
   const policy=(len:number,paused=false)=>write(registrar,metadata.registrarLaunch.storage.policy,[BigInt(len),BigInt(paused)]);
   const reserve=async(name:string,value=true)=>{const slot=await deriveStorageSlotInMap(new Fr(BigInt(metadata.registrarLaunch.storage.reserved)),new Fr(await nodeOf(normalizeName(name))));write(registrar,slot.toBigInt(),[BigInt(value)]);};
   const ctx={reader,account,get wallet(){throw Error('must not request wallet');},queue:{run:async(fn:()=>unknown)=>fn()},signer:{},ensureRegistered:async()=>{},registrationContract:async()=>{throw Error('must not construct call');}} as any;
-  return {reader,registrar,write,policy,reserve,snap,ctx};
+  return {reader,registrar,write,policy,reserve,snap,ctx,counts};
 }
 
 test('launch artifact class and every storage slot are pinned',async()=>{
@@ -54,6 +58,15 @@ test('wallet-free reader decodes launch config, live policy and renewal horizon'
   const f=await fixture();
   assert.deepEqual((await f.reader.getConfig(f.snap)).launch,{minPublicLength:7,paused:false,maxRenewAhead:YEAR});
   f.policy(5,true);assert.deepEqual((await f.reader.getConfig(f.snap)).launch,{minPublicLength:5,paused:true,maxRenewAhead:YEAR});
+});
+test('config, module and class reads are shared within one snapshot and retried after a failure',async()=>{
+  const f=await fixture(),snap={...f.snap};
+  f.counts.reads=0;await f.reader.getConfig(snap);const once=f.counts.reads;assert(once>0);
+  assert.equal(await f.reader.eligibility('seventh',snap),'open');await f.reader.getConfig(snap);
+  assert.equal(f.counts.reads,once+1,'only the reservation slot is read again');
+  const next={...snap,blockHash:'block-11'};f.counts.fail=true;
+  await assert.rejects(f.reader.getConfig(next),(e:any)=>e.code==='network');
+  f.counts.fail=false;assert.equal((await f.reader.getConfig(next)).launch?.minPublicLength,7);
 });
 test('reserved map derivation matches the protocol helper and supports removal',async()=>{
   const f=await fixture(),n=await nodeOf(normalizeName('reserve'));

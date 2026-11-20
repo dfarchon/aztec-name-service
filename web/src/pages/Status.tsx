@@ -8,16 +8,19 @@ import { getVitals } from "../performance";
 import { boot, useSession } from "../session";
 
 type Health = { checkedAt: number; checks: { name: string; ok: boolean; detail: string }[]; open?: string[]; incidents: { name: string; kind: string; at: number }[]; metrics: { name: string; samples: number; average: number }[]; release: string };
-const labels: Record<string, string> = { registrar: "Registrar", resolver: "Resolver", modules: "Contract modules", website: "Website", rpc: "RPC", chain: "Network identity", blocks: "Block progress", registry: "Registry", sponsor: "Fee sponsorship", balance: "Sponsor balance" };
+const labels: Record<string, string> = { registrar: "Registrar", resolver: "Resolver", modules: "Contract modules", website: "Website", rpc: "RPC", chain: "Network identity", blocks: "Block progress", registry: "Registry", "core-upgrade": "Core upgrade", sponsor: "Fee sponsorship", balance: config.sponsoredFpc ? "Sponsor balance" : "Operator balance" };
 /** Monitor details are compact machine strings; present numbers and units in plain language. */
 export function humanDetail(name: string, detail: string): string {
   const number = (value: string) => Number(value).toLocaleString(dateLocale());
   const block = /^#(\d+)( · No recent blocks)?$/.exec(detail);
   if (name === "blocks" && block) return translate(block[2] ? "Latest block #{block} · no new blocks recently" : "Latest block #{block}", { block: number(block[1]) });
   const balance = /^(\d+) Fee Juice$/.exec(detail);
-  if (name === "balance" && balance) return translate("{amount} Fee Juice left to pay network fees for users", { amount: number(balance[1]) });
-  const chain = /^Sepolia · runtime (.+)$/.exec(detail);
-  if (name === "chain" && chain) return translate("Aztec Testnet on Ethereum Sepolia · node version {version}", { version: chain[1] });
+  // Without a sponsor (fee-juice deployments) this is the operator account; users pay their own network fees.
+  if (name === "balance" && balance) return config.sponsoredFpc
+    ? translate("{amount} Fee Juice left to pay network fees for users", { amount: number(balance[1]) })
+    : translate("{amount} Fee Juice in the operator account", { amount: number(balance[1]) });
+  const chain = /^(Sepolia|mainnet) · runtime (.+)$/.exec(detail);
+  if (name === "chain" && chain) return translate(chain[1] === "mainnet" ? "Aztec Mainnet on Ethereum · node version {version}" : "Aztec Testnet on Ethereum Sepolia · node version {version}", { version: chain[2] });
   return translate(detail);
 }
 

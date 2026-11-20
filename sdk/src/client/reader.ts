@@ -49,8 +49,12 @@ export type ResolverInspection = {
   reason?: 'zero' | 'unknown_class' | 'other_registry';
 };
 
+/** Storage at one block hash never changes, so per-snapshot reads are shared until a few newer snapshots arrive. */
+const SNAPSHOT_MEMO_LIMIT = 4;
+
 export class RegistryReader {
   private configCache?: RegistryConfig;
+  private snapshotMemo = new Map<string, Map<string, Promise<unknown>>>();
   readonly modular: boolean;
   get extended() {
     return registryProtocol(this.currentClass).extended;
@@ -132,7 +136,7 @@ export class RegistryReader {
         timestamp: BigInt(data.header.globalVariables.timestamp),
         finality,
       };
-      if (this.modular) await this.assertCurrentClass(snap);
+      if (this.modular) await this.classAt(snap);
       if (await this.isCanonical(snap)) return snap;
     }
     throw new FogError('network', 'could not obtain a canonical registry snapshot after three attempts');
@@ -147,29 +151,7 @@ export class RegistryReader {
   async getConfig(snap?: Snapshot): Promise<RegistryConfig> {
     if (!this.modular && this.configCache) return this.configCache;
     const s = snap ?? (await this.snapshot());
-    if (this.modular) {
-      await this.assertCurrentClass(s);
-      const { registrar } = await this.getModules(s);
-      const kind = await this.assertModule(registrar, 'registrar', s);
-      const tiered = kind === 'registrarTiered' || kind === 'registrarLaunch';
-      const policy = kind === 'registrarLaunch' ? await this.readFields(BigInt(modular.registrarLaunch.storage.policy), 2, s, registrar) : undefined;
-      const cap = policy ? (await this.readFields(BigInt(modular.registrarLaunch.storage.max_renew_ahead), 1, s, registrar))[0] : undefined;
-      const [[feeToken, treasury, annualPrice, priceVersion], tiers] = await Promise.all([
-        this.readFields(BigInt(modular.registrar.storage.config), 4, s, registrar),
-        tiered
-          ? this.readFields(BigInt(modular.registrarTiered.storage.length_prices), 2, s, registrar)
-          : undefined,
-      ]);
-      return {
-        feeToken: AztecAddress.fromBigIntUnsafe(feeToken),
-        treasury: AztecAddress.fromBigIntUnsafe(treasury),
-        annualPrice,
-        priceVersion: Number(priceVersion),
-        registrar,
-        ...(policy ? { launch: { minPublicLength: Number(policy[0]), paused: policy[1] !== 0n, maxRenewAhead: cap! } } : {}),
-        ...(tiers ? { lengthPrices: { three: tiers[0], four: tiers[1] } } : {}),
-      };
-    }
+    if (this.modular) return this.memo(s, 'config', () => this.readModularConfig(s));
     const [feeToken, treasury, annualPrice, priceVersion] = await this.readFields(
       this.slots.config.slot.toBigInt(),
       PACKED_LEN.RegistryConfig,
@@ -182,6 +164,58 @@ export class RegistryReader {
       priceVersion: Number(priceVersion),
     };
     return this.configCache;
+  }
+
+  private async readModularConfig(s: Snapshot): Promise<RegistryConfig> {
+    await this.classAt(s);
+    const { registrar } = await this.getModules(s);
+    const [kind, [feeToken, treasury, annualPrice, priceVersion]] = await Promise.all([
+      this.assertModule(registrar, 'registrar', s),
+      this.readFields(BigInt(modular.registrar.storage.config), 4, s, registrar),
+    ]);
+    const tiered = kind === 'registrarTiered' || kind === 'registrarLaunch';
+    const launch = kind === 'registrarLaunch';
+    const [tiers, policy, cap] = await Promise.all([
+      tiered ? this.readFields(BigInt(modular.registrarTiered.storage.length_prices), 2, s, registrar) : undefined,
+      launch ? this.readFields(BigInt(modular.registrarLaunch.storage.policy), 2, s, registrar) : undefined,
+      launch ? this.readFields(BigInt(modular.registrarLaunch.storage.max_renew_ahead), 1, s, registrar) : undefined,
+    ]);
+    return {
+      feeToken: AztecAddress.fromBigIntUnsafe(feeToken),
+      treasury: AztecAddress.fromBigIntUnsafe(treasury),
+      annualPrice,
+      priceVersion: Number(priceVersion),
+      registrar,
+      ...(policy ? { launch: { minPublicLength: Number(policy[0]), paused: policy[1] !== 0n, maxRenewAhead: cap![0] } } : {}),
+      ...(tiers ? { lengthPrices: { three: tiers[0], four: tiers[1] } } : {}),
+    };
+  }
+
+  /** The registry class check at one snapshot, shared by every read of that snapshot. */
+  private async classAt(s: Snapshot) {
+    this.currentClass = await this.memo(s, 'class', () => this.assertCurrentClass(s));
+    return this.currentClass;
+  }
+
+  /**
+   * Shares one in-flight or settled read per block hash and key. Failures are not kept, so a retry reads again.
+   */
+  private memo<T>(s: Snapshot, key: string, read: () => Promise<T>): Promise<T> {
+    const id = `${s.blockNumber}:${s.blockHash}`;
+    let entries = this.snapshotMemo.get(id);
+    if (!entries) {
+      entries = new Map();
+      this.snapshotMemo.set(id, entries);
+      while (this.snapshotMemo.size > SNAPSHOT_MEMO_LIMIT) this.snapshotMemo.delete(this.snapshotMemo.keys().next().value!);
+    }
+    const hit = entries.get(key);
+    if (hit) return hit as Promise<T>;
+    const pending = read();
+    entries.set(key, pending);
+    pending.catch(() => {
+      if (entries.get(key) === pending) entries.delete(key);
+    });
+    return pending;
   }
 
   /**
@@ -442,7 +476,11 @@ export class RegistryReader {
   }
 
   /** Verifies a module's class and registry binding; returns which supported implementation it is. */
-  async assertModule(address: AztecAddress, kind: 'registrar' | 'resolver', snap: Snapshot) {
+  assertModule(address: AztecAddress, kind: 'registrar' | 'resolver', snap: Snapshot) {
+    return this.memo(snap, `module:${kind}:${address}`, () => this.readModule(address, kind, snap));
+  }
+
+  private async readModule(address: AztecAddress, kind: 'registrar' | 'resolver', snap: Snapshot) {
     const instance = await this.guard(() => this.node.getContract(address, BlockNumber(snap.blockNumber)));
     const classId = instance?.currentContractClassId.toString();
     const impl = (kind === 'registrar' ? (['registrar', 'registrarTiered', 'registrarLaunch'] as const) : (['resolver'] as const)).find(
@@ -464,10 +502,8 @@ export class RegistryReader {
     if (!this.modular)
       throw new FogError('invalid_argument', 'this registry has no replaceable modules');
     const s = snap ?? (await this.snapshot());
-    const [registrar, resolver, revision] = await this.readFields(
-      this.slots.modules.slot.toBigInt(),
-      3,
-      s,
+    const [registrar, resolver, revision] = await this.memo(s, 'modules', () =>
+      this.readFields(this.slots.modules.slot.toBigInt(), 3, s),
     );
     if (!registrar || !resolver || !revision)
       throw new FogError('wrong_deployment', 'registry modules are not initialized');
