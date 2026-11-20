@@ -11,6 +11,7 @@ import type { RegistryReader } from '../client/reader.js';
 import { FogError } from '../core/errors.js';
 import { ExecutionQueue } from './queue.js';
 import { FEE_TOKEN_CLASS_ID } from '../client/fee-token.js';
+import type { GasEstimate } from '../transactions/gas.js';
 import { assertWalletNetwork } from './network.js';
 import {
   type ExtendedRegistryContract,
@@ -33,6 +34,16 @@ export type FogSigner = {
   fee?: InteractionFeeOptions;
   /** Host validation inside the shared queue, after identity checks and before submission. Cannot broadcast. */
   beforeSend?: (account: AztecAddress) => Promise<void>;
+  /**
+   * Simulate each call first and declare its measured gas plus a 10% margin. Without this the wallet declares
+   * the network's whole per-transaction gas limit, so the fee payer must hold that much larger maximum fee.
+   */
+  estimateGas?: boolean;
+  /**
+   * Host fee validation after gas estimation and before submission. `gas` is the limits the transaction will
+   * declare; it is absent when estimation is off or the wallet returned no gas usage. Cannot broadcast.
+   */
+  checkFee?: (account: AztecAddress, gas?: GasEstimate) => Promise<void>;
 };
 
 const queues = new WeakMap<Wallet, ExecutionQueue>();

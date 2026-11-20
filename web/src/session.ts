@@ -329,9 +329,18 @@ export async function selectAccount(address: AztecAddress) {
       // The SDK invokes this inside the shared wallet queue, including for already queued writes.
       beforeSend: async (account) => {
         requireLiveNetwork();
-        if (feeJuice) await feeJuice.assertFeeJuice(reader.node, account);
+        if (feeJuice) await feeJuice.assertFeeJuiceFunded(reader.node, account);
         requireLiveNetwork();
       },
+      // Users pay their own fees here: declare estimated gas so the required balance matches real usage.
+      estimateGas: !!feeJuice,
+      checkFee: feeJuice
+        ? async (account, gas) => {
+            requireLiveNetwork();
+            await feeJuice.assertFeeJuice(reader.node, account, gas?.gasLimits);
+            requireLiveNetwork();
+          }
+        : undefined,
       account: address,
       fee: paymentMethod ? { paymentMethod } : undefined,
     });
