@@ -103,7 +103,14 @@ export function assertCheckpointKeys(state: V6State, keys: KeysFile) {
   const equal = state.keys.owner.secret === keys.owner.secret && state.keys.owner.salt === keys.owner.salt && state.keys.owner.signingKey === keys.owner.signingKey && state.addresses.owner === keys.owner.address && state.config.treasury === keys.treasury.address && Object.keys(state.salts).length === 4 && Object.entries(keys.salts).every(([key, value]) => state.salts[key] === value);
   assert(equal, 'Checkpoint keys file mismatch');
 }
-export async function main(argv = process.argv.slice(2), dependencies = { createNode: createAztecNodeClient, randomKeys }) {
+export async function main(
+  argv = process.argv.slice(2),
+  dependencies: {
+    createNode: typeof createAztecNodeClient;
+    randomKeys: typeof randomKeys;
+    readinessRoot?: URL;
+  } = { createNode: createAztecNodeClient, randomKeys },
+) {
   if (argv.includes('--init-keys')) {
     await initKeys(parseInitKeysArgs(argv), { randomKeys: dependencies.randomKeys, randomSalt: () => Fr.random(), now: () => new Date() });
     return;
@@ -112,11 +119,11 @@ export async function main(argv = process.argv.slice(2), dependencies = { create
   const options = parseOptions(argv);
   if(options.registrar==='launch') options.reservedLabels=loadReservedList(JSON.parse(await readFile(options.reservedList!,'utf8')));
   if (options.network === 'mainnet') {
-    if (!options.dryRun) { assertMainnetReady(); throw new Error('Mainnet blocked: registration fee-token mode undecided; token-deploying flow refused'); }
+    if (!options.dryRun) { assertMainnetReady(dependencies.readinessRoot); throw new Error('Mainnet blocked: registration fee-token mode undecided; token-deploying flow refused'); }
     const info = await dependencies.createNode(options.nodeUrl, { maxBatchSize: 3 }).getNodeInfo();
     const identity = assertV6Network('mainnet', info, options.nodeUrl);
     console.log(`IDENTITY ${JSON.stringify(identity)}`);
-    console.log(`Mainnet blocked: ${mainnetBlockers().join(', ')}`);
+    console.log(`Mainnet blocked: ${mainnetBlockers(dependencies.readinessRoot).join(', ')}`);
     return;
   }
   const keysPath = join(options.stateDir, 'keys.json');
