@@ -75,8 +75,8 @@ test('V6 wallet selection registers and executes the exact V6 artifact', async (
     },
   } as unknown as Wallet;
   const ctx = new FogContext(reader, { wallet, account: registry });
-  assert.equal(ctx.contract().artifact, NameRegistryV6Contract.artifact);
-  assert.equal(ctx.extendedContract().artifact, NameRegistryV6Contract.artifact);
+  assert.equal((await ctx.contract()).artifact, NameRegistryV6Contract.artifact);
+  assert.equal((await ctx.extendedContract()).artifact, NameRegistryV6Contract.artifact);
   await ctx.ensureRegistered();
   assert.equal(registered[0], NameRegistryV6Contract.artifact);
 });

@@ -70,7 +70,6 @@ export function App() {
       <a className="skip-link" href="#content" onClick={e => { e.preventDefault(); document.getElementById("content")?.focus(); }}>{translate("Skip to content")}</a>
       <header className="app-header">
         <a className="product-name" href="#/">{translate("Fog Names")}</a>
-        {config.network !== "mainnet" && <span className="status-badge rollout-pill">{translate("Testnet Rollout")}</span>}
         <nav aria-label={translate("Main navigation")}>
           {NAV.map(([p, label]) => (
             <a key={p} className={page === p || (p === "" && page === "name") ? "on" : ""} aria-current={page === p || (p === "" && page === "name") ? "page" : undefined} href={`#/${p}`}>
@@ -87,7 +86,7 @@ export function App() {
           {s.status === "misconfigured" && <span className="err">{translate("Configuration error")}</span>}
         </span>
       </header>
-      {config.network !== "mainnet" && (
+      {config.network === "testnet-v6" && (
         <div className="banner rollout-banner" role="note">
           <strong>{translate("Public Test Rollout")}</strong>
           <span>{translate("Fog Names is currently in experimental testnet rollout on Aztec. Names, contract deployments and policies are for testing only and may reset before mainnet launch.")}</span>

@@ -41,8 +41,6 @@ import { EmbeddedWallet } from '@aztec-labs/wallets/embedded';
 import {
   FogContext,
   CORE_UPGRADE_FAMILY,
-  NameRegistrarLaunchContract,
-  NameResolverContract,
   RegistryReader,
   acceptTransfer,
   administerCoreUpgrade,
@@ -68,6 +66,7 @@ import {
   waitUntilRegistrable,
   type CoreUpgradeAction,
 } from '@fog/sdk';
+import { NameRegistrarLaunchContract, NameResolverContract } from '@fog/sdk/contracts';
 import { NameRegistryV8Contract, NameRegistryV8RehearsalContract } from '@fog/sdk/contracts/v8';
 import metadata from '../../sdk/src/artifacts/modular-metadata.json' with { type: 'json' };
 import reservations from '../../deployments/reserved-labels.json' with { type: 'json' };

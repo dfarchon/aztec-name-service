@@ -1,7 +1,8 @@
 /** Proof-disabled local acceptance. Intentionally races policy only after the reveal has been proven. */
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
-import { FogContext, RegistryReader, NameRegistrarLaunchContract, NameResolverContract, prepareRegistration, submitCommit, submitRegistration, checkRegistration, renew, normalizeName, nodeOf, type RegistrationPlan } from '@fog/sdk';
+import { FogContext, RegistryReader, prepareRegistration, submitCommit, submitRegistration, checkRegistration, renew, normalizeName, nodeOf, type RegistrationPlan } from '@fog/sdk';
+import { NameRegistrarLaunchContract, NameResolverContract } from '@fog/sdk/contracts';
 import { NameRegistryV6Contract } from '../../sdk/src/artifacts/NameRegistryV6.js';
 import { Contract, NO_WAIT, type InteractionFeeOptions } from '@aztec-labs/aztec.js/contracts';
 import { AztecAddress } from '@aztec-labs/aztec.js/addresses';

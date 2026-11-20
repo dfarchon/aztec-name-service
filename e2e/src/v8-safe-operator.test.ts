@@ -5,7 +5,7 @@ const A = metadata.v8.classId,
   B = metadata.v8Rehearsal.classId;
 import assert from 'node:assert/strict';
 import { mkdtemp, chmod, symlink, rm, readFile, writeFile } from 'node:fs/promises';
-import { tmpdir } from 'node:os';
+import { tmpdir } from './test-tmpdir.js';
 import { join } from 'node:path';
 import { spawnSync } from 'node:child_process';
 import {

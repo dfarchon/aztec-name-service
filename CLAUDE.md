@@ -58,7 +58,7 @@ contracts → artifacts (committed) → sdk → web, e2e, ops (monitor), example
 - bidirectional primary verification;
 - registration commitments that bind the chain, registry, Registrar, name, owner, duration, token, treasury, priceVersion, max fee and quote expiry.
 
-**SDK** (`sdk/src`), with entry points: `.`, `./read` (wallet-free, no contract artifacts), `./contracts/v6`, `./contracts/v7` and `./contracts/v8`.
+**SDK** (`sdk/src`), with entry points: `.` (no static contract artifacts; `FogContext` loads the connected class's artifact on demand through `wallet/bindings.ts`), `./read` (wallet-free, no contract artifacts), `./contracts` (Registrar, Resolver, V2 and V5 bindings), `./contracts/v6`, `./contracts/v7` and `./contracts/v8`. `sdk/package.json` declares `sideEffects: false`, so keep SDK modules free of top-level side effects.
 - `core/registry-protocol.ts` and `artifacts/modular-metadata.json` pick the protocol and storage layout from the exact on-chain class ID.
 - `RegistryReader` (`client/reader.ts`) reads raw storage slots at one snapshot. It rejects unknown registry or module classes with `wrong_deployment`, so supporting a new contract class always needs a new SDK release; older SDKs fail closed.
 - `getFeeQuote` / `chargeFor` need `labelLength` on a tiered Registrar, and `flow.quote(duration, name)` derives it. A quote binds its length.

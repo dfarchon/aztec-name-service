@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { mkdtemp, mkdir, writeFile, chmod, symlink, stat, rm, rename, readFile, readdir, lstat } from 'node:fs/promises';
 import { join } from 'node:path';
-import { tmpdir } from 'node:os';
+import { tmpdir } from './test-tmpdir.js';
 import { spawnSync } from 'node:child_process';
 import {
   assertKeyFile,

@@ -1,8 +1,8 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { mkdtemp, mkdir, rm, symlink, stat, readFile, writeFile, readdir } from 'node:fs/promises';
-import { existsSync, realpathSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { existsSync } from 'node:fs';
+import { tmpdir } from './test-tmpdir.js';
 import { join } from 'node:path';
 import { createRequire } from 'node:module';
 import { sponsoredFpc } from './common.js';
@@ -10,8 +10,7 @@ import { V6_PROFILES, assertV6Fpc, assertV6Network, dryRunNode } from './v6-netw
 import { loadReservedList } from './launch-policy.js';
 import { PAID_V6_MANIFEST, REPO, ZERO, parseArgs, parseInitKeysArgs, parseOptions, finalizeConfig, confirmation, makePolicy, configHash, deploymentPlan, buildManifest } from './deploy-v6-plan.js';
 import { main, physicalPath, privatePaths, v6Artifacts, instances, buildInitialState, assertCheckpointKeys, atomicJson, deploymentError } from './deploy-v6.js';
-// macOS tmpdir() is /var/..., a symlink to /private/var; path checks compare physical paths.
-const realTmp=realpathSync(tmpdir());
+const realTmp = tmpdir();
 const { V6_TESTNET, v6ManifestProblems } = createRequire(import.meta.url)('../../scripts/deployment-config.mjs');
 const base = ['--network','local','--registrar','flat','--price-version','1'];
 const treasury = `0x${'0'.repeat(63)}1`;

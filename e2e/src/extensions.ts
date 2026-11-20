@@ -4,7 +4,7 @@ import { acceptTransfer, getAvailability, inspectHolding, issueSubname, listOwne
 
 /** Real local-chain calls, including direct contract attempts that bypass SDK authorization checks. */
 export async function exerciseExtensions(owner: FogContext, recipient: FogContext, warp: (seconds: number) => Promise<unknown>, check: (name: string, value: unknown) => void, registryLabel = 'V5') {
-  const name = 'modular-name', reader = owner.reader, core = owner.extendedContract();
+  const name = 'modular-name', reader = owner.reader, core = await owner.extendedContract();
   const send = { from: recipient.account, fee: recipient.signer.fee };
   const reject = async (label: string, action: () => Promise<unknown>) => { await assert.rejects(action); check(label, true); };
   check(`extended name capabilities available on ${registryLabel}`, reader.extended);

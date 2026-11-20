@@ -10,6 +10,7 @@
   "private": true,
   "description": "Public Fog name service: registration, ownership discovery and verified address resolution.",
   "type": "module",
+  "sideEffects": false,
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
@@ -18,6 +19,10 @@
     "./read": {
       "types": "./dist/read.d.ts",
       "default": "./dist/read.js"
+    },
+    "./contracts": {
+      "types": "./dist/contracts.d.ts",
+      "default": "./dist/contracts.js"
     },
     "./contracts/v6": {
       "types": "./dist/contracts-v6.d.ts",

@@ -1,7 +1,5 @@
 import type { AztecAddress } from '@aztec-labs/aztec.js/addresses';
 import { Fr } from '@aztec-labs/aztec.js/fields';
-import { NameRegistryV8Contract } from '../artifacts/NameRegistryV8.js';
-import { NameRegistryV8RehearsalContract } from '../artifacts/NameRegistryV8Rehearsal.js';
 import metadata from '../artifacts/modular-metadata.json' with { type: 'json' };
 import { FogError } from '../core/errors.js';
 import type { FogContext } from '../wallet/context.js';
@@ -34,8 +32,8 @@ export async function administerCoreUpgrade(ctx: FogContext, action: CoreUpgrade
     if (action.kind === 'propose' && action.from !== BigInt(state.currentClass)) throw new FogError('invalid_argument', 'source differs from snapshot current class');
     if (action.kind === 'execute' && (!state.pending.active || action.from !== state.pending.from || action.to !== state.pending.to)) throw new FogError('invalid_argument', 'arguments differ from stored proposal');
     const contract = state.currentClass === metadata.v8.classId
-      ? NameRegistryV8Contract.at(ctx.reader.registry, ctx.wallet)
-      : NameRegistryV8RehearsalContract.at(ctx.reader.registry, ctx.wallet);
+      ? (await import('../artifacts/NameRegistryV8.js')).NameRegistryV8Contract.at(ctx.reader.registry, ctx.wallet)
+      : (await import('../artifacts/NameRegistryV8Rehearsal.js')).NameRegistryV8RehearsalContract.at(ctx.reader.registry, ctx.wallet);
     const n = action.expectedNonce;
     const field = (id: bigint) => new Fr(id);
     switch (action.kind) {

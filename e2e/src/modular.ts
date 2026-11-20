@@ -6,12 +6,13 @@ import { exerciseExtensions } from './extensions.js';
 import { writeFile } from 'node:fs/promises';
 import pricing from '../../deployments/aztec-pricing.json' with { type: 'json' };
 import {
-  FogContext, RegistryReader, NameRegistryContract, NameRegistryV5Contract, NameRegistrarContract, NameResolverContract,
+  FogContext, RegistryReader,
   getAvailability, prepareRegistration, submitCommit, submitRegistration, checkRegistration, setAddress, setPrimary,
   resolveAddress, resolvePrimary, listOwnedNames, buildFeeAuthorization, renew, setResolver, migrateName,
   type RegistrationPlan,
   createRegistrationFlow, getFeeReadiness, configureModules, setAdministrator,
 } from '@fog/sdk';
+import { NameRegistryContract, NameRegistryV5Contract, NameRegistrarContract, NameResolverContract } from '@fog/sdk/contracts';
 import { getInitialTestAccountsData } from '@aztec-labs/accounts/testing';
 import { AztecAddress } from '@aztec-labs/aztec.js/addresses';
 import { Fr } from '@aztec-labs/aztec.js/fields';

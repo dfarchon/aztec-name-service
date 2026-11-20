@@ -17,8 +17,6 @@ import { setLogLevel } from '@aztec-labs/foundation/log';
 import {
   FogContext,
   RegistryReader,
-  NameResolverContract,
-  NameRegistrarLaunchContract,
   prepareRegistration,
   serializePlan,
   deserializePlan,
@@ -35,6 +33,7 @@ import {
   normalizeName,
   nodeOf,
 } from '@fog/sdk';
+import { NameResolverContract, NameRegistrarLaunchContract } from '@fog/sdk/contracts';
 import { ExecutionQueue } from '../../sdk/src/wallet/queue.js';
 import { assertWalletNetwork } from '../../sdk/src/wallet/network.js';
 import { NameRegistryV7Contract } from '@fog/sdk/contracts/v7';

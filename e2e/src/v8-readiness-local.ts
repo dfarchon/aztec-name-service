@@ -14,11 +14,10 @@ import { NameRegistryV8Contract, NameRegistryV8RehearsalContract } from '@fog/sd
 import {
   FogContext,
   CORE_UPGRADE_FAMILY,
-  NameRegistrarLaunchContract,
-  NameResolverContract,
   RegistryReader,
   administerCoreUpgrade,
 } from '@fog/sdk';
+import { NameRegistrarLaunchContract, NameResolverContract } from '@fog/sdk/contracts';
 import metadata from '../../sdk/src/artifacts/modular-metadata.json' with { type: 'json' };
 import { sponsoredFpc } from './common.js';
 import { assertV8DeploymentOwner, v8BoundDeployment } from './v8-deployment.js';

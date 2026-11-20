@@ -1,9 +1,8 @@
 import type { AztecAddress } from "@aztec-labs/aztec.js/addresses";
 import { type EventCursor, getPublicEvents } from "@aztec-labs/aztec.js/events";
 import { BlockNumber } from "@aztec-labs/aztec.js/fields";
-import { NameRegistryContract } from "../artifacts/NameRegistry.js";
-import { NameRegistryV3Contract } from "../artifacts/NameRegistryV3.js";
-import { NameRegistryV4Contract } from "../artifacts/NameRegistryV4.js";
+import type { NameRegistryContract } from "../artifacts/NameRegistry.js";
+import type { NameRegistryV3Contract } from "../artifacts/NameRegistryV3.js";
 import type { RegistryReader } from "../client/reader.js";
 import { nodeFromPacked } from "../core/hash.js";
 import { unpackLabel } from "../core/label.js";
@@ -16,7 +15,10 @@ export async function fetchEvents<T>(
   event: RegistryEventName,
   range: { fromBlock?: number; toBlock?: number; after?: EventCursor } = {},
 ) {
-  const schema = reader.modular ? NameRegistryV3Contract.events[`${event}V3` as keyof typeof NameRegistryV3Contract.events] : NameRegistryContract.events[event];
+  // Event schemas live in the contract artifacts; load only the one this registry emits.
+  const schema = reader.modular
+    ? (await import("../artifacts/NameRegistryV3.js")).NameRegistryV3Contract.events[`${event}V3` as keyof typeof NameRegistryV3Contract.events]
+    : (await import("../artifacts/NameRegistry.js")).NameRegistryContract.events[event];
   return getPublicEvents<T>(reader.node, schema, {
     contractAddress: reader.registry,
     fromBlock:
@@ -173,8 +175,9 @@ export async function listSubnames(reader: RegistryReader, parent: bigint, opts:
   }
   const candidates = new Set<bigint>();
   let after = c?.after, pages = 0;
+  const { SubnameIssued } = (await import("../artifacts/NameRegistryV4.js")).NameRegistryV4Contract.events;
   do {
-    const result = await getPublicEvents<{ parent: bigint; node: bigint }>(reader.node, NameRegistryV4Contract.events.SubnameIssued, {
+    const result = await getPublicEvents<{ parent: bigint; node: bigint }>(reader.node, SubnameIssued, {
       contractAddress: reader.registry,
       toBlock: BlockNumber(snapshot.blockNumber + 1),
       afterEvent: after,

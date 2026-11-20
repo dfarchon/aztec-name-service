@@ -22,8 +22,6 @@ import { choosingAccount, recordWriter, useSession } from '../session';
 import { registrationFlow } from '../registration';
 import { canDiscardUncertain, parseTxHash } from '../registration-recovery';
 
-const YEAR = SECONDS_PER_YEAR;
-
 export function RegisterPage({ initial }: { initial?: string }) {
   const s = useSession();
   const { ctx, records, wallet } = s;
@@ -62,7 +60,7 @@ function RegistrationPreparation() {
     setError(undefined);
     if (reader)
       // A 5+ character quote carries the base price and, on tiered registrars, the short-name tiers.
-      void getFeeQuote(reader, { operation: 'register', duration: YEAR, labelLength: 5 })
+      void getFeeQuote(reader, { operation: 'register', duration: SECONDS_PER_YEAR, labelLength: 5 })
         .then((q) => {
           if (live) setQuote(q);
         })
@@ -156,7 +154,7 @@ function FeeDetails({
 function RegistrationFunding({ free = false }: { free?: boolean }) {
   return (
     <>
-      {config.network !== 'mainnet' && (
+      {config.network === 'testnet-v6' && (
         <p className="muted">
           {translate(
             'Public testnet rollout: test registrations hold no monetary value and do not carry over to future deployments.',
@@ -220,7 +218,7 @@ function NewRegistration({ initial }: { initial?: string }) {
     setEligibility('open');
     void (async () => {
       const policy = await ctx.reader.getConfig();
-      const lease = policy.launch ? YEAR : BigInt(years) * YEAR;
+      const lease = policy.launch ? SECONDS_PER_YEAR : BigInt(years) * SECONDS_PER_YEAR;
       if (policy.launch && live && years !== 1) setYears(1);
       const q = await getFeeQuote(ctx.reader, {
       operation: 'register',
@@ -257,7 +255,7 @@ function NewRegistration({ initial }: { initial?: string }) {
         .catch(async (error) => {
           if (toFogError(error).code === 'fee_changed') {
             setQuote(undefined);
-            setQuote(await flow.quote(BigInt(years) * YEAR, label));
+            setQuote(await flow.quote(BigInt(years) * SECONDS_PER_YEAR, label));
           }
           throw error;
         });

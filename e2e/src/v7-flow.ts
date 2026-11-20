@@ -9,7 +9,8 @@ import { Fr } from '@aztec-labs/aztec.js/fields';
 import type { AztecNode } from '@aztec-labs/aztec.js/node';
 import type { EmbeddedWallet } from '@aztec-labs/wallets/embedded';
 import type { createAztecNodeDebugClient } from '@aztec-labs/stdlib/interfaces/client';
-import { FogContext, RegistryReader, NameRegistrarLaunchContract, NameResolverContract, prepareRegistration, submitCommit, submitRegistration, checkRegistration, inspectHolding, setAddress, setResolver, setManager, setTextRecord, offerTransfer, acceptTransfer, setPrimary, resolveAddress, resolvePrimary, renew, normalizeName, nodeOf } from '@fog/sdk';
+import { FogContext, RegistryReader, prepareRegistration, submitCommit, submitRegistration, checkRegistration, inspectHolding, setAddress, setResolver, setManager, setTextRecord, offerTransfer, acceptTransfer, setPrimary, resolveAddress, resolvePrimary, renew, normalizeName, nodeOf } from '@fog/sdk';
+import { NameRegistrarLaunchContract, NameResolverContract } from '@fog/sdk/contracts';
 import { NameRegistryV7Contract } from '@fog/sdk/contracts/v7';
 import { exerciseExtensions } from './extensions.js';
 
