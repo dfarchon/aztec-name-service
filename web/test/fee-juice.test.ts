@@ -18,6 +18,7 @@ test('public config requires explicit network and fee mode; local DEV defaults s
   assert.deepEqual(parseNetworkConfig({ DEV: true }), {
     network: 'local',
     feePayment: 'sponsored',
+    allowRehearsalSuccessor: false,
   });
   for (const env of [
     {},

@@ -60,3 +60,28 @@ test('identity checks expected and previous chain and rollup, including zero pin
   for (const previous of [{ ...current, chainId: 1n }, { ...current, rollupVersion: 2n }])
     assert.equal(identityMismatch({}, previous, current), true);
 });
+test('mainnet always disables rehearsal successor flag even if env sets it', () => {
+  assert.equal(
+    parseNetworkConfig({
+      VITE_NETWORK: 'mainnet',
+      VITE_FEE_PAYMENT: 'fee-juice',
+      VITE_ALLOW_V8_REHEARSAL_SUCCESSOR: 'true',
+    }).allowRehearsalSuccessor,
+    false,
+  );
+  assert.equal(
+    parseNetworkConfig({
+      VITE_NETWORK: 'testnet-v6',
+      VITE_FEE_PAYMENT: 'sponsored',
+      VITE_ALLOW_V8_REHEARSAL_SUCCESSOR: 'true',
+    }).allowRehearsalSuccessor,
+    true,
+  );
+  assert.equal(
+    parseNetworkConfig({
+      DEV: true,
+      VITE_ALLOW_V8_REHEARSAL_SUCCESSOR: 'true',
+    }).allowRehearsalSuccessor,
+    true,
+  );
+});

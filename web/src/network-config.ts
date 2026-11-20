@@ -2,6 +2,7 @@ export function parseNetworkConfig(env: {
   DEV?: boolean;
   VITE_NETWORK?: string;
   VITE_FEE_PAYMENT?: string;
+  VITE_ALLOW_V8_REHEARSAL_SUCCESSOR?: string;
 }) {
   const network = env.VITE_NETWORK ?? (env.DEV ? 'local' : undefined);
   if (!network || !['local', 'testnet-v6', 'mainnet'].includes(network))
@@ -15,6 +16,8 @@ export function parseNetworkConfig(env: {
   return {
     network: network as 'local' | 'testnet-v6' | 'mainnet',
     feePayment: feePayment as 'sponsored' | 'fee-juice',
+    allowRehearsalSuccessor:
+      network !== 'mainnet' && env.VITE_ALLOW_V8_REHEARSAL_SUCCESSOR === 'true',
   };
 }
 /** Derivation is allowed only on the proof-disabled local identity. */

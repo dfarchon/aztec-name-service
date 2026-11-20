@@ -44,9 +44,10 @@ export async function connectWallet(
     }
     const wallet = await pending.confirm();
     const { requestFogCapabilities } = await import('@fog/sdk');
+    const sponsoredFpc = (deployment as { sponsoredFpc?: string | null }).sponsoredFpc;
     return await requestFogCapabilities(reader, wallet, {
       app: { name: appId, version: '1.0.0', url: location.origin },
-      sponsoredFpc: AztecAddress.fromStringUnsafe(deployment.sponsoredFpc),
+      ...(sponsoredFpc ? { sponsoredFpc: AztecAddress.fromStringUnsafe(sponsoredFpc) } : {}),
     });
   } catch (error) {
     pending.cancel();

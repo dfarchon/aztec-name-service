@@ -98,9 +98,9 @@ npm run deploy:v6 -- --network local --node-url http://127.0.0.1:8082 --registra
 
 This read-only local preview sends no transaction. Deployment seeding verifies the reserved list before bootstrap and leaves the requested pause state unchanged; unpause is an explicit administrator action. `e2e/src/launch-admin.ts` offers a read-only CLI preview. `runLaunchAdmin` and `switchLaunchRegistrar` require an injected `FogContext` and explicit `{ broadcast: true }` to mutate; they never load keys. Keep an admin mint process alive through commit maturation: its secret stays in application memory, and interrupting it requires a new mint commitment. No website admin console or public SDK admin API is added.
 
-## V7 resolver and revision rules
+## V7/V8 resolver and revision rules
 
-Mainnet targets a fresh V7 (`protocol: 7`, retaining schema `fog-deployment-v6/1`). The current testnet stays on frozen V6; V2–V5 remain archives on the old rollup, with no migration to Aztec 6. Acceptance on V7 resets the resolver to the current default and emits ResolverChanged. Old-generation addresses, profiles, editors, primary consent and descendants cannot revive. A resolver can write only in the generation bound by that holder or default policy, and the supplied actor must be the current holder or editor. The SDK and web also verify its class and Registry binding.
+Mainnet targets a fresh V8 free-launch suite (`protocol: 8`, `registryVersion: 8`, retaining schema `fog-deployment-v6/1` and V7 business rules). The current testnet stays on frozen V6; V2–V5 remain archives on the old rollup, with no migration to Aztec 6. Acceptance on V7/V8 resets the resolver to the current default and emits ResolverChanged. Old-generation addresses, profiles, editors, primary consent and descendants cannot revive. A resolver can write only in the generation bound by that holder or default policy, and the supplied actor must be the current holder or editor. The SDK and web also verify its class and Registry binding.
 
 V7 separates holder `NameRecord.revision` from editor `Holding.recordRevision`: editor writes cannot stale holder renewal, editor removal, resolver replacement or transfer acceptance. Resolver replacement clears the address and advances record revision, invalidating pending editor writes. V3–V6 retain a shared revision. `get_record_revision(node, generation)` / `getRecordRevision(node, generation, snapshot)` returns the generation's record revision as u32 / number.
 
@@ -118,7 +118,24 @@ Run the following command in a private offline environment. It creates a new pri
 node --import tsx e2e/src/generate-placeholder-admin.ts
 ```
 
-The template uses placeholder admin/treasury `0x2419a5bafa9cd88d6a625c21b96f16f79bf6e279253b1993609a3edc169f8c68` (offline-generated, never deployed), with `adminPlaceholder: true`; replace with the actual trusted administrator before launch (multisig is optional). Readiness rejects a copied placeholder. It also requires protocol 7 and exactly 31536000 seconds for launch renewals. The deployment operator must replace the placeholder; implementation does not authorize publication or a public transaction.
+The template uses placeholder admin/treasury `0x2419a5bafa9cd88d6a625c21b96f16f79bf6e279253b1993609a3edc169f8c68` (offline-generated, never deployed), with `adminPlaceholder: true`; replace with the actual trusted administrator before launch (multisig is optional). Readiness rejects a copied placeholder. It also requires protocol 8 (`allowRehearsalSuccessor: false`) and exactly 31536000 seconds for launch renewals.
+
+### Mainnet V8 free-launch operator
+
+`npm run deploy:mainnet:v8` (`e2e/src/mainnet-v8-launch.ts`) executes isolated-signer mainnet preparation, optional Ethereum Mainnet `$AZTEC` Fee Juice Portal bridging, checkpointed V8 + `NameResolver` + free `NameRegistrarLaunch` deployment (`initialPaused: true`), 6-transaction batched (60-per-tx) 325-label reservation seeding/readback, and post-deploy Launch administration (`--admin-action unpause|pause|minimum|mint`):
+
+```sh
+# 1. Offline isolated account generation under fog-signer or ans-signer (mode 0700)
+S="/var/lib/ans-signer/mainnet-v8-launch-<YYYYMMDD>"
+npm run deploy:mainnet:v8 -- --init-accounts --state-dir "$S"
+# 2. Read-only mainnet preflight (does not open credentials.json or send transactions)
+npm run deploy:mainnet:v8 -- --state-dir "$S" --node-url '<MAINNET_HTTPS_RPC>' --domain '<HTTPS_DOMAIN>' --manifest-out "$S/mainnet.json" --max-fee-juice 150 --dry-run
+# 3. After funding L2 Fee Juice and reviewing confirmation, deploy (--send --confirm '<EXACT>')
+# 4. Copy "$S/mainnet.json" to deployments/mainnet.json, configure ops/wrangler*mainnet.jsonc, commit, and run:
+npm run deploy:mainnet
+# 5. Unpause public registration once monitoring reports healthy:
+npm run deploy:mainnet:v8 -- --admin-action unpause --state-dir "$S" --node-url '<MAINNET_HTTPS_RPC>' --dry-run
+```
 
 `setPrimary(ctx, { name, acceptUnverifiedResolver? }, opts?)` refuses an unverified resolver with `invalid_argument` unless explicitly opted in with `true`. The override preserves transport, active-lease and forward-address checks and cannot make `resolvePrimary` report trust. Only `resolveAddress` and `resolvePrimary` validate resolver trust; raw `RegistryReader.getAddress` / `@fog/sdk/read` returns public chain records for callers to validate.
 

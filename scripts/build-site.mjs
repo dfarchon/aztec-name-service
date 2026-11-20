@@ -84,6 +84,7 @@ export function buildSite(
     VITE_TELEMETRY: 'true',
   };
   delete env.VITE_SPONSORED_FPC;
+  delete env.VITE_ALLOW_V8_REHEARSAL_SUCCESSOR;
   if ((deployment.feePayment ?? 'sponsored') === 'sponsored')
     env.VITE_SPONSORED_FPC = deployment.sponsoredFpc;
   if (customManifest) {

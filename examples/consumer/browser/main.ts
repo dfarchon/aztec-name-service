@@ -164,7 +164,7 @@ element('discover').onclick = () =>
     output(
       element('providers').children.length
         ? 'Choose a wallet.'
-        : 'No compatible wallet found. Unlock a wallet extension on this testnet and retry.',
+        : `No compatible wallet found. Unlock a wallet extension on ${deployment.network === 'mainnet' ? 'Aztec mainnet' : 'this testnet'} and retry.`,
     );
   });
 element('account').onchange = invalidate;

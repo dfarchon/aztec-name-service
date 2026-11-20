@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { CopyValue } from './components';
+import { config } from './config';
 import { translate as t } from './i18n';
 
 type Download = { url: string; sha256: string };
@@ -56,7 +57,9 @@ export function SdkDownloads() {
           </p>
           <p className="muted">
             {t(
-              'The starter includes the SDK package, testnet configuration and integration instructions.',
+              config.network === 'mainnet'
+                ? 'The starter includes the SDK package, mainnet configuration and integration instructions.'
+                : 'The starter includes the SDK package, testnet configuration and integration instructions.',
             )}
           </p>
           <details>
