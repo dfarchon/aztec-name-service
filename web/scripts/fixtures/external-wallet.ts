@@ -8,9 +8,12 @@ const cfg = (window as unknown as { __FOG_WALLET_TEST_CONFIG__?: {
   rpc: string; token: string; appOrigin: string; chainId: string; rollupVersion: string;
 } }).__FOG_WALLET_TEST_CONFIG__;
 if (!import.meta.env.DEV || !cfg || location.hostname !== '127.0.0.1') throw new Error('Local test fixture only');
-const wallet = createSafeJsonRpcClient<Wallet>(cfg.rpc, WalletSchema, { extraHeaders: { 'x-fog-wallet-token': cfg.token } });
+const wallet = createSafeJsonRpcClient<Wallet>(cfg.rpc, WalletSchema, {
+  extraHeaders: { 'x-fog-wallet-token': cfg.token },
+  maxRequestBodySize: 16 * 1024 * 1024,
+});
 const handler = new IframeConnectionHandler({
-  walletId: 'fog-isolated-test-wallet', walletName: 'Fog Test Wallet', walletVersion: '5.2.1',
+  walletId: 'fog-isolated-test-wallet', walletName: 'Fog Test Wallet', walletVersion: '6.0.0',
   allowedOrigins: [cfg.appOrigin], logger: console,
 }, {
   onPendingDiscovery: s => handler.approveDiscovery(s.requestId),

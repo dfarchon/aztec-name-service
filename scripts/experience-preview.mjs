@@ -11,10 +11,12 @@ import { resolve, basename } from 'node:path';
 const deployment=JSON.parse(readFileSync('deployments/testnet-v6.json','utf8'));
 const root=resolve('web'), appOrigin='http://127.0.0.1:5270',walletOrigin='http://127.0.0.1:5271';
 const accounts=[{alias:'Unfunded review account',item:AztecAddress.fromStringUnsafe('0x2c46030c63f29f10ceba21efc4da59f53e66cf9ffcfc569e4aca3ffaa563a6f2')},{alias:'Funded review account',item:AztecAddress.fromStringUnsafe('0x0cbc0200fc4ce9655ce4817ca99acf7ab2c50d3aa0a505586161cb51bd63693a')}];
-const wallet=new Proxy({getAccounts:async()=>accounts,getChainInfo:async()=>({chainId:new Fr(deployment.chainId),version:new Fr(deployment.rollupVersion)}),registerContract:async()=>{},registerContractClass:async()=>{},
+const wallet=new Proxy({getAccounts:async()=>accounts,getChainInfo:async()=>({chainId:new Fr(deployment.chainId),version:new Fr(deployment.rollupVersion)}),
+ requestCapabilities:async(manifest)=>({version:'1.0',wallet:{name:'Fog Review Wallet',version:'6.0.0'},granted:manifest.capabilities.map((c)=>(c.type==='accounts'?{...c,accounts}:c))}),
+ registerContract:async()=>{},registerContractClass:async()=>{},
  executeUtility:async(_call,options)=>({result:[new Fr(options.scopes?.[0]?.equals(accounts[0].item)?0n:10000000n)],offchainEffects:[],anchorBlockTimestamp:BigInt(Math.floor(Date.now()/1000))}),
 },{get:(target,prop)=>prop in target?target[prop]:async()=>{throw new Error('User rejected: review wallet cannot sign or broadcast transactions');}});
-const rpc=createSafeJsonRpcServer(wallet,WalletSchema,{corsAllowedOrigins:[walletOrigin],corsAllowedHeaders:['content-type','x-fog-wallet-token'],maxBodySizeBytes:'8mb'});
+const rpc=createSafeJsonRpcServer(wallet,WalletSchema,{corsAllowedOrigins:[walletOrigin],corsAllowedHeaders:['content-type','x-fog-wallet-token'],maxBodySizeBytes:'16mb'});
 const http=createServer(rpc.getApp().callback());http.listen(5272,'127.0.0.1');await once(http,'listening');
 const cfg={rpc:'http://127.0.0.1:5272',token:'readonly-review',appOrigin,chainId:deployment.chainId,rollupVersion:deployment.rollupVersion};
 const walletServer=await createViteServer({root,cacheDir:resolve('node_modules/.vite-experience-wallet'),plugins:[{name:'readonly-review-wallet-config',transformIndexHtml(html,ctx){return ctx.path.includes('external-wallet')?html.replace('<script type="module"',`<script>window.__FOG_WALLET_TEST_CONFIG__=${JSON.stringify(cfg)}</script><script type="module"`):html;}}],server:{host:'127.0.0.1',port:5271,strictPort:true,headers:{'Cross-Origin-Resource-Policy':'cross-origin'}}});await walletServer.listen();

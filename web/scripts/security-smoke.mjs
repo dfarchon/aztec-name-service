@@ -2,6 +2,7 @@
 import assert from 'node:assert/strict';
 import { execFile, execFileSync } from 'node:child_process';
 import { once } from 'node:events';
+import { existsSync } from 'node:fs';
 import { readFile, writeFile, mkdir } from 'node:fs/promises';
 import { createServer } from 'node:http';
 import { extname, resolve, sep } from 'node:path';
@@ -14,9 +15,19 @@ import { createSafeJsonRpcServer } from '@aztec-labs/foundation/json-rpc/server'
 import { createServer as createViteServer } from 'vite';
 import puppeteer from 'puppeteer-core';
 
+const chromeCandidates = [
+  '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
+  '/usr/bin/google-chrome',
+  '/usr/bin/google-chrome-stable',
+  '/usr/bin/chromium',
+  '/usr/bin/chromium-browser',
+];
+const executablePath = process.env.CHROME_PATH ?? chromeCandidates.find((path) => existsSync(path));
+assert.ok(executablePath, 'Chrome executable not found; set CHROME_PATH');
+
 const repository = fileURLToPath(new URL('../../', import.meta.url));
 const deployment = JSON.parse(
-  await readFile(new URL('../../deployments/testnet.json', import.meta.url), 'utf8'),
+  await readFile(new URL('../../deployments/testnet-v6.json', import.meta.url), 'utf8'),
 );
 const appOrigin = 'http://127.0.0.1:5290',
   walletOrigin = 'http://127.0.0.1:5291';
@@ -30,6 +41,21 @@ const wallet = new Proxy(
       chainId: new Fr(BigInt(deployment.chainId)),
       version: new Fr(BigInt(deployment.rollupVersion)),
     }),
+    requestCapabilities: async (manifest) => {
+      assert.equal(manifest.version, '1.0');
+      for (const c of manifest.capabilities) {
+        if (c.type === 'contracts') assert.notEqual(c.contracts, '*');
+      }
+      return {
+        version: '1.0',
+        wallet: { name: 'Fog Test Wallet', version: '6.0.0' },
+        granted: manifest.capabilities.map((c) =>
+          c.type === 'accounts'
+            ? { ...c, accounts: [{ alias: 'CSP review account', item: account }] }
+            : c,
+        ),
+      };
+    },
     registerContract: async () => {},
   },
   {
@@ -48,7 +74,7 @@ try {
   const rpc = createSafeJsonRpcServer(wallet, WalletSchema, {
     corsAllowedOrigins: [walletOrigin],
     corsAllowedHeaders: ['content-type', 'x-fog-wallet-token'],
-    maxBodySizeBytes: '8mb',
+    maxBodySizeBytes: '16mb',
   });
   rpcServer = createServer(rpc.getApp().callback());
   rpcServer.listen(0, '127.0.0.1');
@@ -135,9 +161,9 @@ try {
   appServer.listen(5290, '127.0.0.1');
   await once(appServer, 'listening');
   browser = await puppeteer.launch({
-    executablePath:
-      process.env.CHROME_PATH ?? '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
+    executablePath,
     headless: true,
+    args: process.platform === 'linux' ? ['--no-sandbox', '--disable-setuid-sandbox'] : [],
   });
   const page = await browser.newPage(),
     errors = [],
@@ -167,7 +193,9 @@ try {
   await page.waitForFunction(() => document.body.dataset.walletReady === 'true', {
     timeout: 180000,
   });
-  const response = await page.goto(`${appOrigin}/#/name/${deployment.exampleName}`);
+  const response = await page.goto(
+    `${appOrigin}/#/name/${deployment.exampleName ?? 'fog-v8-example'}`,
+  );
   assert.equal(response.headers()['content-security-policy'], headers['Content-Security-Policy']);
   await page.waitForFunction(
     () =>
@@ -236,9 +264,20 @@ try {
     ) + '\n',
   );
   console.log(`ALL ${checks.length} SECURITY BROWSER CHECKS PASSED`);
+  const feeLabel =
+    process.env.FOG_FEE_LABEL ??
+    (BigInt(deployment.annualPrice) === 0n
+      ? 'Free / year'
+      : `${BigInt(deployment.annualPrice) / 10n ** BigInt(deployment.feeDecimals)} ${deployment.feeSymbol}`);
   const docs = await promisify(execFile)(process.execPath, ['web/scripts/docs-smoke.mjs'], {
     cwd: repository,
-    env: { ...process.env, BASE: appOrigin, FOG_DOCS_REPORT_DIR: resolve(output, 'docs') },
+    env: {
+      ...process.env,
+      CHROME_PATH: executablePath,
+      BASE: appOrigin,
+      FOG_FEE_LABEL: feeLabel,
+      FOG_DOCS_REPORT_DIR: resolve(output, 'docs'),
+    },
     timeout: 180000,
   });
   console.log(docs.stdout);

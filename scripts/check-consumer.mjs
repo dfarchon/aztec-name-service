@@ -87,6 +87,10 @@ try {
   execFileSync('node', ['--import', 'tsx', 'scripts/check-docs.mjs', cwd], { stdio: 'inherit' });
   execFileSync('npm', ['run', 'check'], { cwd, stdio: 'inherit' });
   execFileSync('npm', ['run', 'build'], { cwd, stdio: 'inherit' });
+  if (process.env.FOG_CONSUMER_BROWSER === '1') {
+    const { checkConsumerBrowser } = await import('../web/scripts/consumer-browser.mjs');
+    await checkConsumerBrowser(cwd);
+  }
   // Also verify consumer typecheck and browser build against a mainnet fee-juice (null sponsor, V8) manifest.
   const originalDeployment = readFileSync(join(cwd, 'deployment.json'), 'utf8');
   try {
@@ -114,10 +118,6 @@ try {
   } finally {
     const { writeFileSync } = await import('node:fs');
     writeFileSync(join(cwd, 'deployment.json'), originalDeployment);
-  }
-  if (process.env.FOG_CONSUMER_BROWSER === '1') {
-    const { checkConsumerBrowser } = await import('../web/scripts/consumer-browser.mjs');
-    await checkConsumerBrowser(cwd);
   }
   const audit = JSON.parse(
     execFileSync('npm', ['audit', '--audit-level=high', '--json'], {
