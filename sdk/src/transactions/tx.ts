@@ -6,6 +6,7 @@ import { TxHash, TxStatus } from '@aztec-labs/aztec.js/tx';
 import { FogError, toFogError } from '../core/errors.js';
 import { isV8Class } from '../client/core-upgrade.js';
 import type { FogContext } from '../wallet/context.js';
+import { paddedGasLimits, type GasEstimate } from './gas.js';
 
 /**
  * - included: in a proposed block (can still be pruned)
@@ -106,6 +107,7 @@ export async function runTxOutcome(
   };
   const txHash = await ctx.queue.run(async () => {
     let interaction: ContractFunctionInteraction;
+    let fee = send.fee;
     // These checks cannot broadcast. A failed identity/artifact read must not mark a durable plan
     // as having an unknown broadcast that requires manual wallet inspection.
     try {
@@ -114,9 +116,22 @@ export async function runTxOutcome(
       await ctx.signer.beforeSend?.(ctx.account);
       interaction = typeof call === 'function' ? await call() : call;
       await encodeLocally(interaction);
-      if (opts.preflight) {
+      if (ctx.signer.estimateGas) {
+        // The estimate simulation also surfaces contract errors before any proof, so it replaces preflight.
         emit({ state: 'simulating' });
-        await interaction.simulate(send);
+        const gas = await estimateGas(ctx, interaction, send);
+        await ctx.signer.checkFee?.(ctx.account, gas);
+        if (gas)
+          fee = {
+            ...send.fee,
+            gasSettings: { ...send.fee?.gasSettings, gasLimits: gas.gasLimits, teardownGasLimits: gas.teardownGasLimits },
+          };
+      } else {
+        if (opts.preflight) {
+          emit({ state: 'simulating' });
+          await interaction.simulate(send);
+        }
+        await ctx.signer.checkFee?.(ctx.account);
       }
     } catch (cause) {
       throw toFogError(cause);
@@ -130,7 +145,7 @@ export async function runTxOutcome(
       throw toFogError(cause);
     }
     try {
-      const sent = await interaction.send({ ...send, wait: NO_WAIT });
+      const sent = await interaction.send({ ...send, fee, wait: NO_WAIT });
       return sent.txHash.toString();
     } catch (e) {
       let error = toFogError(e);
@@ -159,6 +174,20 @@ export async function runTxOutcome(
   async function clearNotBroadcast() {
     try { await opts.notBroadcast?.(); } catch { /* Keep the marker and original wallet error. */ }
   }
+}
+
+/** Gas limits from a simulation of exactly this call; undefined when the wallet reports no gas usage. */
+async function estimateGas(
+  ctx: FogContext,
+  interaction: ContractFunctionInteraction,
+  send: { from: FogContext['account']; fee?: FogContext['signer']['fee']; authWitnesses?: AuthWitness[] },
+): Promise<GasEstimate | undefined> {
+  const [simulated, info] = await Promise.all([
+    interaction.simulate({ ...send, includeMetadata: true }),
+    ctx.reader.node.getNodeInfo(),
+  ]);
+  const used = (simulated as { gasUsed?: { totalGas: { daGas: number; l2Gas: number }; teardownGas: { daGas: number; l2Gas: number } } }).gasUsed;
+  return used ? paddedGasLimits(used, info.txsLimits.gas) : undefined;
 }
 
 /**

@@ -22,6 +22,7 @@ export * from './wallet/fee-balance.js';
 export * from './transactions/registration-flow.js';
 
 export * from './transactions/fees.js';
+export * from './transactions/gas.js';
 export * from './transactions/holder.js';
 export * from './transactions/primary.js';
 export {

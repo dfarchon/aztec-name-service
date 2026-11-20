@@ -6,11 +6,17 @@ import {
   feeJuiceError,
   insufficientFeeJuice,
 } from '../src/fee-juice-error.js';
-import { assertFeeJuice, feeJuiceWallet, readFeeJuiceBalance } from '../src/fee-juice.js';
+import {
+  assertFeeJuice,
+  assertFeeJuiceFunded,
+  feeJuiceWallet,
+  readFeeJuiceBalance,
+  requiredFeeJuice,
+} from '../src/fee-juice.js';
 import { errorMessage } from '../src/format.js';
 import { AztecAddress } from '@aztec-labs/aztec.js/addresses';
 import { Fr } from '@aztec-labs/aztec.js/fields';
-import { GasFees } from '@aztec-labs/stdlib/gas';
+import { Gas, GasFees } from '@aztec-labs/stdlib/gas';
 import type { AztecNode } from '@aztec-labs/aztec.js/node';
 import type { Wallet } from '@aztec-labs/aztec.js/wallet';
 const account = new AztecAddress(new Fr(42));
@@ -42,22 +48,41 @@ test('FPC derivation is confined to proof-disabled local chain identity', () => 
   ])
     assert(!canDeriveSponsor(info));
 });
-test('Fee Juice pre-send check rejects zero and insufficient estimate, accepts funded account', async () => {
+test('Fee Juice pre-send check uses the wallet fee padding and the estimated gas when given', async () => {
   let value = 0n;
   const node = {
     getPublicStorageAt: async () => new Fr(value),
     getCurrentMinFees: async () => new GasFees(2n, 3n),
     getNodeInfo: async () => ({ txsLimits: { gas: { daGas: 10, l2Gas: 20 } } }),
   } as unknown as AztecNode;
+  // No estimate: the whole per-transaction limit at min fees + 50% = 10 * 3 + 20 * 4.
   await assert.rejects(
     assertFeeJuice(node, account),
-    (e) => e instanceof FeeJuiceInsufficientError && e.balance === 0n && e.required === 80n,
+    (e) => e instanceof FeeJuiceInsufficientError && e.balance === 0n && e.required === 110n,
   );
-  value = 79n;
+  value = 109n;
   await assert.rejects(assertFeeJuice(node, account), FeeJuiceInsufficientError);
-  value = 80n;
+  value = 110n;
   await assertFeeJuice(node, account);
-  assert.equal(await readFeeJuiceBalance(node, account), 80n);
+  assert.equal(await readFeeJuiceBalance(node, account), 110n);
+  // An estimate of 2 DA and 5 L2 gas needs only 2 * 3 + 5 * 4.
+  value = 26n;
+  await assertFeeJuice(node, account, new Gas(2, 5));
+  value = 25n;
+  await assert.rejects(
+    assertFeeJuice(node, account, new Gas(2, 5)),
+    (e) => e instanceof FeeJuiceInsufficientError && e.required === 26n,
+  );
+});
+test('predicted fees take precedence; an empty account fails the fast check before simulation', async () => {
+  const node = {
+    getPublicStorageAt: async () => new Fr(0n),
+    getCurrentMinFees: async () => new GasFees(1n, 1n),
+    getPredictedMinFees: async () => [new GasFees(2n, 2n), new GasFees(4n, 4n)],
+    getNodeInfo: async () => ({ txsLimits: { gas: { daGas: 1, l2Gas: 1 } } }),
+  } as unknown as AztecNode;
+  assert.equal(await requiredFeeJuice(node, new Gas(1, 1)), 12n);
+  await assert.rejects(assertFeeJuiceFunded(node, account), FeeJuiceInsufficientError);
 });
 test('simulation insufficient fee payer balance maps to same typed error; ordinary failures remain unchanged', async () => {
   const node = { getPublicStorageAt: async () => new Fr(1) } as unknown as AztecNode;

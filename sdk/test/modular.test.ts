@@ -21,12 +21,16 @@ import { registryProtocol } from '../src/core/registry-protocol.js';
 import metadata from '../src/artifacts/modular-metadata.json' with { type: 'json' };
 
 const addr = (n: number) => AztecAddress.fromBigIntUnsafe(BigInt(n));
+// Readers share reads per block hash, so every fixture state change models a new block.
 const snap = { blockNumber: 10, blockHash: 'block-10', timestamp: 1000n, finality: 'checkpointed' as const };
+let stateVersion = 0;
+const nextBlock = () => { snap.blockHash = `block-10-${++stateVersion}`; };
+class BlockMap<K, V> extends Map<K, V> { override set(key: K, value: V) { nextBlock(); return super.set(key, value); } }
 function chain() {
   const registry = addr(1), first = addr(2), resolver = addr(3), second = addr(4);
-  const classes = new Map([[registry.toString(), metadata.registry.classId], [first.toString(), metadata.registrar.classId], [second.toString(), metadata.registrar.classId], [resolver.toString(), metadata.resolver.classId]]);
+  const classes = new BlockMap([[registry.toString(), metadata.registry.classId], [first.toString(), metadata.registrar.classId], [second.toString(), metadata.registrar.classId], [resolver.toString(), metadata.resolver.classId]]);
   const state = new Map<string, bigint>();
-  const write = (address: AztecAddress, slot: string, values: bigint[]) => values.forEach((v,i) => state.set(`${address}:${BigInt(slot)+BigInt(i)}`, v));
+  const write = (address: AztecAddress, slot: string, values: bigint[]) => { nextBlock(); values.forEach((v,i) => state.set(`${address}:${BigInt(slot)+BigInt(i)}`, v)); };
   write(registry, metadata.registry.storage.modules, [2n,3n,1n]);
   write(first, metadata.registrar.storage.registry, [1n]);
   write(second, metadata.registrar.storage.registry, [1n]);
@@ -38,7 +42,7 @@ function chain() {
     getNodeInfo: async () => ({ l1ChainId: 11155111, rollupVersion: 1821665230 }),
     getContract: async (address: AztecAddress) => classes.has(address.toString()) ? { currentContractClassId: Fr.fromString(classes.get(address.toString())!) } : undefined,
     getPublicStorageAt: async (_block: unknown, address: AztecAddress, slot: Fr) => { reads++; return new Fr(state.get(`${address}:${slot.toBigInt()}`) ?? 0n); },
-    getBlockData: async () => ({ blockHash: 'block-10', header: { globalVariables: { blockNumber: 10, timestamp: 1000 } } }),
+    getBlockData: async () => ({ blockHash: snap.blockHash, header: { globalVariables: { blockNumber: 10, timestamp: 1000 } } }),
   } as any;
   return { registry, first, second, classes, state, write, node, reads:()=>reads };
 }

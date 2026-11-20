@@ -4,7 +4,7 @@
   "license": "Apache-2.0",
   "repository": {
     "type": "git",
-    "url": "https://github.com/dfarchon/fog-names.git",
+    "url": "https://github.com/dfarchon/aztec-name-service.git",
     "directory": "sdk"
   },
   "description": "Public Fog name service: registration, ownership discovery and verified address resolution.",

@@ -240,3 +240,59 @@ test('host beforeSend validation runs inside shared queue after identity and can
   assert.deepEqual(order, ['queue', 'identity', 'fee-check']);
   assert.equal(updates.length, 0);
 });
+
+test('estimateGas declares simulated gas plus 10% and hands those limits to the fee check before sending', async () => {
+  const order: string[] = [];
+  let sentFee: any, checked: any;
+  const node = Object.assign(nodeWithReceipt([TxStatus.CHECKPOINTED]), {
+    getNodeInfo: async () => ({ txsLimits: { gas: { daGas: 117624, l2Gas: 6540000 } } }),
+  });
+  const ctx = {
+    reader: { modular: false, node },
+    account: AztecAddress.fromBigIntUnsafe(1n),
+    signer: { estimateGas: true, checkFee: async (_: AztecAddress, gas: unknown) => { order.push('check'); checked = gas; } },
+    assertWalletNetwork: async () => {},
+    queue: { run: (f: () => Promise<unknown>) => f() },
+  } as unknown as FogContext;
+  const interaction = {
+    getFunctionCall: async () => ({}),
+    simulate: async (opts: { includeMetadata?: boolean }) => {
+      order.push('simulate');
+      assert.equal(opts.includeMetadata, true);
+      return { result: undefined, gasUsed: { totalGas: { daGas: 1000, l2Gas: 200000 }, teardownGas: { daGas: 0, l2Gas: 0 } } };
+    },
+    send: async (opts: { fee?: unknown }) => { order.push('send'); sentFee = opts.fee; return { txHash: hash }; },
+  } as unknown as ContractFunctionInteraction;
+  await runTx(ctx, interaction, { preflight: true });
+  assert.deepEqual(order, ['simulate', 'check', 'send'], 'the estimate replaces preflight; one simulation only');
+  assert.deepEqual([checked.gasLimits.daGas, checked.gasLimits.l2Gas], [1100, 220000]);
+  assert.deepEqual([sentFee.gasSettings.gasLimits.daGas, sentFee.gasSettings.gasLimits.l2Gas], [1100, 220000]);
+  assert.deepEqual([sentFee.gasSettings.teardownGasLimits.daGas, sentFee.gasSettings.teardownGasLimits.l2Gas], [0, 0]);
+});
+
+test('estimated limits are capped at the network admission limit and oversized calls fail before the wallet', async () => {
+  const { paddedGasLimits } = await import('../src/transactions/gas.js');
+  const max = { daGas: 1000, l2Gas: 1000 };
+  const capped = paddedGasLimits({ totalGas: { daGas: 950, l2Gas: 10 }, teardownGas: { daGas: 0, l2Gas: 0 } }, max);
+  assert.deepEqual([capped.gasLimits.daGas, capped.gasLimits.l2Gas], [1000, 11]);
+  assert.throws(() => paddedGasLimits({ totalGas: { daGas: 1001, l2Gas: 1 }, teardownGas: { daGas: 0, l2Gas: 0 } }, max), (e: FogError) => e.code === 'unsupported');
+});
+
+test('without estimateGas the wallet keeps its own gas settings and the fee check gets no estimate', async () => {
+  let sentFee: unknown = 'unset', checkedGas: unknown = 'unset';
+  const ctx = {
+    reader: { modular: false, node: nodeWithReceipt([TxStatus.CHECKPOINTED]) },
+    account: AztecAddress.fromBigIntUnsafe(1n),
+    signer: { checkFee: async (_: AztecAddress, gas: unknown) => { checkedGas = gas; } },
+    assertWalletNetwork: async () => {},
+    queue: { run: (f: () => Promise<unknown>) => f() },
+  } as unknown as FogContext;
+  const interaction = {
+    getFunctionCall: async () => ({}),
+    simulate: async () => { throw new Error('must not simulate'); },
+    send: async (opts: { fee?: unknown }) => { sentFee = opts.fee; return { txHash: hash }; },
+  } as unknown as ContractFunctionInteraction;
+  await runTx(ctx, interaction);
+  assert.equal(sentFee, undefined);
+  assert.equal(checkedGas, undefined);
+});

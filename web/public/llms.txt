@@ -1,7 +1,7 @@
 # Fog Names (.fog)
 
 Public `.fog` names on Aztec. This repository pins Aztec 6.0.0 and Node >=24.12.
-Source: https://github.com/dfarchon/fog-names.
+Source: https://github.com/dfarchon/aztec-name-service.
 
 - User guides: /#/docs/getting-started
 - Pricing and active payment asset: /#/docs/pricing

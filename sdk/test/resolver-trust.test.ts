@@ -17,14 +17,18 @@ import { setResolver, setAdministrator } from '../src/transactions/modules.js';
 import metadata from '../src/artifacts/modular-metadata.json' with { type: 'json' };
 
 const addr = (n: number) => AztecAddress.fromBigIntUnsafe(BigInt(n));
+// Readers share reads per block hash, so every fixture state change models a new block.
 const snapshot = { blockNumber: 10, blockHash: 'block-10', timestamp: 100n, finality: 'checkpointed' as const };
+let stateVersion = 0;
+const nextBlock = () => { snapshot.blockHash = `block-10-${++stateVersion}`; };
+class BlockMap<K, V> extends Map<K, V> { override set(key: K, value: V) { nextBlock(); return super.set(key, value); } }
 async function fixture(version: 6 | 7 = 7) {
   const registry = addr(1), defaultResolver = addr(3), owner = addr(5), recipient = addr(7);
   const label = normalizeName('seventh'), node = await nodeOf(label), scope = await recordKey(node, 1);
   const layout = metadata[version === 7 ? 'v7' : 'v6'];
-  const classes = new Map([[registry.toString(), layout.classId], [defaultResolver.toString(), metadata.resolver.classId]]);
+  const classes = new BlockMap([[registry.toString(), layout.classId], [defaultResolver.toString(), metadata.resolver.classId]]);
   const state = new Map<string, bigint>();
-  const write = (address: AztecAddress, slot: string | bigint, values: bigint[]) => values.forEach((value, i) => state.set(`${address}:${BigInt(slot) + BigInt(i)}`, value));
+  const write = (address: AztecAddress, slot: string | bigint, values: bigint[]) => { nextBlock(); values.forEach((value, i) => state.set(`${address}:${BigInt(slot) + BigInt(i)}`, value)); };
   const map = async (slot: string, key: bigint, value: bigint) => write(registry, (await deriveStorageSlotInMap(Fr.fromString(slot), new Fr(key))).toBigInt(), [value]);
   write(registry, layout.storage.modules, [2n, 3n, 1n]);
   write(defaultResolver, metadata.resolver.storage.registry, [1n]);
@@ -83,6 +87,7 @@ for (const version of [6, 7] as const) {
     await f.bind(3n);
     assert.equal((await resolveAddress(f.reader, 'seventh', { snapshot })).status, 'resolved');
     assert.equal((await resolvePrimary(f.reader, f.recipient, snapshot)).status, 'verified');
+    nextBlock(); // a later read whose module check hits a transport failure
     f.rpc.getContract = async () => { throw new Error('fetch failed'); };
     await assert.rejects(f.reader.inspectResolver(f.node, 1, snapshot), (e: any) => e.code === 'network');
     await assert.rejects(resolveAddress(f.reader, 'seventh', { snapshot }), (e: any) => e.code === 'network');
