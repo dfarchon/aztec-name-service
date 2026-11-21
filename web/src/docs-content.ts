@@ -174,7 +174,7 @@ if (result.status === 'resolved') {
     group: 'developer',
     title: 'Wallet integration and registration',
     body: [
-      'Confirm the wallet’s secure channel and select an authorized account, then call connectFog. It checks the chain, rollup, registry, account authorization and sponsor contract class, and registers the required contract artifacts with the wallet. It returns an FogContext for subsequent writes.',
+      'Confirm the wallet’s secure channel and select an authorized account, then call connectFog. It checks the chain, rollup, registry, account authorization and sponsor contract class, and registers the required contract artifacts with the wallet. It returns an FogContext for subsequent writes. When the account pays its own Fee Juice, pass estimateGas: true: each transaction then declares its simulated gas plus 10% instead of the network’s whole per-transaction limit, so the account needs a far smaller balance. checkFee receives those limits before submission.',
       'Record updates use the FogContext returned by connectFog. The SDK reads the current registration generation and revision before each write: generation identifies the current registration, and revision identifies its latest changes. If either changed before submission, re-read the record before retrying.',
     ],
     code: profileExample,

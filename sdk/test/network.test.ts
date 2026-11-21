@@ -72,6 +72,20 @@ test('connection rejects a mismatched chain or rollup before requesting accounts
   }
 });
 
+test('connection passes gas estimation and the fee check to the returned context', async () => {
+  const f = fixture();
+  // The legacy registry artifact is registered against the node's instance.
+  Object.assign(f.reader.node, { getContract: async () => ({}) });
+  const checkFee = async () => {};
+  const deployment = { registry: f.registry.toString(), chainId: '31337', rollupVersion: '1' };
+  const ctx = await connectFog(f.reader, { wallet: f.wallet, account: f.account, deployment, estimateGas: true, checkFee });
+  assert.equal(ctx.signer.estimateGas, true);
+  assert.equal(ctx.signer.checkFee, checkFee);
+  const plain = await connectFog(f.reader, { wallet: f.wallet, account: f.account, deployment });
+  assert.equal(plain.signer.estimateGas, undefined);
+  assert.equal(plain.signer.checkFee, undefined);
+});
+
 test('a wallet network change prevents submission even for an existing legacy context', async () => {
   const f = fixture();
   assert.equal((await runTx(f.ctx, f.interaction)).state, 'confirmed');
