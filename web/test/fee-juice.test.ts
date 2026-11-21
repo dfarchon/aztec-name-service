@@ -112,3 +112,28 @@ test('insufficient message preserves the public account and balance and explains
   assert(message.includes(account.toString()));
   assert.match(message, /12 wei.*L1.*registration token/);
 });
+test('a wallet that picks the fee payer gets no public balance read and a wallet-side funding message', async () => {
+  let reads = 0;
+  const node = {
+    getPublicStorageAt: async () => {
+      reads++;
+      return new Fr(0n);
+    },
+  } as unknown as AztecNode;
+  const wallet = {
+    sendTx: async () => {
+      throw new Error('Insufficient fee payer balance');
+    },
+  } as unknown as Wallet;
+  const guarded = feeJuiceWallet(wallet, node, { walletPicksPayer: true });
+  await assert.rejects(
+    (guarded.sendTx as any)({}, { from: account }),
+    (e: unknown) =>
+      e instanceof FeeJuiceInsufficientError && e.account === account.toString() && e.balance === undefined,
+  );
+  assert.equal(reads, 0);
+  const message = errorMessage(new FeeJuiceInsufficientError(account.toString()));
+  assert(message.includes(account.toString()));
+  assert.match(message, /wallet.*private.*registration token/);
+  assert.doesNotMatch(message, /wei|Bridge/);
+});

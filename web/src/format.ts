@@ -77,7 +77,10 @@ const errorText: Partial<Record<FogError["code"], string>> = {
 
 export function errorMessage(e: unknown): string {
   const feeError = feeJuiceError(e);
-  if (feeError) return translate("Insufficient Fee Juice for {account}. Balance: {balance} wei. Bridge Fee Juice from L1; it is not the registration token.", { account: feeError.account, balance: String(feeError.balance) });
+  if (feeError)
+    return feeError.balance === undefined
+      ? translate("Your wallet could not pay the network fee for {account}: the Fee Juice it pays from is too low. Add Fee Juice in your wallet, public or private if the wallet supports it; it is not the registration token.", { account: feeError.account })
+      : translate("Insufficient Fee Juice for {account}. Balance: {balance} wei. Bridge Fee Juice from L1; it is not the registration token.", { account: feeError.account, balance: String(feeError.balance) });
   if (e instanceof Error && /^(Cannot (read|save)|Wallet account changed|Another tab)/.test(e.message))
     return e.message;
   const err = toFogError(e);

@@ -84,7 +84,7 @@ export const articles: Article[] = [
         ? [
             'Registration on Aztec Mainnet needs no payment token. Its Registrar is free: registration creates no token authorization and reads no private token balance. You do need Fee Juice, because every transaction pays its own network fee and there is no fee sponsor.',
             'AZTEC is the official token and the planned pricing currency; it is not accepted for registration yet. Fee Juice is Aztec network fee credit; it pays transaction fees and can never pay a registration fee. mAZTEC and FOGF are test tokens from earlier test deployments and have no use on Aztec Mainnet.',
-            `Fee Juice is obtained by bridging AZTEC from Ethereum mainnet to your Aztec account. Before sending, Fog checks that the account holds enough Fee Juice and stops with a clear message if it does not. The mainnet manifest records the payment token as ${deployment.feeToken} (none).`,
+            `Fee Juice is obtained by bridging AZTEC from Ethereum mainnet to your Aztec account. Your wallet chooses how each network fee is paid: from the account's public Fee Juice or, in wallets that support it, from private Fee Juice through the wallet's fee payment contract, which keeps the paying account hidden. The wallet shows the fee before you approve, and Fog explains the error if the wallet cannot pay it. The mainnet manifest records the payment token as ${deployment.feeToken} (none).`,
           ]
         : [
             'You need no token to register on this test deployment. Its Registrar is free: it has no payment token, so registration creates no token authorization and reads no private balance. A shared sponsor contract pays the network fees.',

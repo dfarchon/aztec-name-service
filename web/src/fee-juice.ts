@@ -64,8 +64,16 @@ export async function assertFeeJuice(node: AztecNode, account: AztecAddress, gas
     throw new FeeJuiceInsufficientError(account.toString(), balance, required);
 }
 const guards = new WeakMap<Wallet, Wallet>();
-/** One wrapper per wallet preserves SDK queue sharing across accounts. */
-export function feeJuiceWallet(wallet: Wallet, node: AztecNode): Wallet {
+/**
+ * One wrapper per wallet preserves SDK queue sharing across accounts. With `walletPicksPayer` the wallet chose
+ * the fee payer (for example private Fee Juice through its fee payment contract), so the account's public
+ * balance is not reported as the shortfall.
+ */
+export function feeJuiceWallet(
+  wallet: Wallet,
+  node: AztecNode,
+  { walletPicksPayer = false }: { walletPicksPayer?: boolean } = {},
+): Wallet {
   const existing = guards.get(wallet);
   if (existing) return existing;
   const guarded = new Proxy(wallet, {
@@ -80,7 +88,7 @@ export function feeJuiceWallet(wallet: Wallet, node: AztecNode): Wallet {
             if (from && insufficientFeeJuice(e))
               throw new FeeJuiceInsufficientError(
                 from.toString(),
-                await readFeeJuiceBalance(node, from),
+                walletPicksPayer ? undefined : await readFeeJuiceBalance(node, from),
               );
             throw e;
           }

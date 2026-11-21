@@ -152,6 +152,7 @@ function FeeDetails({
 }
 
 function RegistrationFunding({ free = false }: { free?: boolean }) {
+  const { walletMode } = useSession();
   return (
     <>
       {config.network === 'testnet-v6' && (
@@ -169,7 +170,9 @@ function RegistrationFunding({ free = false }: { free?: boolean }) {
       {config.feePayment === 'sponsored' && (
         <p className="muted">{translate('Network fees are sponsored for this app.')}</p>
       )}
-      {config.feePayment === 'fee-juice' && <p className="muted">{translate("Network fees are paid from this account's Fee Juice.")}</p>}
+      {config.feePayment === 'fee-juice' && <p className="muted">{translate(walletMode === 'embedded'
+        ? "Network fees are paid from this account's public Fee Juice."
+        : "Your wallet pays the network fees in Fee Juice: from this account's public balance or, if the wallet supports it, its private Fee Juice.")}</p>}
       {!free && config.network === 'testnet-v6' && (
         <p className="warn">
           {translate(
