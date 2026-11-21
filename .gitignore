@@ -22,6 +22,7 @@ coverage/
 
 # Hosting metadata and local monitor state
 .wrangler/
+.netlify/
 .vercel/
 .dev.vars
 

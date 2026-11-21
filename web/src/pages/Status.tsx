@@ -1,7 +1,7 @@
 import { translate, dateLocale } from "../i18n";
 import { useEffect, useState } from "react";
 import { Card, CopyValue, download } from "../components";
-import { config } from "../config";
+import { apiUrl, config } from "../config";
 import { disableNotifications, enableNotifications, notificationsEnabled, notifyIncidents } from "../monitor-notifications";
 import { RegistryModules } from "../modules";
 import { getVitals } from "../performance";
@@ -37,7 +37,7 @@ export function StatusPage() {
     const read = async () => {
       if (document.hidden && !notify) return;
       try {
-        const r = await fetch("/api/status", { cache: "no-store", signal: AbortSignal.timeout(10000) });
+        const r = await fetch(apiUrl("/api/status"), { cache: "no-store", signal: AbortSignal.timeout(10000) });
         if (!r.ok || !r.headers.get("content-type")?.includes("application/json")) throw new Error();
         const data: Health = await r.json();
         if (live) { setHealth(data); setError(undefined); if (notify) notifyIncidents(data.incidents, labels); }

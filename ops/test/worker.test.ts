@@ -121,6 +121,31 @@ test('monitor API rejects unauthorized probes and telemetry abuse without persis
   } finally { f.sqlite.close(); }
 });
 
+test('a separately hosted site (SITE_URL) reads status and posts telemetry to the API Worker origin', async () => {
+  const f = fixture();
+  const api = 'https://fog-api.test';
+  const post = (origin: string | undefined, value: unknown) => new Request(`${api}/api/metrics`, { method: 'POST', headers: { ...(origin ? { Origin: origin } : {}), 'Content-Type': 'text/plain' }, body: JSON.stringify(value) });
+  const sample = () => ({ name: 'LCP', value: 30, release: f.env.RELEASE });
+  try {
+    const status = await worker.fetch(new Request(`${api}/api/status`), f.env);
+    assert.equal(status.status, 200);
+    assert.equal(status.headers.get('access-control-allow-origin'), '*');
+    const fromSite = await worker.fetch(post(f.env.SITE_URL, sample()), f.env);
+    assert.equal(fromSite.status, 204);
+    assert.equal(fromSite.headers.get('access-control-allow-origin'), f.env.SITE_URL);
+    assert.equal(fromSite.headers.get('vary'), 'Origin');
+    const sameOrigin = await worker.fetch(post(api, sample()), f.env);
+    assert.equal(sameOrigin.status, 204);
+    assert.equal(sameOrigin.headers.get('access-control-allow-origin'), null);
+    for (const origin of ['https://other.test', 'null', undefined, `${f.env.SITE_URL}.evil.test`])
+      assert.equal((await worker.fetch(post(origin, sample()), f.env)).status, 403, String(origin));
+    const rejected = await worker.fetch(post(f.env.SITE_URL, { ...sample(), release: 'old' }), f.env);
+    assert.equal(rejected.status, 400);
+    assert.equal(rejected.headers.get('access-control-allow-origin'), f.env.SITE_URL);
+    assert.equal((f.sqlite.prepare('SELECT SUM(samples) AS n FROM vitals').get() as { n: number }).n, 2);
+  } finally { f.sqlite.close(); }
+});
+
 test('webhook delivery retries durable outbox without losing a failed event', async () => {
   const f = fixture(); f.env.ALERT_WEBHOOK = 'https://alerts.test';
   try {

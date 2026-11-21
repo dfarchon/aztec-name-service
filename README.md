@@ -130,6 +130,8 @@ npm run deploy:testnet
 
 The D1 `database_id` in `ops/wrangler*.jsonc` belongs to the existing test environment; create a new D1 database and update both configs when deploying to another Cloudflare account. Deployment requires a clean working tree and stamps the short `HEAD` commit hash into `/health.txt`.
 
+The static site can be hosted on Netlify while the API Worker, monitor, D1 and rate limits stay on Cloudflare. In both Worker configs of a network, `SITE_URL` is the canonical site and `API_ORIGIN` is the site Worker's own address, which serves `/api/*`. The site calls `API_ORIGIN` directly, so per-client rate limits see each client's own address. To move the site, set `SITE_URL` to the new address (and, on mainnet, `domain` in `deployments/mainnet.json`) and keep `API_ORIGIN`. When `SITE_URL` differs from `API_ORIGIN`, `npm run deploy:testnet` and `npm run deploy:mainnet` first upload `web/dist` to the Netlify project named by `NETLIFY_SITE_ID` with `netlify-cli@27.16.1` (authenticated by `NETLIFY_AUTH_TOKEN` or `netlify login`), then deploy both Workers. The site Worker keeps serving the same build on its own address, because a registration in progress is saved in browser storage for one address only; that copy tells visitors where the site moved. `npm run deploy:frontend-preview -- --network mainnet` uploads a Netlify draft on its own URL without changing the live site or either Worker. Mainnet's `SITE_URL` is `https://fog.dfarchon.xyz`; [Mainnet site on Netlify](docs/deploy-netlify.md) covers the setup, release, checks and rollback.
+
 ## SDK
 
 ```sh

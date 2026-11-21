@@ -1,15 +1,17 @@
 import { AztecAddress } from "@aztec-labs/aztec.js/addresses";
 import { NAME_SUFFIX } from "fog-sdk/read";
 
-import { parseNetworkConfig, parseRpcConfig } from "./network-config";
+import { parseHostingConfig, parseNetworkConfig, parseRpcConfig } from "./network-config";
 
 const env = import.meta.env;
 const network = parseNetworkConfig(env);
 const rpc = parseRpcConfig(env, network.network);
+const hosting = parseHostingConfig(env);
 
 export const config = {
   ...network,
   ...rpc,
+  ...hosting,
   nodeUrl: rpc.endpoints[0],
   registry: env.VITE_REGISTRY
     ? AztecAddress.fromStringUnsafe(env.VITE_REGISTRY as string)
@@ -27,3 +29,6 @@ export const config = {
     ? AztecAddress.fromStringUnsafe(env.VITE_SPONSORED_FPC as string)
     : undefined,
 };
+
+/** Absolute URL of a Fog API path (`/api/status`) on the API Worker; relative when the site serves its own API. */
+export const apiUrl = (path: `/api/${string}`) => `${config.apiOrigin}${path}`;
