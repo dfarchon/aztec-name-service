@@ -2,7 +2,8 @@ import { execFileSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 import { assertDeploymentConfig } from './deployment-config.mjs';
 import { deployNetlify, requireNetlifySite, separateFrontend, siteHosting } from './netlify.mjs';
-if (execFileSync('git', ['status', '--porcelain'], { encoding: 'utf8' }).trim()) throw new Error('Commit source changes before deploying a versioned release.');
+import { sourceChanges } from './source-changes.mjs';
+if (sourceChanges(execFileSync('git', ['status', '--porcelain'], { encoding: 'utf8' }))) throw new Error('Commit source changes before deploying a versioned release.');
 // Network identity and addresses come from wrangler.jsonc but must agree with the deployment manifest.
 assertDeploymentConfig();
 // The Cloudflare account is selected outside the repository (CLOUDFLARE_ACCOUNT_ID or the logged-in wrangler account).

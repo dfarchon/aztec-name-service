@@ -8,6 +8,7 @@ import { resolve, relative, isAbsolute, dirname, basename } from 'node:path';
 import { pathToFileURL, fileURLToPath } from 'node:url';
 import { contentSecurityPolicy } from './testnet-security.mjs';
 import { siteHosting } from './netlify.mjs';
+import { sourceChanges } from './source-changes.mjs';
 export function buildSite(
   argv = process.argv.slice(2),
   { exec = execFileSync, root = new URL('../', import.meta.url), packageConsumer = packageConsumerDefault } = {},
@@ -66,7 +67,7 @@ export function buildSite(
   // Registrar, resolver, fee token, tier prices and priceVersion are discovered by RegistryReader from chain state.
   validateAztecPricing(JSON.parse(readFileSync('deployments/aztec-pricing.json', 'utf8')));
   const head = exec('git', ['rev-parse', '--short', 'HEAD'], { encoding: 'utf8' }).trim();
-  const dirty = exec('git', ['status', '--porcelain'], { encoding: 'utf8' }).trim();
+  const dirty = sourceChanges(exec('git', ['status', '--porcelain'], { encoding: 'utf8' }));
   const release = `${head}${dirty ? '-dirty' : ''}`;
   const walletUrls = process.env.FOG_PUBLIC_WALLET_URLS ?? '';
   const hosting = customManifest ? { siteOrigin: '', apiOrigin: '' } : siteHosting(network, root);

@@ -5,6 +5,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 import { assertDeploymentConfig } from './deployment-config.mjs';
 import { assertMainnetReady } from './mainnet-readiness.mjs';
 import { deployNetlify, requireNetlifySite, separateFrontend, siteHosting } from './netlify.mjs';
+import { sourceChanges } from './source-changes.mjs';
 
 export function deployMainnet({
   exec = execFileSync,
@@ -14,7 +15,7 @@ export function deployMainnet({
   assertMainnetReady(root);
   assertDeploymentConfig(root);
   const cwd = fileURLToPath(root);
-  if (exec('git', ['status', '--porcelain'], { encoding: 'utf8', cwd }).trim())
+  if (sourceChanges(exec('git', ['status', '--porcelain'], { encoding: 'utf8', cwd })))
     throw new Error('Commit source changes before deploying a versioned release.');
   exec('node', ['scripts/deployment-config.mjs'], { stdio: 'inherit', cwd });
   if (!env.CLOUDFLARE_ACCOUNT_ID)
