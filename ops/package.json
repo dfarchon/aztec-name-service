@@ -17,7 +17,7 @@
     "@types/node": "24.10.7"
   },
   "dependencies": {
-    "fog-sdk": "0.7.0",
+    "fog-sdk": "0.7.1",
     "@aztec-labs/aztec.js": "6.0.0"
   }
 }

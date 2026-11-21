@@ -1,6 +1,6 @@
 # Fog Names SDK integration
 
-This starter includes `fog-sdk` 0.7.0, example code and public testnet configuration. Resolve `.fog` names without a wallet, then connect a wallet for registration and recovery.
+This starter includes `fog-sdk` 0.7.1, example code and public testnet configuration. Resolve `.fog` names without a wallet, then connect a wallet for registration and recovery.
 
 ## Environment and startup
 

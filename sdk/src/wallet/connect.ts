@@ -4,7 +4,7 @@ import type { ContractArtifact } from '@aztec-labs/aztec.js/abi';
 import type { ContractInstanceWithAddress } from '@aztec-labs/stdlib/contract';
 import type { RegistryReader } from '../client/reader.js';
 import { FogError } from '../core/errors.js';
-import { FogContext } from './context.js';
+import { FogContext, type FogSigner } from './context.js';
 import { assertWalletNetwork } from './network.js';
 
 /** Connect an authorized account, checking deployment and sponsor before any signing. */
@@ -15,6 +15,13 @@ export async function connectFog(
     account: AztecAddress;
     deployment: { registry: string; chainId: string; rollupVersion: string };
     sponsoredFpc?: AztecAddress;
+    /**
+     * Declare each call's simulated gas plus a 10% margin instead of the network's whole per-transaction limit.
+     * Recommended when the account pays its own Fee Juice: the required balance then matches real usage.
+     */
+    estimateGas?: boolean;
+    /** Host fee validation after gas estimation and before submission; see `FogSigner.checkFee`. */
+    checkFee?: FogSigner['checkFee'];
   },
 ) {
   const expected = options.deployment;
@@ -42,7 +49,13 @@ export async function connectFog(
     fee = { paymentMethod: new SponsoredFeePaymentMethod(options.sponsoredFpc) };
     sponsor = { instance, artifact: SponsoredFPCContractArtifact };
   }
-  const ctx = new FogContext(reader, { wallet: options.wallet, account: options.account, fee });
+  const ctx = new FogContext(reader, {
+    wallet: options.wallet,
+    account: options.account,
+    fee,
+    estimateGas: options.estimateGas,
+    checkFee: options.checkFee,
+  });
   await ctx.queue.run(async () => {
     await ctx.assertWalletNetwork();
     if (sponsor) await ctx.wallet.registerContract(sponsor.instance, sponsor.artifact);

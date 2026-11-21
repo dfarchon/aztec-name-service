@@ -18,7 +18,7 @@ npm run dev
 
 | API | Inputs and result |
 | --- | --- |
-| `connectFog` | Authorized wallet, account and deployment configuration; verifies network identity and sponsor contract, returning `FogContext` |
+| `connectFog` | Authorized wallet, account and deployment configuration, plus optional `sponsoredFpc`, `estimateGas` and `checkFee`; verifies network identity and sponsor contract, returning `FogContext` |
 | `readFeeTokenMetadata` | Exact token address; verifies standard Token class and returns `decimals` and `symbol` |
 | `getPrivateFeeBalance` | `FogContext` and exact payment token; registers token artifact and reads private balance |
 | `getFeeReadiness` | `FogContext` and accepted quote; returns balance, shortfall, metadata and `ready` without treating read failures as zero |
@@ -31,7 +31,7 @@ npm run dev
 
 Aztec 6 wallets such as Nulo refuse account and contract calls other than `getChainInfo` until the app is granted capabilities. After checking the wallet network, call `requestFogCapabilities` (or `wallet.requestCapabilities`) for account reads, payment authorizations, and registration, simulation and sending on the Registry, the active Registrar, the default Resolver, the payment token and the sponsor contract when used. Name exact addresses: no wildcards, address book or private events. A name can keep its own Resolver, and an administrator can activate a new Registrar or payment token; the SDK calls `registerContract` before using such a contract, so request that address first. `connectFog` expects an already authorized wallet. Payment authorizations are sent as a call intent (the token's `transfer_in_private`, called by the Registry or Registrar), so the wallet can show the exact transfer; the SDK checks that it matches the exact authorization hash and returns `unsupported` otherwise, without asking for a signature. Wallets draw a fresh salt for every transaction; the SDK neither sets nor reuses one and pins no standard contract address.
 
-Amounts use bigint base units. Token metadata determines display precision; 1 `mAZTEC` is `10^18` units. Registration fees and network fees are separate. Sponsorship does not fund the registration payment.
+Amounts use bigint base units. Token metadata determines display precision; 1 `mAZTEC` is `10^18` units. Registration fees and network fees are separate. Sponsorship does not fund the registration payment. Without explicit limits a wallet declares the network's whole per-transaction gas limit, and the node requires the fee payer to hold the matching maximum fee. When the account pays its own Fee Juice, pass `estimateGas: true` to `connectFog`: each call is simulated once and declares its measured gas plus 10%, and `checkFee(account, gas)` receives those limits before submission.
 
 Prices are tiered by name length. Pass the name when quoting (`flow.quote(duration, name)`, or `labelLength` for `getFeeQuote`) and quote again when the name changes; a tiered Registrar rejects a quote without a length with `invalid_argument`. A quote binds its `labelLength` together with the amount. New registrations cannot contain `--` or start with `0x`; the SDK returns `invalid_name` before any wallet request, while existing names keep resolving and renewing. SDK 0.5.0 and earlier do not recognize the tiered Registrar and return `wrong_deployment`; upgrade to the current release.
 
