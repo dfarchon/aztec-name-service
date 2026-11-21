@@ -72,7 +72,9 @@ export function mainnetBlockers(root = repository) {
   if (absent(site.services?.[0]?.service)) blockers.push('site.monitor service');
   else if (!absent(monitor.name) && site.services[0].service !== monitor.name)
     blockers.push('site.monitor service mismatch');
-  if (absent(site.ratelimits?.[0]?.namespace_id)) blockers.push('site.RUM_LIMITER namespace_id');
+  for (const binding of ['RUM_LIMITER', 'RPC_LIMITER'])
+    if (absent(site.ratelimits?.find((limiter) => limiter.name === binding)?.namespace_id))
+      blockers.push(`site.${binding} namespace_id`);
   if (!existsSync(new URL('deployments/mainnet.json', root)))
     blockers.push('deployments/mainnet.json absent');
   else if (m.template === true) blockers.push('canonical manifest is a template');

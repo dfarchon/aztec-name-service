@@ -3,10 +3,12 @@ import { test } from 'node:test';
 import { DatabaseSync } from 'node:sqlite';
 import { readFileSync } from 'node:fs';
 import { URL as NodeURL } from 'node:url';
-import worker, { probe, proxyRpc, deliverAlerts, readBounded, tokenMatches, appRedirect, ALERT_OUTBOX_MAX, type Env } from '../src/worker.js';
+import worker, { probe, proxyRpc, rpcClientKey, deliverAlerts, readBounded, tokenMatches, appRedirect, ALERT_OUTBOX_MAX, type Env } from '../src/worker.js';
 import { deploymentConfigMismatches } from '../../scripts/deployment-config.mjs';
 import metadata from '../../web/src/public-metadata.json' with { type: 'json' };
 import registry from '../../sdk/src/artifacts/read-metadata.json' with { type: 'json' };
+
+const allowRpc = { limit: async () => ({ success: true }) } as RateLimit;
 
 function fixture() {
   const sqlite = new DatabaseSync(':memory:');
@@ -354,7 +356,7 @@ test('RPC proxy rejects missing, non-HTTPS, invalid, and self-referential UPSTRE
     let called = false;
     const res = await proxyRpc(
       new Request('https://fog.test/api/rpc', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body }),
-      { UPSTREAM_RPC_URL: candidate },
+      { UPSTREAM_RPC_URL: candidate, RPC_LIMITER: allowRpc },
       (async () => {
         called = true;
         return Response.json({ jsonrpc: '2.0', id: 1, result: 1 });
@@ -407,7 +409,7 @@ test('RPC proxy forwards single and batched Aztec requests, filters headers, and
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'aztec_getBlockNumber', params: [] }),
   });
-  const singleRes = await proxyRpc(singleReq, { UPSTREAM_RPC_URL: secretUrl }, fetcher);
+  const singleRes = await proxyRpc(singleReq, { UPSTREAM_RPC_URL: secretUrl, RPC_LIMITER: allowRpc }, fetcher);
   assert.equal(singleRes.status, 200);
   assert.equal(calls.length, 1);
   assert.equal(calls[0].url, secretUrl);
@@ -429,7 +431,7 @@ test('RPC proxy forwards single and batched Aztec requests, filters headers, and
       { jsonrpc: '2.0', id: 2, method: 'aztec_getNodeInfo' },
     ]),
   });
-  const batchRes = await proxyRpc(batchReq, { UPSTREAM_RPC_URL: secretUrl }, fetcher);
+  const batchRes = await proxyRpc(batchReq, { UPSTREAM_RPC_URL: secretUrl, RPC_LIMITER: allowRpc }, fetcher);
   assert.equal(batchRes.status, 200);
   assert.deepEqual(await batchRes.json(), [
     { jsonrpc: '2.0', id: 1, result: 42 },
@@ -442,7 +444,7 @@ test('RPC proxy forwards single and batched Aztec requests, filters headers, and
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'aztec_getBlockNumber', params: [] }),
     }),
-    { UPSTREAM_RPC_URL: secretUrl },
+    { UPSTREAM_RPC_URL: secretUrl, RPC_LIMITER: allowRpc },
     (async () => {
       throw new Error('connect failed to ' + secretUrl);
     }) as typeof fetch,
@@ -463,7 +465,7 @@ test('RPC proxy forwards single and batched Aztec requests, filters headers, and
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'aztec_getBlockNumber', params: [] }),
     }),
-    { UPSTREAM_RPC_URL: secretUrl },
+    { UPSTREAM_RPC_URL: secretUrl, RPC_LIMITER: allowRpc },
     (async () => {
       throw new DOMException('timed out contacting ' + secretUrl, 'TimeoutError');
     }) as typeof fetch,
@@ -479,7 +481,11 @@ test('RPC proxy forwards single and batched Aztec requests, filters headers, and
 });
 
 test('RPC proxy rejects unsupported methods, invalid batches, malformed JSON, and oversized bodies before fetching', async () => {
-  const env = { UPSTREAM_RPC_URL: 'https://private-node.example/rpc' };
+  let limited = 0;
+  const env = {
+    UPSTREAM_RPC_URL: 'https://private-node.example/rpc',
+    RPC_LIMITER: { limit: async () => { limited++; return { success: true }; } } as RateLimit,
+  };
   let calls = 0;
   const neverFetch = (async () => {
     calls++;
@@ -537,6 +543,91 @@ test('RPC proxy rejects unsupported methods, invalid batches, malformed JSON, an
   });
 
   assert.equal(calls, 0);
+  assert.equal(limited, 0, 'rejected requests do not spend rate-limit budget');
+});
+
+test('RPC proxy refuses to forward when UPSTREAM_RPC_URL is set without RPC_LIMITER', async () => {
+  let called = false;
+  const res = await proxyRpc(
+    new Request('https://fog.test/api/rpc', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'aztec_getBlockNumber', params: [] }),
+    }),
+    { UPSTREAM_RPC_URL: 'https://private-node.example/rpc' },
+    (async () => {
+      called = true;
+      return Response.json({ jsonrpc: '2.0', id: 1, result: 1 });
+    }) as typeof fetch,
+  );
+  assert.equal(called, false);
+  assert.equal(res.status, 503);
+  assert.deepEqual(await res.json(), { jsonrpc: '2.0', id: null, error: { code: -32603, message: 'RPC upstream unavailable' } });
+});
+
+test('RPC proxy rate limits each client, charging batches by call count, before contacting the upstream', async () => {
+  let budget = 5;
+  const keys: string[] = [];
+  let failing = false;
+  const limiter = {
+    limit: async ({ key }: { key: string }) => {
+      if (failing) throw new Error('limiter unavailable');
+      keys.push(key);
+      return { success: budget-- > 0 };
+    },
+  } as RateLimit;
+  let forwarded = 0;
+  const fetcher = (async (_input: unknown, init?: RequestInit) => {
+    forwarded++;
+    const parsed = JSON.parse(String(init?.body));
+    const reply = Array.isArray(parsed) ? parsed.map((c: any) => ({ jsonrpc: '2.0', id: c.id, result: 1 })) : { jsonrpc: '2.0', id: parsed.id, result: 1 };
+    return Response.json(reply);
+  }) as typeof fetch;
+  const env = { UPSTREAM_RPC_URL: 'https://private-node.example/rpc', RPC_LIMITER: limiter };
+  const call = (id: number) => ({ jsonrpc: '2.0', id, method: 'aztec_getBlockNumber', params: [] });
+  const post = (payload: unknown, ip = '203.0.113.7') =>
+    proxyRpc(
+      new Request('https://fog.test/api/rpc', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'cf-connecting-ip': ip },
+        body: JSON.stringify(payload),
+      }),
+      env,
+      fetcher,
+    );
+
+  assert.equal((await post(call(1))).status, 200);
+  assert.deepEqual(keys, ['203.0.113.7'], 'a single call costs one unit, keyed by client IP');
+
+  keys.length = 0;
+  assert.equal((await post(Array.from({ length: 25 }, (_, i) => call(i)), '2001:db8:1:2::abcd')).status, 200);
+  assert.deepEqual(keys, Array(3).fill('2001:db8:1:2::/64'), 'a 25-call batch costs three units, keyed by IPv6 /64');
+  assert.equal(forwarded, 2);
+
+  const limitedRes = await post(Array.from({ length: 20 }, (_, i) => call(i)));
+  assert.equal(limitedRes.status, 429);
+  assert.equal(limitedRes.headers.get('retry-after'), '60');
+  assert.equal(limitedRes.headers.get('access-control-allow-origin'), '*');
+  assert.equal(limitedRes.headers.get('cache-control'), 'no-store');
+  assert.deepEqual(await limitedRes.json(), { jsonrpc: '2.0', id: null, error: { code: -32005, message: 'Rate limit exceeded' } });
+  assert.equal(forwarded, 2, 'a limited request never reaches the upstream');
+
+  failing = true;
+  const unavailable = await post(call(2));
+  assert.equal(unavailable.status, 503);
+  assert.deepEqual(await unavailable.json(), { jsonrpc: '2.0', id: null, error: { code: -32603, message: 'RPC upstream unavailable' } });
+  assert.equal(forwarded, 2, 'a limiter failure fails closed');
+});
+
+test('RPC rate-limit keys keep IPv4 addresses and group IPv6 addresses by /64', () => {
+  assert.equal(rpcClientKey('203.0.113.7'), '203.0.113.7');
+  assert.equal(rpcClientKey('::ffff:198.51.100.2'), '198.51.100.2');
+  assert.equal(rpcClientKey('2001:db8:abcd:12:1:2:3:4'), '2001:db8:abcd:12::/64');
+  assert.equal(rpcClientKey('2001:0DB8:abcd:0012:ffff::9'), '2001:db8:abcd:12::/64');
+  assert.equal(rpcClientKey('2001:db8::1'), '2001:db8:0:0::/64');
+  assert.equal(rpcClientKey('fe80::'), 'fe80:0:0:0::/64');
+  assert.equal(rpcClientKey('::1'), '0:0:0:0::/64');
+  assert.equal(rpcClientKey(null), 'local');
 });
 
 test('probe uses UPSTREAM_RPC_URL when configured and falls back to RPC_URL otherwise', async () => {

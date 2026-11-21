@@ -51,6 +51,16 @@
         "limit": 12,
         "period": 60
       }
+    },
+    {
+      // /api/rpc, per client IP (IPv6 /64). One unit = up to 10 calls of a batch.
+      // A page load plus three searches and the status page uses about 75 units.
+      "name": "RPC_LIMITER",
+      "namespace_id": "82020261121",
+      "simple": {
+        "limit": 600,
+        "period": 60
+      }
     }
   ]
 }
