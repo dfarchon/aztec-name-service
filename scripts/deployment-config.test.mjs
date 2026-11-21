@@ -390,6 +390,7 @@ test('mainnet template validates, live mainnet has zero blockers, and each undec
     'site.worker name',
     'site.monitor service',
     'site.RUM_LIMITER namespace_id',
+    'site.RPC_LIMITER namespace_id',
     'monitor.SITE_URL',
     'monitor.RPC_URL',
     'monitor.worker name',
@@ -814,6 +815,7 @@ test('configured V8 free-launch mainnet manifest and Wrangler configs pass readi
       services: [{ binding: 'MONITOR', service: 'fog-mainnet-monitor' }],
       ratelimits: [
         { name: 'RUM_LIMITER', namespace_id: '1001', simple: { limit: 12, period: 60 } },
+        { name: 'RPC_LIMITER', namespace_id: '1002', simple: { limit: 600, period: 60 } },
       ],
     }),
   );

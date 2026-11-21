@@ -17,6 +17,8 @@ export interface MonitorEnv {
 }
 export interface Env extends MonitorEnv {
   ASSETS: Fetcher; RUM_LIMITER: RateLimit; MONITOR: Fetcher; ADMIN_TOKEN: string;
+  /** Required wherever UPSTREAM_RPC_URL is set: the proxy refuses to forward without it. */
+  RPC_LIMITER?: RateLimit;
 }
 
 type NodeInfo = { nodeVersion: string; l1ChainId: number; rollupVersion: number; realProofs: boolean; l1ContractAddresses: { rollupAddress: string } };
@@ -183,6 +185,8 @@ export async function tokenMatches(given: string | null, expected: string): Prom
 
 const RPC_MAX_BODY_BYTES = 4 * 1024 * 1024;
 const RPC_MAX_BATCH_SIZE = 100;
+/** Upstream calls per rate-limit unit: a batch costs ceil(calls / 10) units, so batching cannot multiply upstream load. */
+const RPC_CALLS_PER_LIMIT_UNIT = 10;
 const AZTEC_VERSION_HEADERS = [
   "x-aztec-l1ChainId",
   "x-aztec-l1RollupAddress",
@@ -222,8 +226,20 @@ function isValidRpcCall(value: unknown): boolean {
   );
 }
 
-/** Forward validated Aztec JSON-RPC 2.0 requests to a private HTTPS upstream without exposing upstream URLs or errors. */
-export async function proxyRpc(request: Request, env: Pick<MonitorEnv, "UPSTREAM_RPC_URL">, fetcher: typeof fetch = fetch): Promise<Response> {
+/** Rate-limit key for a client address: IPv4 as is, IPv6 by its /64 network, since one host can rotate addresses within its prefix. */
+export function rpcClientKey(ip: string | null): string {
+  if (!ip) return "local";
+  const v4 = /(\d{1,3}(?:\.\d{1,3}){3})$/.exec(ip);
+  if (v4) return v4[1];
+  const [head, tail] = ip.toLowerCase().split("::", 2);
+  const left = head ? head.split(":") : [];
+  const right = tail ? tail.split(":") : [];
+  const groups = tail === undefined ? left : [...left, ...Array(Math.max(0, 8 - left.length - right.length)).fill("0"), ...right];
+  return `${groups.slice(0, 4).map((group) => group.replace(/^0+(?=.)/, "")).join(":")}::/64`;
+}
+
+/** Forward validated Aztec JSON-RPC 2.0 requests to a private HTTPS upstream, rate limited per client, without exposing upstream URLs or errors. */
+export async function proxyRpc(request: Request, env: Pick<Env, "UPSTREAM_RPC_URL" | "RPC_LIMITER">, fetcher: typeof fetch = fetch): Promise<Response> {
   if (request.method === "OPTIONS") return new Response(null, { status: 204, headers: RPC_CORS_HEADERS });
   if (request.method !== "POST") return rpcError(405, -32600, "Method not allowed", { Allow: "POST, OPTIONS" });
   const url = new URL(request.url);
@@ -238,7 +254,8 @@ export async function proxyRpc(request: Request, env: Pick<MonitorEnv, "UPSTREAM
       upstream = undefined;
     }
   }
-  if (!upstream) return rpcError(503, -32603, "RPC upstream unavailable");
+  const limiter = env.RPC_LIMITER;
+  if (!upstream || !limiter) return rpcError(503, -32603, "RPC upstream unavailable");
   if (Number(request.headers.get("content-length") ?? 0) > RPC_MAX_BODY_BYTES) return rpcError(413, -32600, "Payload too large");
   const body = await readBounded(request, RPC_MAX_BODY_BYTES);
   if (body === undefined) return rpcError(413, -32600, "Payload too large");
@@ -252,6 +269,16 @@ export async function proxyRpc(request: Request, env: Pick<MonitorEnv, "UPSTREAM
     ? payload.length >= 1 && payload.length <= RPC_MAX_BATCH_SIZE && payload.every(isValidRpcCall)
     : isValidRpcCall(payload);
   if (!valid) return rpcError(400, -32601, "Unsupported RPC request");
+  const units = Math.ceil((Array.isArray(payload) ? payload.length : 1) / RPC_CALLS_PER_LIMIT_UNIT);
+  const key = rpcClientKey(request.headers.get("cf-connecting-ip"));
+  let allowed: boolean;
+  try {
+    const outcomes = await Promise.all(Array.from({ length: units }, () => limiter.limit({ key })));
+    allowed = outcomes.every((outcome) => outcome.success);
+  } catch {
+    return rpcError(503, -32603, "RPC upstream unavailable");
+  }
+  if (!allowed) return rpcError(429, -32005, "Rate limit exceeded", { "Retry-After": "60" });
   try {
     const upstreamResponse = await fetcher(upstream.toString(), {
       method: "POST",

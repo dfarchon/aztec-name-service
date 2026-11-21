@@ -395,8 +395,14 @@ export function mainnetDeploymentConfigMismatches(root = repository) {
     problems.push('mainnet D1 bindings differ between Worker configs');
   if (!site.services?.[0]?.service || site.services[0].service !== monitor.name)
     problems.push('ops/wrangler-mainnet.jsonc MONITOR service must match monitor Worker name');
-  if (!site.ratelimits?.[0]?.namespace_id || site.ratelimits[0].namespace_id === 'UNDECIDED')
-    problems.push('ops/wrangler-mainnet.jsonc RUM_LIMITER namespace_id undecided');
+  const limiterIds = ['RUM_LIMITER', 'RPC_LIMITER'].map((binding) => {
+    const id = site.ratelimits?.find((limiter) => limiter.name === binding)?.namespace_id;
+    if (!id || id === 'UNDECIDED')
+      problems.push(`ops/wrangler-mainnet.jsonc ${binding} namespace_id undecided`);
+    return id;
+  });
+  if (limiterIds[0] && limiterIds[0] === limiterIds[1])
+    problems.push('ops/wrangler-mainnet.jsonc RUM_LIMITER and RPC_LIMITER share a namespace_id');
   if (
     !Array.isArray(monitor.compatibility_flags) ||
     !monitor.compatibility_flags.includes('global_fetch_strictly_public')
