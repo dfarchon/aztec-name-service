@@ -9,6 +9,16 @@ import { parse, printParseErrorCode } from 'jsonc-parser';
 const repository = new URL('../', import.meta.url);
 /** Class of the official Aztec 6.0.0 Token artifact; `web/src/public-metadata.json` pins it for every deployment. */
 const OFFICIAL_TOKEN_CLASS = '0x067df4ddda0b0872ef604f47f3681d5e8c0de98280ac6b79963851c055ba91e0';
+/** An exact HTTPS origin such as https://fog.example: no path, query, fragment or credentials. */
+const httpsOrigin = (value) => {
+  if (typeof value !== 'string') return false;
+  try {
+    const url = new URL(value);
+    return url.protocol === 'https:' && url.origin === value;
+  } catch {
+    return false;
+  }
+};
 function read(path, root) {
   const content = readFileSync(new URL(path, root), 'utf8');
   if (!path.endsWith('.jsonc')) return JSON.parse(content);
@@ -55,6 +65,7 @@ export function deploymentConfigMismatches(root = repository) {
     if ('account_id' in config) problems.push(`${path} must not commit account_id`);
   }
   const [[, site], [, monitor]] = configs;
+  problems.push(...hostingProblems(site, 'ops/wrangler.jsonc'));
   for (const key of new Set([...Object.keys(site.vars), ...Object.keys(monitor.vars)])) {
     if (site.vars[key] !== monitor.vars[key])
       problems.push(`vars.${key} differs between Worker configs`);
@@ -70,6 +81,28 @@ export function deploymentConfigMismatches(root = repository) {
   const archive = read('scripts/fixtures/aztec5-final-metadata.json', root);
   if (archive.public.fpcAddress !== archivedDeployment.sponsoredFpc)
     problems.push('v5 archive fpcAddress differs from deployment');
+  return problems;
+}
+
+/**
+ * SITE_URL is the canonical site, which may be hosted apart from the site Worker; API_ORIGIN is where that Worker
+ * serves /api/*. The site calls API_ORIGIN directly, and the monitor probes SITE_URL.
+ */
+export function hostingProblems(site, sitePath) {
+  const problems = [];
+  if (!parseCleanHttpsUrl(site.vars?.SITE_URL))
+    problems.push(`${sitePath} vars.SITE_URL must be clean HTTPS`);
+  const api = site.vars?.API_ORIGIN;
+  if (!httpsOrigin(api)) {
+    problems.push(`${sitePath} vars.API_ORIGIN must be an HTTPS origin`);
+    return problems;
+  }
+  const host = new URL(api).hostname;
+  if (
+    host.endsWith('.workers.dev') &&
+    (site.workers_dev !== true || host.split('.')[0] !== site.name)
+  )
+    problems.push(`${sitePath} must serve vars.API_ORIGIN ${api} on workers.dev`);
   return problems;
 }
 
@@ -388,6 +421,7 @@ export function mainnetDeploymentConfigMismatches(root = repository) {
       problems.push(`${paths[i]} forbidden configuration`);
   });
   const [site, monitor] = configs;
+  problems.push(...hostingProblems(site, paths[0]));
   for (const key of new Set([...Object.keys(site.vars ?? {}), ...Object.keys(monitor.vars ?? {})]))
     if (site.vars?.[key] !== monitor.vars?.[key])
       problems.push(`mainnet vars.${key} differs between Worker configs`);

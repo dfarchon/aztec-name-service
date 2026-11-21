@@ -70,6 +70,35 @@ export function parseRpcConfig(env: {
   };
 }
 
+/**
+ * Where the site and its API live. VITE_API_ORIGIN is the Worker serving /api/status and /api/metrics; empty means the
+ * site's own origin. VITE_SITE_ORIGIN is the canonical site address, which may be hosted apart from that Worker.
+ */
+export function parseHostingConfig(env: { DEV?: boolean; VITE_API_ORIGIN?: string; VITE_SITE_ORIGIN?: string }) {
+  const origin = (name: string, raw: string | undefined) => {
+    if (!raw) return '';
+    let url: URL | undefined;
+    try { url = new URL(raw); } catch { url = undefined; }
+    const loopback = !!url && ['localhost', '127.0.0.1', '[::1]'].includes(url.hostname);
+    if (!url || url.origin !== raw || (url.protocol !== 'https:' && !(env.DEV === true && url.protocol === 'http:' && loopback)))
+      throw new Error(`${name} must be an HTTPS origin without a path (explicit DEV loopback fixtures excepted)`);
+    return raw;
+  };
+  return {
+    apiOrigin: origin('VITE_API_ORIGIN', env.VITE_API_ORIGIN),
+    siteOrigin: origin('VITE_SITE_ORIGIN', env.VITE_SITE_ORIGIN),
+  };
+}
+
+/**
+ * True on the API Worker's own address after the canonical site moved elsewhere. Browser storage stays with each
+ * address, so this copy keeps working and tells visitors where the site lives now.
+ */
+export function servedFromFormerOrigin(hosting: { apiOrigin: string; siteOrigin: string }, currentOrigin: string) {
+  return !!hosting.apiOrigin && !!hosting.siteOrigin && hosting.siteOrigin !== hosting.apiOrigin &&
+    currentOrigin === hosting.apiOrigin;
+}
+
 export function identityMismatch(
   expected: { chainId?: string; rollupVersion?: string },
   previous: Identity | undefined,

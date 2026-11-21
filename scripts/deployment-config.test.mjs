@@ -770,6 +770,7 @@ test('configured V8 free-launch mainnet manifest and Wrangler configs pass readi
     RPC_URL: 'https://aztec-mainnet.drpc.org',
     REGISTRY: registry,
     SITE_URL: 'https://fog.example',
+    API_ORIGIN: 'https://fog.example',
     CHAIN_ID: '1',
     ROLLUP_VERSION: '2070860440',
     ROLLUP: '0xe37a2663cc9c119ba41572c40fab0bbb23a5402f',
@@ -856,6 +857,57 @@ test('configured V8 free-launch mainnet manifest and Wrangler configs pass readi
       }),
     /Commit source changes/,
   );
+
+  // A separately hosted site (SITE_URL differs from API_ORIGIN) is uploaded to Netlify before either Worker.
+  const workerConfigs = ['ops/wrangler-mainnet.jsonc', 'ops/wrangler-monitor-mainnet.jsonc'];
+  const savedConfigs = workerConfigs.map((file) => readFileSync(new URL(file, root), 'utf8'));
+  for (const file of workerConfigs) {
+    const config = JSON.parse(readFileSync(new URL(file, root), 'utf8'));
+    config.vars.API_ORIGIN = 'https://api.fog.example';
+    writeFileSync(new URL(file, root), JSON.stringify(config));
+  }
+  assert.doesNotThrow(() => assertDeploymentConfig(root));
+  const separate = [];
+  const deploySeparate = (env) =>
+    deploySite(['--network', 'mainnet'], {
+      root,
+      env,
+      exec: (cmd, args) => {
+        separate.push([cmd, ...args]);
+        return '';
+      },
+    });
+  assert.throws(() => deploySeparate({ CLOUDFLARE_ACCOUNT_ID: 'cf-acc' }), /NETLIFY_SITE_ID/);
+  assert(!separate.some(([cmd, script]) => cmd === 'node' && script === 'scripts/build-site.mjs'));
+  separate.length = 0;
+  assert.equal(
+    deploySeparate({ CLOUDFLARE_ACCOUNT_ID: 'cf-acc', NETLIFY_SITE_ID: 'fog-site' }),
+    'abc1234',
+  );
+  assert.deepEqual(separate.slice(3), [
+    [
+      'netlify',
+      'deploy',
+      '--no-build',
+      '--dir',
+      'web/dist',
+      '--site',
+      'fog-site',
+      '--message',
+      'fog:abc1234',
+      '--prod',
+    ],
+    [
+      'wrangler',
+      'deploy',
+      '--config',
+      'ops/wrangler-monitor-mainnet.jsonc',
+      '--var',
+      'RELEASE:abc1234',
+    ],
+    ['wrangler', 'deploy', '--config', 'ops/wrangler-mainnet.jsonc', '--var', 'RELEASE:abc1234'],
+  ]);
+  workerConfigs.forEach((file, i) => writeFileSync(new URL(file, root), savedConfigs[i]));
 
   // Partial OPERATOR configuration (OPERATOR UNDECIDED with concrete slot) fails assertDeploymentConfig.
   const siteCfg = JSON.parse(readFileSync(new URL('ops/wrangler-mainnet.jsonc', root), 'utf8'));
@@ -983,4 +1035,136 @@ test('mainnet rejects the published placeholder address even when its flag is fa
     JSON.stringify({ admin: v6Canonical.admin }),
   );
   assert(!mainnetBlockers(root).includes('admin placeholder'));
+});
+
+import { deployFrontendPreview } from './deploy-frontend-preview.mjs';
+import { separateFrontend, siteHosting } from './netlify.mjs';
+
+test('testnet hosting: API_ORIGIN is the site Worker on workers.dev and SITE_URL is clean HTTPS', (t) => {
+  const { root, update } = fixture(t);
+  assert.deepEqual(deploymentConfigMismatches(root), []);
+  const setVars = (vars) => {
+    for (const file of ['ops/wrangler.jsonc', 'ops/wrangler-monitor.jsonc'])
+      update(file, (c) => {
+        for (const [key, value] of Object.entries(vars))
+          if (value === undefined) delete c.vars[key];
+          else c.vars[key] = value;
+      });
+  };
+  const apiProblem = 'ops/wrangler.jsonc vars.API_ORIGIN must be an HTTPS origin';
+  setVars({ API_ORIGIN: undefined });
+  assert(deploymentConfigMismatches(root).includes(apiProblem));
+  for (const bad of ['http://fog.example', 'https://fog.example/', 'https://fog.example/api']) {
+    setVars({ API_ORIGIN: bad });
+    assert(deploymentConfigMismatches(root).includes(apiProblem), bad);
+  }
+  setVars({ API_ORIGIN: 'https://fog-other.huantian233.workers.dev' });
+  assert(deploymentConfigMismatches(root).some((p) => /must serve vars\.API_ORIGIN/.test(p)));
+  setVars({ API_ORIGIN: 'https://fog-testnet.huantian233.workers.dev', SITE_URL: 'fog.example' });
+  assert(
+    deploymentConfigMismatches(root).includes(
+      'ops/wrangler.jsonc vars.SITE_URL must be clean HTTPS',
+    ),
+  );
+  // Moving the canonical site keeps the API on the Worker's own address.
+  setVars({ SITE_URL: 'https://fog.example' });
+  assert.deepEqual(deploymentConfigMismatches(root), []);
+});
+
+test('siteHosting reads SITE_URL and API_ORIGIN; a site is separate only when both are set and differ', (t) => {
+  const { root, update } = fixture(t);
+  assert.deepEqual(siteHosting('testnet-v6', root), {
+    siteOrigin: 'https://fog-testnet.huantian233.workers.dev',
+    apiOrigin: 'https://fog-testnet.huantian233.workers.dev',
+  });
+  assert.equal(separateFrontend(siteHosting('testnet-v6', root)), false);
+  update('ops/wrangler.jsonc', (c) => {
+    c.vars.SITE_URL = 'https://fog.example';
+  });
+  assert.equal(separateFrontend(siteHosting('testnet-v6', root)), true);
+  // The mainnet config carries comments; it parses as JSONC.
+  assert.equal(
+    siteHosting('mainnet', root).apiOrigin,
+    'https://fog-mainnet.huantian233.workers.dev',
+  );
+  assert.throws(() => siteHosting('local', root), /No site Worker config/);
+  assert.equal(separateFrontend({ siteOrigin: 'https://a.example' }), false);
+  assert.equal(separateFrontend({ apiOrigin: 'https://b.example' }), false);
+  assert.equal(separateFrontend(undefined), false);
+});
+
+test('buildSite passes hosting origins and writes static-host path rewrites', (t) => {
+  const { root } = fixture(t);
+  const out = new URL('web/dist', root).pathname;
+  mkdirSync(out, { recursive: true });
+  const envs = [];
+  buildSite(['--network', 'testnet-v6'], {
+    root,
+    exec: (command, args, opts) => {
+      if (command === 'npm') envs.push(opts?.env);
+      return command === 'git' ? (args[0] === 'rev-parse' ? 'abc123' : '') : '';
+    },
+    packageConsumer: () => {},
+  });
+  assert.equal(envs.length, 1);
+  assert.equal(envs[0].VITE_API_ORIGIN, 'https://fog-testnet.huantian233.workers.dev');
+  assert.equal(envs[0].VITE_SITE_ORIGIN, 'https://fog-testnet.huantian233.workers.dev');
+  const routes = JSON.parse(readFileSync(new URL('../web/src/app-routes.json', import.meta.url)));
+  assert.deepEqual(readFileSync(`${out}/_redirects`, 'utf8').trim().split('\n'), [
+    '/favicon.ico /favicon.svg 302',
+    ...routes.map((r) => `/${r} / 200`),
+    ...routes.map((r) => `/${r}/:page / 200`),
+  ]);
+});
+
+test('frontend preview builds the canonical site and uploads a Netlify draft only', (t) => {
+  const { root } = fixture(t);
+  mkdirSync(new URL('web/dist', root), { recursive: true });
+  writeFileSync(new URL('web/dist/health.txt', root), 'fog:abc1234-dirty\n');
+  const commands = [];
+  const exec = (cmd, args) => {
+    commands.push([cmd, ...args]);
+    return '';
+  };
+  assert.throws(
+    () => deployFrontendPreview(['--network', 'testnet-v6'], { root, exec, env: {} }),
+    /NETLIFY_SITE_ID/,
+  );
+  assert.throws(
+    () =>
+      deployFrontendPreview(['--network', 'testnet-v6'], {
+        root,
+        exec,
+        env: { NETLIFY_SITE_ID: 'bad id; rm -rf' },
+      }),
+    /NETLIFY_SITE_ID/,
+  );
+  assert.throws(
+    () =>
+      deployFrontendPreview(['--network', 'local'], { root, exec, env: { NETLIFY_SITE_ID: 'x' } }),
+    /Expected --network/,
+  );
+  assert.deepEqual(commands, []);
+  assert.equal(
+    deployFrontendPreview(['--network', 'testnet-v6'], {
+      root,
+      exec,
+      env: { NETLIFY_SITE_ID: 'fog-site' },
+    }),
+    'abc1234-dirty',
+  );
+  assert.deepEqual(commands, [
+    ['node', 'scripts/build-site.mjs', '--network', 'testnet-v6'],
+    [
+      'netlify',
+      'deploy',
+      '--no-build',
+      '--dir',
+      'web/dist',
+      '--site',
+      'fog-site',
+      '--message',
+      'fog:abc1234-dirty',
+    ],
+  ]);
 });

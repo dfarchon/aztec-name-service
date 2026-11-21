@@ -7,6 +7,7 @@ import { assertMainnetReady } from './mainnet-readiness.mjs';
 import { resolve, relative, isAbsolute, dirname, basename } from 'node:path';
 import { pathToFileURL, fileURLToPath } from 'node:url';
 import { contentSecurityPolicy } from './testnet-security.mjs';
+import { siteHosting } from './netlify.mjs';
 export function buildSite(
   argv = process.argv.slice(2),
   { exec = execFileSync, root = new URL('../', import.meta.url), packageConsumer = packageConsumerDefault } = {},
@@ -68,6 +69,7 @@ export function buildSite(
   const dirty = exec('git', ['status', '--porcelain'], { encoding: 'utf8' }).trim();
   const release = `${head}${dirty ? '-dirty' : ''}`;
   const walletUrls = process.env.FOG_PUBLIC_WALLET_URLS ?? '';
+  const hosting = customManifest ? { siteOrigin: '', apiOrigin: '' } : siteHosting(network, root);
   const CSP = contentSecurityPolicy(walletUrls);
   const env = {
     ...process.env,
@@ -82,6 +84,9 @@ export function buildSite(
     VITE_WEB_WALLET_URLS: walletUrls,
     VITE_RELEASE: release,
     VITE_TELEMETRY: 'true',
+    // The canonical site may be hosted apart from the API Worker. Previews of external manifests call their own /api/*.
+    VITE_API_ORIGIN: hosting.apiOrigin,
+    VITE_SITE_ORIGIN: hosting.siteOrigin,
   };
   delete env.VITE_SPONSORED_FPC;
   delete env.VITE_ALLOW_V8_REHEARSAL_SUCCESSOR;
@@ -103,6 +108,21 @@ export function buildSite(
   writeFileSync(
     `${out}/_headers`,
     `/*\n  Cross-Origin-Opener-Policy: same-origin\n  Cross-Origin-Embedder-Policy: credentialless\n  Referrer-Policy: no-referrer\n  X-Content-Type-Options: nosniff\n  Content-Security-Policy: ${CSP}\n  X-Fog-Release: ${release}\n/health.txt\n  Cache-Control: no-store\n/downloads/sdk/fog-*\n  Cache-Control: public, max-age=31536000, immutable\n/downloads/sdk/manifest.json\n  Cache-Control: no-store\n/assets/*\n  Cache-Control: public, max-age=31536000, immutable\n/index.html\n  Cache-Control: no-cache\n`,
+  );
+  // Netlify and Cloudflare static assets both answer typed or shared app paths (/docs/pricing) with the app page, which
+  // shows the matching hash route. Redirect rules cannot target a URL fragment, hence the rewrite. The target is `/`:
+  // Cloudflare answers a rewrite to /index.html with a redirect to `/`, which would drop the path. Exact paths come
+  // before placeholder paths so the plain rules are matched first.
+  const appRoutes = JSON.parse(
+    readFileSync(new URL('../web/src/app-routes.json', import.meta.url), 'utf8'),
+  );
+  writeFileSync(
+    `${out}/_redirects`,
+    [
+      '/favicon.ico /favicon.svg 302',
+      ...appRoutes.map((route) => `/${route} / 200`),
+      ...appRoutes.map((route) => `/${route}/:page / 200`),
+    ].join('\n') + '\n',
   );
   console.log(`Built ${network === 'testnet-v6' ? 'testnet' : network} release ${release}`);
 }

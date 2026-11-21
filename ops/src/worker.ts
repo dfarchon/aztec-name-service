@@ -1,4 +1,5 @@
 import { inspectCoreUpgrade } from './core-upgrade.js';
+import { appRouteHash } from "../../web/src/app-routes";
 import coreMetadata from '../../sdk/src/artifacts/modular-metadata.json';
 import metadata from "../../web/src/public-metadata.json";
 import registryMetadata from "../../sdk/src/artifacts/read-metadata.json";
@@ -7,7 +8,11 @@ import { metricSample, transition, type Check, type State } from "./monitor";
 
 export interface MonitorEnv {
   DB: D1Database;
-  RPC_URL: string; UPSTREAM_RPC_URL?: string; REGISTRY: string; SPONSORED_FPC?: string; SITE_URL: string;
+  RPC_URL: string; UPSTREAM_RPC_URL?: string; REGISTRY: string; SPONSORED_FPC?: string;
+  /** Canonical site address, which may be hosted apart from this Worker; the monitor probes it. */
+  SITE_URL: string;
+  /** This Worker's public origin for /api/*; the site build reads it, the Worker itself does not. */
+  API_ORIGIN?: string;
   CHAIN_ID: string; ROLLUP_VERSION: string; ROLLUP: string; RELEASE: string;
   FPC_LOW_WATERMARK: string; BLOCK_STALE_SECONDS: string;
   FEE_PAYMENT?: 'sponsored' | 'fee-juice'; NETWORK_LABEL?: string;
@@ -22,7 +27,7 @@ export interface Env extends MonitorEnv {
 }
 
 type NodeInfo = { nodeVersion: string; l1ChainId: number; rollupVersion: number; realProofs: boolean; l1ContractAddresses: { rollupAddress: string } };
-const json = (value: unknown, status = 200) => Response.json(value, { status, headers: { "Cache-Control": "no-store", "X-Content-Type-Options": "nosniff" } });
+const json = (value: unknown, status = 200, extraHeaders?: Record<string, string>) => Response.json(value, { status, headers: { "Cache-Control": "no-store", "X-Content-Type-Options": "nosniff", ...extraHeaders } });
 export async function rpc<T>(env: Pick<MonitorEnv, "RPC_URL" | "UPSTREAM_RPC_URL">, method: string, params: unknown[] = [], fetcher: typeof fetch = fetch): Promise<T> {
   const r = await fetcher(env.UPSTREAM_RPC_URL || env.RPC_URL, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: `aztec_${method}`, params }), signal: AbortSignal.timeout(7000) });
   if (!r.ok) throw new Error("rpc_http_error");
@@ -301,13 +306,26 @@ export async function proxyRpc(request: Request, env: Pick<Env, "UPSTREAM_RPC_UR
   }
 }
 
-const APP_ROUTES = new Set(["docs", "help", "changelog", "status", "names", "register", "manage", "name"]);
 /** Map /docs/pricing to /#/docs/pricing and /favicon.ico to the SVG icon; undefined for anything else. */
 export function appRedirect(url: URL): string | undefined {
   if (url.pathname === "/favicon.ico") return new URL("/favicon.svg", url).toString();
-  const parts = url.pathname.replace(/\/+$/, "").split("/").filter(Boolean);
-  if (!parts.length || !APP_ROUTES.has(parts[0]) || parts.length > 2 || !parts.every(p => /^[A-Za-z0-9._-]{1,64}$/.test(p))) return;
-  return new URL(`/#/${parts.join("/")}`, url).toString();
+  const hash = appRouteHash(url.pathname);
+  return hash && new URL(`/${hash}`, url).toString();
+}
+
+/** The status page may be served from another origin than this Worker; the report holds public monitor data only. */
+const STATUS_CORS_HEADERS = { "Access-Control-Allow-Origin": "*" };
+
+/**
+ * Telemetry is accepted from this Worker's own origin and from the canonical site (SITE_URL), which may be hosted
+ * elsewhere. Returns the CORS headers for an accepted origin, or undefined to reject it.
+ */
+export function telemetryCors(origin: string | null, url: URL, env: Pick<Env, "SITE_URL">): Record<string, string> | undefined {
+  if (!origin) return;
+  if (origin === url.origin) return {};
+  let site: string | undefined;
+  try { site = new URL(env.SITE_URL).origin; } catch { site = undefined; }
+  return origin === site ? { "Access-Control-Allow-Origin": origin, Vary: "Origin" } : undefined;
 }
 
 export default {
@@ -315,7 +333,7 @@ export default {
     const url = new URL(request.url);
     if (url.pathname === "/api/rpc") return proxyRpc(request, env);
     if (url.pathname === "/api/status" && request.method === "GET") {
-      if (!env.RELEASE) return json({ error: "release_unset" }, 503);
+      if (!env.RELEASE) return json({ error: "release_unset" }, 503, STATUS_CORS_HEADERS);
       // One D1 round trip for all status reads.
       const [stateRows, incidents, metrics] = await env.DB.batch([
         env.DB.prepare("SELECT payload FROM monitor_state WHERE id=1"),
@@ -330,20 +348,21 @@ export default {
       return json({ checkedAt: current ? state.checkedAt : 0,
         checks: current ? state.checks : [{ name: "website", ok: false, detail: "Current release has not been checked" }],
         incidents: incidents.results.filter(incident => incidentNames.has(incident.name)), metrics: metrics.results, release: env.RELEASE, checkedRelease: state?.release ?? null,
-        open: state?.open ?? [], modules: current ? state.modules : undefined });
+        open: state?.open ?? [], modules: current ? state.modules : undefined }, 200, STATUS_CORS_HEADERS);
     }
     if (url.pathname === "/api/metrics" && request.method === "POST") {
-      if (request.headers.get("origin") !== url.origin || Number(request.headers.get("content-length") ?? 0) > 512) return json({ error: "invalid_origin_or_size" }, 403);
+      const cors = telemetryCors(request.headers.get("origin"), url, env);
+      if (!cors || Number(request.headers.get("content-length") ?? 0) > 512) return json({ error: "invalid_origin_or_size" }, 403);
       const { success } = await env.RUM_LIMITER.limit({ key: request.headers.get("cf-connecting-ip") ?? "local" });
-      if (!success) return json({ error: "rate_limit" }, 429);
+      if (!success) return json({ error: "rate_limit" }, 429, cors);
       // Origin is advisory (non-browser clients can set it); telemetry is treated as untrusted and size-bounded while streaming.
       const body = await readBounded(request, 512);
-      if (body === undefined) return json({ error: "invalid_size" }, 413);
+      if (body === undefined) return json({ error: "invalid_size" }, 413, cors);
       let metric;
       try { metric = metricSample(JSON.parse(body)); } catch { /* Invalid telemetry never reaches storage. */ }
-      if (!metric || metric.release !== env.RELEASE) return json({ error: "invalid_metric" }, 400);
+      if (!metric || metric.release !== env.RELEASE) return json({ error: "invalid_metric" }, 400, cors);
       await env.DB.prepare("INSERT INTO vitals(day,release,name,bucket,samples,total) VALUES(?,?,?,?,1,?) ON CONFLICT(day,release,name,bucket) DO UPDATE SET samples=samples+1,total=total+excluded.total").bind(new Date().toISOString().slice(0,10), metric.release, metric.name, metric.bucket, metric.value).run();
-      return new Response(null, { status: 204 });
+      return new Response(null, { status: 204, headers: cors });
     }
     if (url.pathname === "/api/probe" && request.method === "POST") {
       if (!env.ADMIN_TOKEN || !(await tokenMatches(request.headers.get("authorization"), `Bearer ${env.ADMIN_TOKEN}`))) return json({ error: "unauthorized" }, 401);

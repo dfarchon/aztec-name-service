@@ -48,6 +48,7 @@
     "bridge:fee-juice": "npm run bridge:fee-juice -w fog-e2e --",
     "deploy:mainnet:v8": "npm run deploy:mainnet:v8 -w fog-e2e --",
     "deploy:mainnet": "node scripts/deploy-site.mjs --network mainnet",
+    "deploy:frontend-preview": "node scripts/deploy-frontend-preview.mjs",
     "build:mainnet": "node scripts/build-site.mjs --network mainnet",
     "check:v8-compatibility": "node scripts/check-v8-compatibility.mjs",
     "test:upgrade": "tsx e2e/src/core-upgrade.ts",

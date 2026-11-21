@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { parseNetworkConfig, parseRpcConfig, identityMismatch } from '../src/network-config.ts';
+import { parseNetworkConfig, parseRpcConfig, parseHostingConfig, servedFromFormerOrigin, identityMismatch } from '../src/network-config.ts';
+import { appRouteHash } from '../src/app-routes.ts';
 import { V6_TESTNET, V6_MAINNET } from '../../scripts/deployment-config.mjs';
 
 const publicEnv = (network: 'testnet-v6' | 'mainnet' = 'testnet-v6') => {
@@ -84,4 +85,34 @@ test('mainnet always disables rehearsal successor flag even if env sets it', () 
     }).allowRehearsalSuccessor,
     true,
   );
+});
+
+test('hosting origins are optional, exact HTTPS origins; HTTP only for DEV loopback', () => {
+  assert.deepEqual(parseHostingConfig({}), { apiOrigin: '', siteOrigin: '' });
+  assert.deepEqual(
+    parseHostingConfig({ VITE_API_ORIGIN: 'https://fog-api.example', VITE_SITE_ORIGIN: 'https://fog.example' }),
+    { apiOrigin: 'https://fog-api.example', siteOrigin: 'https://fog.example' },
+  );
+  assert.equal(parseHostingConfig({ DEV: true, VITE_API_ORIGIN: 'http://127.0.0.1:5200' }).apiOrigin, 'http://127.0.0.1:5200');
+  for (const bad of ['http://fog-api.example', 'https://fog-api.example/', 'https://fog-api.example/api',
+    'https://fog-api.example?x=1', 'https://user@fog-api.example', 'http://127.0.0.1:5200', 'fog-api.example'])
+    for (const key of ['VITE_API_ORIGIN', 'VITE_SITE_ORIGIN'])
+      assert.throws(() => parseHostingConfig({ [key]: bad }), /HTTPS origin/, `${key}=${bad}`);
+});
+
+test('only the API Worker address announces a moved site', () => {
+  const moved = { apiOrigin: 'https://fog-api.example', siteOrigin: 'https://fog.example' };
+  assert.equal(servedFromFormerOrigin(moved, 'https://fog-api.example'), true);
+  assert.equal(servedFromFormerOrigin(moved, 'https://fog.example'), false);
+  assert.equal(servedFromFormerOrigin(moved, 'https://draft--fog.netlify.app'), false);
+  assert.equal(servedFromFormerOrigin({ apiOrigin: moved.apiOrigin, siteOrigin: moved.apiOrigin }, moved.apiOrigin), false);
+  assert.equal(servedFromFormerOrigin({ apiOrigin: '', siteOrigin: moved.siteOrigin }, 'https://x.example'), false);
+});
+
+test('plain app paths map to hash routes; anything else stays a path', () => {
+  assert.equal(appRouteHash('/docs'), '#/docs');
+  assert.equal(appRouteHash('/docs/pricing/'), '#/docs/pricing');
+  assert.equal(appRouteHash('/name/alice'), '#/name/alice');
+  for (const path of ['/', '', '/unknown', '/docs/a/b', '/docs/%3Cscript%3E', '/assets/app.js'])
+    assert.equal(appRouteHash(path), undefined, path);
 });

@@ -5,7 +5,7 @@ import { fileURLToPath } from 'node:url';
 import react from '@vitejs/plugin-react';
 import { defineConfig, loadEnv, type Plugin } from 'vite';
 import { nodePolyfills } from 'vite-plugin-node-polyfills';
-import { parseNetworkConfig, parseRpcConfig } from './src/network-config';
+import { parseHostingConfig, parseNetworkConfig, parseRpcConfig } from './src/network-config';
 import { initialBundleBudget } from '../examples/consumer/bundle-budget';
 
 const require = createRequire(import.meta.url);
@@ -36,6 +36,7 @@ export default defineConfig(({ command, mode }) => {
   const env = { ...loadEnv(mode, fileURLToPath(new URL('.', import.meta.url)), 'VITE_'), ...process.env, DEV: command === 'serve' && mode !== 'production' };
   // Validate during the build too: malformed public config must never produce a deployable bundle.
   parseRpcConfig(env, parseNetworkConfig(env).network);
+  parseHostingConfig(env);
   return {
   // Parallel local/testnet previews need separate optimizer caches. Different env hashes otherwise load two Fr classes.
   cacheDir: process.env.FOG_VITE_CACHE_DIR || undefined,

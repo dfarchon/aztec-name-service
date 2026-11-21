@@ -2,6 +2,7 @@ import { translate } from "./i18n";
 import { WalletConnection, openWalletPanel } from "./WalletConnection";
 import { Card, EmptyState } from "./components";
 import { config } from "./config";
+import { servedFromFormerOrigin } from "./network-config";
 import { lazy, Suspense, useEffect, useState } from "react";
 
 const AccountPage = lazy(() =>
@@ -86,6 +87,12 @@ export function App() {
           {s.status === "misconfigured" && <span className="err">{translate("Configuration error")}</span>}
         </span>
       </header>
+      {servedFromFormerOrigin(config, window.location.origin) && (
+        <div className="banner rollout-banner" role="note">
+          <strong>{translate("Fog Names has moved")}</strong>
+          <span>{translate("The site now lives at {site}. A registration in progress is saved in this browser for this address only, so finish it here before you switch.", { site: config.siteOrigin })} <a href={config.siteOrigin}>{translate("Open the new address")}</a></span>
+        </div>
+      )}
       {config.network === "testnet-v6" && (
         <div className="banner rollout-banner" role="note">
           <strong>{translate("Public Test Rollout")}</strong>
