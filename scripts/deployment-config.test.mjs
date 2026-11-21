@@ -345,6 +345,7 @@ import { mainnetTemplateProblems } from './deployment-config.mjs';
 import { mainnetBlockers } from './mainnet-readiness.mjs';
 import { buildSite } from './build-site.mjs';
 import { deploySite } from './deploy-site.mjs';
+import { sourceChanges } from './source-changes.mjs';
 import { operatorSlotProblems } from './operator-slot.mjs';
 test('mainnet template validates, live mainnet has zero blockers, and each undecided item has a named blocker', (t) => {
   assert.deepEqual(mainnetTemplateProblems(), []);
@@ -857,6 +858,15 @@ test('configured V8 free-launch mainnet manifest and Wrangler configs pass readi
       }),
     /Commit source changes/,
   );
+  // A lockfile rewritten by `npm install` does not block the release.
+  assert.equal(
+    deploySite(['--network', 'mainnet'], {
+      root,
+      env: { CLOUDFLARE_ACCOUNT_ID: 'cf-acc' },
+      exec: (cmd) => (cmd === 'git' ? ' M package-lock.json\n' : ''),
+    }),
+    'abc1234',
+  );
 
   // A separately hosted site (SITE_URL differs from API_ORIGIN) is uploaded to Netlify before either Worker.
   const workerConfigs = ['ops/wrangler-mainnet.jsonc', 'ops/wrangler-monitor-mainnet.jsonc'];
@@ -1091,6 +1101,33 @@ test('siteHosting reads SITE_URL and API_ORIGIN; a site is separate only when bo
   assert.equal(separateFrontend({ siteOrigin: 'https://a.example' }), false);
   assert.equal(separateFrontend({ apiOrigin: 'https://b.example' }), false);
   assert.equal(separateFrontend(undefined), false);
+});
+
+test('only package-lock.json changes are ignored when checking for uncommitted source', (t) => {
+  assert.equal(sourceChanges(''), '');
+  assert.equal(sourceChanges(' M package-lock.json\n'), '');
+  assert.equal(sourceChanges('M  package-lock.json'), '');
+  assert.equal(sourceChanges(' M package-lock.json\n M README.md\n'), ' M README.md');
+  assert.equal(sourceChanges('?? web/package-lock.json\n'), '?? web/package-lock.json');
+  assert.equal(sourceChanges(' M package.json\n'), ' M package.json');
+  assert.equal(
+    sourceChanges('R  package-lock.json -> lock.json\n'),
+    'R  package-lock.json -> lock.json',
+  );
+
+  const { root } = fixture(t);
+  mkdirSync(new URL('web/dist', root), { recursive: true });
+  const release = (status) => {
+    buildSite(['--network', 'testnet-v6'], {
+      root,
+      exec: (command, args) =>
+        command === 'git' ? (args[0] === 'rev-parse' ? 'abc123\n' : status) : '',
+      packageConsumer: () => {},
+    });
+    return readFileSync(new URL('web/dist/health.txt', root), 'utf8').trim();
+  };
+  assert.equal(release(' M package-lock.json\n'), 'fog:abc123');
+  assert.equal(release(' M package-lock.json\n M web/src/App.tsx\n'), 'fog:abc123-dirty');
 });
 
 test('buildSite passes hosting origins and writes static-host path rewrites', (t) => {

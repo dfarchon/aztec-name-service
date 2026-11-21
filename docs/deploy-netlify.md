@@ -60,7 +60,7 @@ curl -s -o /dev/null -w '%{http_code}\n' "$D/docs/pricing"             # 200
 curl -s -o /dev/null -w '%{http_code} %{redirect_url}\n' "$D/favicon.ico"  # 302 …/favicon.svg
 ```
 
-The headers must include `Cross-Origin-Opener-Policy: same-origin`, `Cross-Origin-Embedder-Policy: credentialless` and the `Content-Security-Policy`. In a desktop browser, `$D/docs/pricing` must turn into `#/docs/pricing`, `$D/#/status` must list the service checks (read from `API_ORIGIN`), and a name lookup must work. The console shows a refused `/api/metrics` request: only `SITE_URL` may send performance metrics, so this is expected on a draft address. Do not register or manage real names on the draft address, because browser data belongs to that address. A release ID ending in `-dirty` means the working tree has changes; the production release refuses to run in that state.
+The headers must include `Cross-Origin-Opener-Policy: same-origin`, `Cross-Origin-Embedder-Policy: credentialless` and the `Content-Security-Policy`. In a desktop browser, `$D/docs/pricing` must turn into `#/docs/pricing`, `$D/#/status` must list the service checks (read from `API_ORIGIN`), and a name lookup must work. The console shows a refused `/api/metrics` request: only `SITE_URL` may send performance metrics, so this is expected on a draft address. Do not register or manage real names on the draft address, because browser data belongs to that address. A release ID ending in `-dirty` means the working tree has changes; the production release refuses to run in that state. A `package-lock.json` rewritten by `npm install` is the one exception and does not count, but the release then no longer pins the committed dependency set, so install with `npm ci`.
 
 ## Release
 
@@ -69,7 +69,7 @@ export NETLIFY_SITE_ID=<id> NETLIFY_AUTH_TOKEN=<token>
 npm run deploy:mainnet
 ```
 
-The command refuses a dirty tree, checks the configuration, builds `web/dist`, then publishes in this order: Netlify production deploy, monitor Worker, site Worker. All three carry the short `HEAD` commit as the release ID. If the Netlify upload fails, neither Worker changes. If a Worker step fails afterwards, fix the cause and run the same command again from the same commit.
+The command refuses a dirty tree (apart from `package-lock.json`), checks the configuration, builds `web/dist`, then publishes in this order: Netlify production deploy, monitor Worker, site Worker. All three carry the short `HEAD` commit as the release ID. If the Netlify upload fails, neither Worker changes. If a Worker step fails afterwards, fix the cause and run the same command again from the same commit.
 
 ## Checks after the release
 
