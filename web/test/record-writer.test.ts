@@ -28,7 +28,8 @@ const session = await import('../src/session.ts');
 hook.deregister();
 const { RecordStore } = await import('../src/vault.ts');
 
-async function fixture(t: TestContext) {
+/** `embedded` stands in for the developer wallet, which pays from the account's public Fee Juice. */
+async function fixture(t: TestContext, walletMode: 'external' | 'embedded' = 'external') {
   const data = new Map<string, string>();
   const setGlobal = (name: string, value: unknown) => {
     const previous = Object.getOwnPropertyDescriptor(globalThis, name);
@@ -68,6 +69,7 @@ async function fixture(t: TestContext) {
   } as unknown as Wallet;
   await session.connectExternal(wallet, { disconnect: async () => {}, onDisconnect: () => () => {} } as unknown as WalletProvider);
   t.after(() => session.lock());
+  session.getSession().walletMode = walletMode;
   await session.selectAccount(a);
   const ctx = session.getSession().ctx!;
   const plan = { account: a.toString(), registry: registry.toString(), chainId: 31337n,
@@ -192,7 +194,8 @@ for (const feePayment of ['sponsored', 'fee-juice']) {
       test(`${feePayment} ${stage} transaction rejects ${status} before broadcast`, async (t) => {
         fixtureConfig.feePayment = feePayment;
         t.after(() => { fixtureConfig.feePayment = 'sponsored'; });
-        const f = await fixture(t);
+        // The account's public balance pays only for the embedded wallet; an external wallet picks its payer.
+        const f = await fixture(t, feePayment === 'fee-juice' ? 'embedded' : 'external');
         const { RegistryReader } = await import('fog-sdk/read');
         let healthy = true;
         t.mock.method(RegistryReader, 'connect', async () => {
@@ -245,7 +248,7 @@ for (const feePayment of ['sponsored', 'fee-juice']) {
 test('fee-juice admission rejects an outage arising during its balance check before send', async (t) => {
   fixtureConfig.feePayment = 'fee-juice';
   t.after(() => { fixtureConfig.feePayment = 'sponsored'; });
-  const f = await fixture(t);
+  const f = await fixture(t, 'embedded');
   const { RegistryReader } = await import('fog-sdk/read');
   let healthy = false, sends = 0;
   t.mock.method(RegistryReader, 'connect', async () => {
@@ -262,6 +265,32 @@ test('fee-juice admission rejects an outage arising during its balance check bef
   assert.equal(sends, 0);
   healthy = true;
   await session.boot();
+});
+
+test('fee-juice with an external wallet leaves the fee payer to the wallet and reads no public balance', async (t) => {
+  fixtureConfig.feePayment = 'fee-juice';
+  t.after(() => { fixtureConfig.feePayment = 'sponsored'; });
+  const f = await fixture(t);
+  let feeReads = 0, sends = 0, simulations = 0;
+  Object.assign(f.ctx.reader.node, {
+    // A wallet such as Nulo may pay from private Fee Juice while the account's public balance is zero.
+    getPublicStorageAt: async () => { feeReads++; return new Fr(0); },
+    getCurrentMinFees: async () => new GasFees(2n, 3n),
+    getNodeInfo: async () => ({ txsLimits: { gas: { daGas: 10, l2Gas: 20 } } }),
+  });
+  const call = {
+    simulate: async () => { simulations++; return {}; },
+    send: async (opts: { fee?: { paymentMethod?: unknown } }) => {
+      sends++;
+      assert.equal(opts.fee?.paymentMethod, undefined, 'Fog names no fee payment method for an external wallet');
+      throw new Error('Unexpected broadcast');
+    },
+  } as unknown as ContractFunctionInteraction;
+  await assert.rejects(runTx(f.ctx, call)); // the double refuses to broadcast
+  assert.equal(f.ctx.signer.estimateGas, true, 'gas is still estimated so the declared maximum fee stays small');
+  assert.equal(simulations, 1);
+  assert.equal(sends, 1);
+  assert.equal(feeReads, 0);
 });
 
 test('a provider acquired before an outage during wallet lock is disconnected on failure', async (t) => {

@@ -1,7 +1,8 @@
 export class FeeJuiceInsufficientError extends Error {
   constructor(
     readonly account: string,
-    readonly balance: bigint,
+    /** The account's public Fee Juice; undefined when the wallet picked the fee payer, whose balance Fog cannot read. */
+    readonly balance?: bigint,
     readonly required?: bigint,
   ) {
     super('Insufficient Fee Juice');

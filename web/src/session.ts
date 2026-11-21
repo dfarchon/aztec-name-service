@@ -324,20 +324,25 @@ export async function selectAccount(address: AztecAddress) {
     if (!wallet || !reader || !recordsKey) return;
     const { FogContext } = await import('fog-sdk');
     const feeJuice = config.feePayment === 'fee-juice' ? await import('./fee-juice') : undefined;
+    // Fog sets no payment method here, so an external wallet picks the fee payer: the account's public
+    // Fee Juice, or private Fee Juice through the wallet's own fee payment contract. The account's public
+    // balance proves nothing then; only the embedded wallet always pays from it.
+    const walletPicksPayer = state.walletMode !== 'embedded';
+    const publicPayer = feeJuice && !walletPicksPayer ? feeJuice : undefined;
     const ctx = new FogContext(reader, {
-      wallet: feeJuice ? feeJuice.feeJuiceWallet(wallet, state.node) : wallet,
+      wallet: feeJuice ? feeJuice.feeJuiceWallet(wallet, state.node, { walletPicksPayer }) : wallet,
       // The SDK invokes this inside the shared wallet queue, including for already queued writes.
       beforeSend: async (account) => {
         requireLiveNetwork();
-        if (feeJuice) await feeJuice.assertFeeJuiceFunded(reader.node, account);
+        if (publicPayer) await publicPayer.assertFeeJuiceFunded(reader.node, account);
         requireLiveNetwork();
       },
       // Users pay their own fees here: declare estimated gas so the required balance matches real usage.
       estimateGas: !!feeJuice,
-      checkFee: feeJuice
+      checkFee: publicPayer
         ? async (account, gas) => {
             requireLiveNetwork();
-            await feeJuice.assertFeeJuice(reader.node, account, gas?.gasLimits);
+            await publicPayer.assertFeeJuice(reader.node, account, gas?.gasLimits);
             requireLiveNetwork();
           }
         : undefined,

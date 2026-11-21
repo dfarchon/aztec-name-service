@@ -10,6 +10,9 @@ import { choosingAccount, connectExternal, lock, selectAccount, useSession, Wall
 import { errorMessage, shortAddr } from "./format";
 import { config } from "./config";
 
+/** When the discovery panel starts explaining what the wallet may be waiting for. */
+const WALLET_WAIT_HINT_MS = 8000;
+
 export function openWalletPanel() {
   const menu = document.getElementById("wallet-menu") as HTMLDetailsElement | null;
   if (!menu) return;
@@ -46,10 +49,14 @@ export function WalletConnection() {
   }, [s.walletMode]);
   const discovery = useRef<DiscoverySession>();
   const generation = useRef(0);
+  // A wallet answers discovery only once it is unlocked and admits the request, which can take the whole window.
+  const [waitingLong, setWaitingLong] = useState(false);
+  const waitingTimer = useRef<ReturnType<typeof setTimeout>>();
   useEffect(
     () => () => {
       generation.current++;
       discovery.current?.cancel();
+      clearTimeout(waitingTimer.current);
     },
     [],
   );
@@ -62,6 +69,11 @@ export function WalletConnection() {
     setProviders([]);
     setSearching(true);
     setError(undefined);
+    setWaitingLong(false);
+    clearTimeout(waitingTimer.current);
+    waitingTimer.current = setTimeout(() => {
+      if (generation.current === g) setWaitingLong(true);
+    }, WALLET_WAIT_HINT_MS);
     try {
       const { WalletManager } = await import("@aztec-labs/wallet-sdk/manager");
       const d = WalletManager.configure({
@@ -87,7 +99,11 @@ export function WalletConnection() {
     } catch (e) {
       if (g === generation.current) setError(errorMessage(e));
     } finally {
-      if (g === generation.current) setSearching(false);
+      if (g === generation.current) {
+        clearTimeout(waitingTimer.current);
+        setSearching(false);
+        setWaitingLong(false);
+      }
     }
   };
   const begin = async (provider: WalletProvider) => {
@@ -204,8 +220,11 @@ export function WalletConnection() {
             disabled={!canConnect || searching || busy || !!pending}
             onClick={() => void search()}
           >
-            {searching ? translate("Finding wallets…") : translate("Find wallets again")}
+            {translate(!searching ? "Find wallets again" : providers.length ? "Looking for other wallets…" : "Finding wallets…")}
           </button>
+          {searching && waitingLong && !providers.length && (
+            <p role="status" className="muted">{translate("Still waiting for your wallet. Open it, unlock it and approve the connection request if it shows one. Close any wallet windows left open by earlier attempts.")}</p>
+          )}
           {!pending &&
             providers.map((p) => (
               <button disabled={!canConnect || busy} key={p.id} onClick={() => void begin(p)}>
@@ -213,7 +232,7 @@ export function WalletConnection() {
               </button>
             ))}
           {!searching && !busy && !s.wallet && discovery.current && !providers.length && (
-            <div><p>{translate(config.network === "mainnet" ? "No compatible wallet found. Open this site in the browser where your wallet is installed, unlock it and select Aztec mainnet." : "No compatible wallet found. Open this site in the browser where your wallet is installed, unlock it and select the matching testnet.")}</p><a href="https://nulo.sh" target="_blank" rel="noopener noreferrer">{translate("Install Nulo for Chrome or Firefox")}</a><p><a href="#/docs/getting-started">{translate(config.network === "mainnet" ? "Wallet setup guide" : "Wallet and testnet setup")}</a></p></div>
+            <div><p>{translate(config.network === "mainnet" ? "No compatible wallet found. Open this site in the browser where your wallet is installed, unlock it and select Aztec mainnet." : "No compatible wallet found. Open this site in the browser where your wallet is installed, unlock it and select the matching testnet.")} {translate("If the wallet is ready, close its windows from earlier connection attempts, wait a minute and try again.")}</p><a href="https://nulo.sh" target="_blank" rel="noopener noreferrer">{translate("Install Nulo for Chrome or Firefox")}</a><p><a href="#/docs/getting-started">{translate(config.network === "mainnet" ? "Wallet setup guide" : "Wallet and testnet setup")}</a></p></div>
           )}
         </>
       )}
