@@ -1,0 +1,15 @@
+# The Netlify project for https://fog.dfarchon.xyz builds the mainnet site from this repository.
+#
+# Only scripts/build-site.mjs produces a releasable site: it adds /health.txt (the release ID the monitor checks), the
+# security and isolation headers (_headers), app path rewrites (_redirects), the SDK downloads and the Markdown docs.
+# A plain `npm run build` has none of these. It also sets every VITE_* value from the committed deployment config, so
+# variables in the Netlify UI do not change the build.
+#
+# Every production build publishes the site. The API Worker and the monitor stay on Cloudflare: deploy them from the
+# same commit afterwards (docs/deploy-netlify.md), or the monitor reports a release mismatch.
+[build]
+  command = "node scripts/build-site.mjs --network mainnet"
+  publish = "web/dist"
+
+[build.environment]
+  NODE_VERSION = "24"

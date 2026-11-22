@@ -32,7 +32,7 @@ Public `.fog` names and owners, with transfers, editor roles, subnames, public p
 
 Never commit .env files, wallet keys, registration secrets, deployment keys, local wallet stores or runtime logs. `.env.example` contains only placeholders. Local implementation work never implies a public-network deployment, fee-policy change, SDK publication or website publication.
 
-The static site may be hosted on Netlify (`scripts/netlify.mjs`) while `/api/*`, the monitor, D1 and rate limits stay on the Cloudflare Worker at `API_ORIGIN` (Worker config vars, next to the canonical `SITE_URL`). Keep `nodeUrl` and `API_ORIGIN` stable for existing SDK consumers. Browser storage belongs to one address, so the site Worker keeps serving the current build on its own address after the site moves; never redirect it away while registrations saved there may still be in progress.
+The static site may be hosted on Netlify (`scripts/netlify.mjs`) while `/api/*`, the monitor, D1 and rate limits stay on the Cloudflare Worker at `API_ORIGIN` (Worker config vars, next to the canonical `SITE_URL`). Keep `nodeUrl` and `API_ORIGIN` stable for existing SDK consumers. Browser storage belongs to one address, so the site Worker keeps serving the current build on its own address after the site moves; never redirect it away while registrations saved there may still be in progress. The mainnet Netlify project builds `main` through `netlify.toml`, so merging to `main` publishes the mainnet site; deploy the two mainnet Workers from the same commit afterwards.
 
 ## Developer integration standards
 

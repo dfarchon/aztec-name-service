@@ -1,57 +1,44 @@
 # Mainnet site on Netlify
 
-The mainnet site moves to `https://fog.dfarchon.xyz`, hosted on Netlify. Everything else stays on Cloudflare. This runbook covers the one-time setup, a draft check, the release and rollback. Run it from a clean checkout of the commit that sets mainnet `SITE_URL` to `https://fog.dfarchon.xyz`.
+The mainnet site lives at `https://fog.dfarchon.xyz`, hosted by a Netlify project that builds from this repository's `main` branch. Everything else stays on Cloudflare. This runbook covers the setup, previews, a release in two halves (Netlify, then Cloudflare), checks and rollback.
 
 | Part | Address | Where |
 | --- | --- | --- |
-| Static site (`web/dist`) | `https://fog.dfarchon.xyz` | Netlify project |
+| Static site (`web/dist`) | `https://fog.dfarchon.xyz` | Netlify project, built from `main` with `netlify.toml` |
 | `/api/status`, `/api/metrics`, `/api/rpc`, `/api/probe` | `https://fog-mainnet.huantian233.workers.dev` (`API_ORIGIN`) | Cloudflare Worker `fog-mainnet` |
 | Monitor, D1 database, rate limits | Worker `fog-mainnet-monitor`, D1 `fog-mainnet-monitor`, `RUM_LIMITER` and `RPC_LIMITER` | Cloudflare |
 | Former site address | `https://fog-mainnet.huantian233.workers.dev` | Same Worker, same build, with a notice that the site moved |
 
 The site calls `API_ORIGIN` directly. The RPC address (`nodeUrl`) and `API_ORIGIN` do not change, so SDK consumers and wallets that already use them are unaffected. Testnet stays on `https://fog-testnet.huantian233.workers.dev`, and `npm run deploy:testnet` still deploys its two Workers only.
 
-## Access and tools
+**Merging to `main` publishes the mainnet site.** Netlify builds every new `main` commit and publishes it. The Cloudflare half must then be deployed from the same commit, or the monitor reports a release mismatch.
 
-- Node 24 (>=24.12) and `npm ci` in the repository.
-- Cloudflare: `wrangler@4.147.0`, logged in (`wrangler login`) to the account that owns `fog-mainnet` and `fog-mainnet-monitor`. Set `CLOUDFLARE_ACCOUNT_ID` when the login can reach several accounts. Existing Worker secrets, such as the RPC upstream, are kept by `wrangler deploy`.
-- Netlify: membership of the team that manages the `dfarchon.xyz` DNS zone, `netlify-cli@27.16.1`, and a personal access token (Netlify user settings, Applications) in `NETLIFY_AUTH_TOKEN`. Keep the token in the shell environment only; never write it into a repository file.
+## How Netlify builds
 
-```sh
-npm install --global wrangler@4.147.0 netlify-cli@27.16.1
-export NETLIFY_AUTH_TOKEN=<personal access token>
-```
+`netlify.toml` sets the build command to `node scripts/build-site.mjs --network mainnet` and the publish directory to `web/dist`, with Node 24. This overrides the build settings in the Netlify UI. Only this build produces a releasable site:
+
+- `/health.txt` with the release ID (the short commit hash) that the monitor compares;
+- `_headers` with the isolation headers (`Cross-Origin-Opener-Policy`, `Cross-Origin-Embedder-Policy`) and the `Content-Security-Policy`;
+- `_redirects` for typed app paths such as `/docs/pricing`;
+- the SDK downloads and the Markdown docs (`llms-full.txt`).
+
+A plain `npm run build` has none of these. The build sets every `VITE_*` value from the committed deployment config, so `VITE_*` variables in the Netlify UI have no effect and are not needed. `FOG_PUBLIC_WALLET_URLS` must stay unset. A `package-lock.json` rewritten by Netlify's dependency install does not mark the release `-dirty`; any other change does.
 
 ## One-time Netlify setup
 
-1. Create the project without linking it to this directory or to Git. `<team-slug>` appears in the team's Netlify URL (`app.netlify.com/teams/<team-slug>`). The `id` in the JSON output is `NETLIFY_SITE_ID`.
+1. Import the GitHub repository into a Netlify project in the team that manages the `dfarchon.xyz` DNS zone, with `main` as the production branch. Leave plugins, forms and snippet injection off.
+2. In the project's domain management, add `fog.dfarchon.xyz` and make it the primary domain. The `dfarchon.xyz` zone is on Netlify DNS (NS1 name servers `dns1.p09.nsone.net`); when the zone belongs to the same team, Netlify creates the record. Otherwise add `fog CNAME <project-name>.netlify.app` in the zone.
+3. Wait until Netlify shows an active HTTPS certificate for `fog.dfarchon.xyz`.
 
-   ```sh
-   netlify sites:create --name <project-name> --account-slug <team-slug> --disable-linking --json
-   export NETLIFY_SITE_ID=<id>
-   ```
-
-2. Leave builds unconfigured: no Git repository, no build command, no plugins, forms or snippet injection. Releases are built locally from a verified commit and uploaded with `--no-build`; the release ID in `/health.txt` must match that commit.
-3. In the project's domain management, add `fog.dfarchon.xyz` and make it the primary domain. The `dfarchon.xyz` zone uses NS1 name servers (`dns1.p09.nsone.net`), as Netlify DNS does; when the zone belongs to the same team, Netlify creates the record. Otherwise add `fog CNAME <project-name>.netlify.app` in the zone.
-4. Wait until Netlify shows an active HTTPS certificate for `fog.dfarchon.xyz`. Before the first deploy, Netlify answers with its own 404 page:
-
-   ```sh
-   dig +short fog.dfarchon.xyz
-   curl -sI https://fog.dfarchon.xyz | head -1
-   ```
-
-The domain must serve HTTPS before the release: the monitor fetches `https://fog.dfarchon.xyz/health.txt` every minute once its new configuration is deployed, and alerts after three consecutive failures.
-
-## Draft check
-
-A draft deploy gets its own URL and changes neither the live site nor either Worker.
+A machine whose DNS goes through a local proxy (for example Clash in TUN mode) may keep a cached "no such domain" answer for up to an hour after the record appears. Check with DNS over HTTPS instead:
 
 ```sh
-npm run check:deployment
-npm run deploy:frontend-preview -- --network mainnet
+curl -s 'https://dns.google/resolve?name=fog.dfarchon.xyz&type=A' | jq -c '.Answer'
 ```
 
-With `D` set to the draft URL the command prints:
+## Previews
+
+Netlify deploy previews of pull requests use the same build, on their own URL. They change neither the live site nor either Worker. `npm run deploy:frontend-preview -- --network mainnet` uploads a local build as a draft instead (`NETLIFY_SITE_ID`, `NETLIFY_AUTH_TOKEN`, `netlify-cli@27.16.1`). With `D` set to the preview URL:
 
 ```sh
 curl -s "$D/health.txt"                                                # fog:<release>
@@ -60,21 +47,33 @@ curl -s -o /dev/null -w '%{http_code}\n' "$D/docs/pricing"             # 200
 curl -s -o /dev/null -w '%{http_code} %{redirect_url}\n' "$D/favicon.ico"  # 302 …/favicon.svg
 ```
 
-The headers must include `Cross-Origin-Opener-Policy: same-origin`, `Cross-Origin-Embedder-Policy: credentialless` and the `Content-Security-Policy`. In a desktop browser, `$D/docs/pricing` must turn into `#/docs/pricing`, `$D/#/status` must list the service checks (read from `API_ORIGIN`), and a name lookup must work. The console shows a refused `/api/metrics` request: only `SITE_URL` may send performance metrics, so this is expected on a draft address. Do not register or manage real names on the draft address, because browser data belongs to that address. A release ID ending in `-dirty` means the working tree has changes; the production release refuses to run in that state. A `package-lock.json` rewritten by `npm install` is the one exception and does not count, but the release then no longer pins the committed dependency set, so install with `npm ci`.
+In a desktop browser, `$D/docs/pricing` must turn into `#/docs/pricing`, `$D/#/status` must list the service checks (read from `API_ORIGIN`), and a name lookup must work. The console shows a refused `/api/metrics` request: only `SITE_URL` may send performance metrics. Do not register or manage real names on a preview address, because browser data belongs to that address.
 
 ## Release
 
-```sh
-export NETLIFY_SITE_ID=<id> NETLIFY_AUTH_TOKEN=<token>
-npm run deploy:mainnet
-```
+1. Merge to `main`. Netlify builds and publishes the merge commit. Wait until the site serves it:
 
-The command refuses a dirty tree (apart from `package-lock.json`), checks the configuration, builds `web/dist`, then publishes in this order: Netlify production deploy, monitor Worker, site Worker. All three carry the short `HEAD` commit as the release ID. If the Netlify upload fails, neither Worker changes. If a Worker step fails afterwards, fix the cause and run the same command again from the same commit.
+   ```sh
+   R=$(git rev-parse --short origin/main)   # the commit Netlify built
+   curl -s https://fog.dfarchon.xyz/health.txt   # fog:$R
+   ```
+
+2. Deploy the Cloudflare half from the same commit. Use `wrangler@4.147.0`, logged in to the account that owns `fog-mainnet` and `fog-mainnet-monitor` (set `CLOUDFLARE_ACCOUNT_ID` when the login reaches several accounts). Existing Worker secrets, such as the RPC upstream, are kept.
+
+   ```sh
+   git checkout "$R" && npm ci
+   git status --porcelain                           # empty
+   npm run check:deployment
+   node scripts/build-site.mjs --network mainnet    # web/dist/health.txt must read fog:$R
+   wrangler deploy --config ops/wrangler-monitor-mainnet.jsonc --var "RELEASE:$R"
+   wrangler deploy --config ops/wrangler-mainnet.jsonc --var "RELEASE:$R"
+   ```
+
+Do not use `npm run deploy:mainnet` for this project: it uploads its own build to Netlify outside the Git build.
 
 ## Checks after the release
 
 ```sh
-R=$(git rev-parse --short HEAD)
 curl -s https://fog.dfarchon.xyz/health.txt                     # fog:$R
 curl -s https://fog-mainnet.huantian233.workers.dev/health.txt  # fog:$R
 curl -s https://fog-mainnet.huantian233.workers.dev/api/status \
@@ -88,12 +87,12 @@ Within two minutes `checkedRelease` equals `release` and the `website` check is 
 
 ## Rollback
 
-- A faulty release: deploy an earlier commit that already has the new `SITE_URL`, with `npm run deploy:mainnet`, so the site, the monitor and the site Worker share one release ID. Publishing an older Netlify deploy alone leaves the monitor reporting a release mismatch.
-- Moving the site back: revert the `SITE_URL` and `domain` change and run `npm run deploy:mainnet`, which then deploys the two Workers only. Keep the Netlify deploy online until registrations started on `fog.dfarchon.xyz` are finished.
+- A faulty release: revert the change on `main` (Netlify publishes the revert commit), then deploy the Cloudflare half from that commit. Publishing an older Netlify deploy in the UI alone leaves the monitor reporting a release mismatch.
+- Moving the site back: revert the `SITE_URL` and `domain` change on `main`, then deploy the two Workers from that commit. Keep the Netlify site online until registrations started on `fog.dfarchon.xyz` are finished.
 
 ## Rules
 
 - Keep `fog-mainnet.huantian233.workers.dev` serving the current build, without a redirect, while registrations saved in browsers on that address may still be in progress.
 - Do not change `API_ORIGIN` or `nodeUrl`; consumers already call them.
-- Netlify uses credits for production deploys and bandwidth on credit-based plans; check the team's plan before frequent releases.
+- Netlify uses credits for builds, production deploys and bandwidth on credit-based plans; check the team's plan before frequent releases.
 - `netlify deploy` creates a local `.netlify/` directory, which is ignored by Git.
