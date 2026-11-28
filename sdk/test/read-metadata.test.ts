@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
+import { readFileSync } from 'node:fs';
 import { getContractClassFromArtifact } from '@aztec-labs/stdlib/contract';
 import { NameRegistryContract } from '../src/artifacts/NameRegistry.js';
 import metadata from '../src/artifacts/read-metadata.json' with { type: 'json' };
@@ -37,4 +38,13 @@ test('token precision and sponsor balance layout match the installed 6.0.0 artif
   assert.equal(publicMetadata.tokenSymbolSlot, TokenContract.storage.symbol.slot.toString());
   assert.equal(publicMetadata.fpcClassId, (await getContractClassFromArtifact(SponsoredFPCContractArtifact)).id.toString());
   assert.equal(publicMetadata.fpcBalanceSlot, (await deriveStorageSlotInMap(FeeJuiceArtifact.storageLayout.balances.slot, AztecAddress.fromStringUnsafe(publicMetadata.fpcAddress).toField())).toString());
+  const slots: Record<string, string> = publicMetadata.sponsorBalanceSlots;
+  assert.equal(slots[publicMetadata.fpcAddress], publicMetadata.fpcBalanceSlot);
+  for (const [address, slot] of Object.entries(slots))
+    assert.equal(slot, (await deriveStorageSlotInMap(FeeJuiceArtifact.storageLayout.balances.slot, AztecAddress.fromStringUnsafe(address).toField())).toString());
+  // Every sponsor a deployment manifest names must have a precomputed balance slot for the monitor.
+  for (const file of ['testnet-v6.json', 'mainnet.json']) {
+    const { sponsoredFpc } = JSON.parse(readFileSync(new URL(`../../deployments/${file}`, import.meta.url), 'utf8'));
+    if (sponsoredFpc) assert.ok(slots[sponsoredFpc], `${file} sponsor needs a balance slot`);
+  }
 });

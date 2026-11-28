@@ -79,11 +79,13 @@ async function runProbe(env: MonitorEnv, at: number, fetcher: typeof fetch) {
       // Configuration drift is reported on its own check instead of masquerading as an RPC outage.
       const userPays = env.FEE_PAYMENT === "fee-juice";
       const operator = env.OPERATOR && env.OPERATOR !== "UNDECIDED" ? env.OPERATOR : undefined;
-      const fpcMetadataOk = env.SPONSORED_FPC === metadata.fpcAddress;
+      // Any FPC of the pinned class works; its Fee Juice balance slot is precomputed per address.
+      const fpcBalanceSlot = env.SPONSORED_FPC ? (metadata.sponsorBalanceSlots as Record<string, string>)[env.SPONSORED_FPC] : undefined;
+      const fpcMetadataOk = !!fpcBalanceSlot;
       const settled = await Promise.allSettled([
         rpc<{ currentContractClassId: string } | null>(env, "getContract", [env.REGISTRY, block], fetcher),
         userPays ? Promise.resolve(null) : rpc<{ currentContractClassId: string } | null>(env, "getContract", [env.SPONSORED_FPC, block], fetcher),
-        userPays && !operator ? Promise.resolve("0") : rpc<string>(env, "getPublicStorageAt", [block, metadata.feeJuice, userPays ? env.OPERATOR_BALANCE_SLOT : metadata.fpcBalanceSlot], fetcher),
+        userPays && !operator ? Promise.resolve("0") : rpc<string>(env, "getPublicStorageAt", [block, metadata.feeJuice, userPays ? env.OPERATOR_BALANCE_SLOT : fpcBalanceSlot], fetcher),
       ]);
       const reg = settled[0], fpc = settled[1], balance = settled[2];
       checks.push({ name: "registry", ok: reg.status === "fulfilled" && !!reg.value && (reg.value.currentContractClassId === registryMetadata.classId || modularClass(reg.value.currentContractClassId)), detail: "6.0.0 contract class" });

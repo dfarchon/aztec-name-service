@@ -57,7 +57,7 @@ export const articles: Article[] = [
         ? `You need a desktop browser with an Aztec 6 wallet extension, such as Nulo for Chrome or Firefox (open source, not independently audited; mobile wallets are not supported yet). Install it from the official listing linked at nulo.sh, unlock it and keep its network on Aztec Mainnet. When you connect, the wallet asks to let Fog read your account, sign payment authorizations and use the Fog contracts. Approve it; if a name uses its own resolver, or the Registrar changes, the wallet asks again for that contract only. If the wallet asks for network details, enter: node ${deployment.nodeUrl}, chain ID ${deployment.chainId} and rollup version ${deployment.rollupVersion}. The chain ID identifies Ethereum mainnet, which Aztec Mainnet settles on; the rollup version identifies the current Aztec Mainnet release. Both must match exactly, otherwise Fog stops before any transaction so nothing is sent to the wrong network.`
         : `You need a desktop browser with an Aztec 6 wallet extension, such as Nulo for Chrome or Firefox (open source, not independently audited; mobile wallets are not supported yet). Install it from the official listing linked at nulo.sh, unlock it and switch its network to Aztec Testnet; Nulo starts on Aztec mainnet. When you connect, the wallet asks to let Fog read your account, sign payment authorizations and use the Fog contracts. Approve it; if a name uses its own resolver, or the Registrar changes, the wallet asks again for that contract only. If the wallet asks for network details, enter: node ${deployment.nodeUrl}, chain ID ${deployment.chainId} and rollup version ${deployment.rollupVersion}. The chain ID identifies Ethereum Sepolia, the public test network that Aztec Testnet settles on; the rollup version identifies the current Aztec Testnet release. Both must match exactly, otherwise Fog stops before any transaction so nothing is sent to the wrong network.`,
       onMainnet
-        ? `Registration on Aztec Mainnet is free: the Registrar has no payment token, so there is nothing to buy or approve for the name itself. Public names need at least ${testMinLength} characters; shorter names show Not yet available and reserved names show Reserved. There is no fee sponsor: your account pays its own network fees in Fee Juice, so fund it before you start. See “Which token do I need?”.`
+        ? `Registration on Aztec Mainnet is free: the Registrar has no payment token, so there is nothing to buy or approve for the name itself. Public names need at least ${testMinLength} characters; shorter names show Not yet available and reserved names show Reserved. Network fees are paid by a sponsor contract, so you do not need Fee Juice either. See “Which token do I need?”.`
         : `Registration on this test deployment is free: the Registrar has no payment token, so there is nothing to buy, approve or hold. Public names need at least ${testMinLength} characters; shorter names show Not yet available and reserved names show Reserved. Network fees are paid by a shared sponsor contract, so you do not need Fee Juice either. See “Which token do I need?” for AZTEC, mAZTEC, FOGF and Fee Juice.`,
       'Registration has two transactions: first a commit (a sealed fingerprint that hides which name you want, so nobody can grab it first), then the registration after about one minute. Keep the registration plan until the second transaction is confirmed. If interrupted, open Register again and resume the saved plan.',
       'After registration, open Manage, set an Aztec address, then connect that address’s wallet to confirm its primary name. Registration alone does not set a receiving address.',
@@ -82,9 +82,9 @@ export const articles: Article[] = [
     body: [
       ...(onMainnet
         ? [
-            'Registration on Aztec Mainnet needs no payment token. Its Registrar is free: registration creates no token authorization and reads no private token balance. You do need Fee Juice, because every transaction pays its own network fee and there is no fee sponsor.',
-            'AZTEC is the official token and the planned pricing currency; it is not accepted for registration yet. Fee Juice is Aztec network fee credit; it pays transaction fees and can never pay a registration fee. mAZTEC and FOGF are test tokens from earlier test deployments and have no use on Aztec Mainnet.',
-            `Fee Juice is obtained by bridging AZTEC from Ethereum mainnet to your Aztec account. Your wallet chooses how each network fee is paid: from the account's public Fee Juice or, in wallets that support it, from private Fee Juice through the wallet's fee payment contract, which keeps the paying account hidden. The wallet shows the fee before you approve, and Fog explains the error if the wallet cannot pay it. The mainnet manifest records the payment token as ${deployment.feeToken} (none).`,
+            'You need no token to register on Aztec Mainnet. Its Registrar is free: it has no payment token, so registration creates no token authorization and reads no private token balance. A sponsor contract pays the network fees.',
+            'AZTEC is the official token and the planned pricing currency; it is not accepted for registration yet. Fee Juice is Aztec network fee credit; you do not need it because the sponsor pays network fees, and it can never pay a registration fee. mAZTEC and FOGF are test tokens from earlier test deployments and have no use on Aztec Mainnet.',
+            `There is nothing to obtain. The sponsor holds a limited Fee Juice balance, shown on the Status page; if it runs out, transactions cannot be sent until it is refilled, and a saved registration plan can be resumed within its 24-hour window. The mainnet manifest records the payment token as ${deployment.feeToken} (none).`,
           ]
         : [
             'You need no token to register on this test deployment. Its Registrar is free: it has no payment token, so registration creates no token authorization and reads no private balance. A shared sponsor contract pays the network fees.',
@@ -100,9 +100,7 @@ export const articles: Article[] = [
     body: [
       'Name: your readable Fog name, like alice.fog. Every name ends in .fog (Fully Obfuscated Glyph); you register only the part before it. It is not an internet domain or website address. Primary name: the one name your account shows by default; it is only shown when the name also points back to your address, so nobody can claim to be you.',
       'Commit: the first registration step. It records a sealed fingerprint of your request so nobody can see or front-run the name; after about one minute you send the actual registration.',
-      onMainnet
-        ? 'Fee Juice: Aztec network fee credit. Each transaction, including the commit and the registration, pays its network fee in Fee Juice from your account. It does not pay a registration fee.'
-        : 'Sponsored fee payer (FPC): a shared contract that pays Aztec network fees for you, so you do not need Fee Juice. It does not pay the registration fee.',
+      'Sponsored fee payer (FPC): a contract that pays Aztec network fees for you, so you do not need Fee Juice. It does not pay the registration fee.',
       'Registrar: the contract that takes the registration fee and creates or renews names. Resolver: the contract that stores where a name points, such as its Aztec address and profile records.',
       'Generation and revision: internal counters Fog uses so an old or stale action cannot change a name. Generation changes on registration or accepted transfer. V7 keeps holder changes and editor writes on separate revision counters; V6 shares one counter. If you see a mismatch, reload and try again.',
       'Generating proof: Aztec transactions are private, so your browser builds a cryptographic proof before sending. This can take a minute and uses a lot of CPU; keep the tab open. Dropped by network: the network discarded the transaction; nothing was charged, and you can retry.',
@@ -214,7 +212,7 @@ export const summaries: Record<string, string> = {
   'core-upgrades-v8':
     'Exact-class approvals, fixed delays, strict cancellation and compatible rollback for an independent V8 registry.',
   tokens: onMainnet
-    ? 'Why registration needs no payment token on Aztec Mainnet, and why you need Fee Juice.'
+    ? 'Why registration needs no token on Aztec Mainnet, and who pays the network fees.'
     : 'Why registration needs no token on this test deployment, and the role of network fee credit.',
   glossary:
     'Definitions of names, registration commitments, contract modules and transaction states.',
@@ -268,7 +266,7 @@ const headings: Record<string, string[]> = {
     'Pinned reads and wallet execution',
   ],
   tokens: onMainnet
-    ? ['The token you need', 'AZTEC, Fee Juice and test tokens', 'Getting Fee Juice']
+    ? ['The token you need', 'AZTEC, Fee Juice and test tokens', 'Nothing to obtain']
     : ['The token you need', 'AZTEC, test tokens and Fee Juice', 'Nothing to obtain'],
   glossary: [
     'Names',
@@ -677,7 +675,7 @@ export function sectionsFor(article: Article): DocSection[] {
             type: 'callout',
             title: onMainnet ? 'Payment-token funding' : 'Test-token funding',
             text: onMainnet
-              ? 'The Aztec Mainnet Registrar is free and needs no payment token. Each account pays its own network fees in Fee Juice; Fee Juice cannot pay the registration treasury. doctor checks public configuration, while readiness checks the selected account’s balance.'
+              ? 'The Aztec Mainnet Registrar is free and needs no payment token. A sponsor contract pays network fees; Fee Juice cannot pay the registration treasury. doctor checks public configuration, while readiness checks the selected account’s balance.'
               : 'Current test payment tokens have no self-serve faucet. Obtain private balance in the exact quoted token from the testnet operator. Fee Juice pays network fees; it cannot pay the registration treasury. doctor checks public configuration, while readiness checks the selected account’s balance.',
           },
           {

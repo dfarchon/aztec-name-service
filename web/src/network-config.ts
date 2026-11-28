@@ -11,8 +11,6 @@ export function parseNetworkConfig(env: {
     env.VITE_FEE_PAYMENT ?? (env.DEV || network === 'local' ? 'sponsored' : undefined);
   if (!feePayment || !['sponsored', 'fee-juice'].includes(feePayment))
     throw new Error('VITE_FEE_PAYMENT must be sponsored|fee-juice');
-  if (network === 'mainnet' && feePayment !== 'fee-juice')
-    throw new Error('Mainnet requires fee-juice');
   return {
     network: network as 'local' | 'testnet-v6' | 'mainnet',
     feePayment: feePayment as 'sponsored' | 'fee-juice',
