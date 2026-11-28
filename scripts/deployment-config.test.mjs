@@ -44,6 +44,10 @@ function fixture(t, { unconfiguredMainnet = false } = {}) {
       data.vars.OPERATOR = 'UNDECIDED';
       data.vars.OPERATOR_BALANCE_SLOT = 'UNDECIDED';
       data.vars.OPERATOR_LOW_WATERMARK = 'UNDECIDED';
+      // A fresh mainnet deployment starts account-paid; a dedicated sponsor is configured after it.
+      data.vars.FEE_PAYMENT = 'fee-juice';
+      delete data.vars.SPONSORED_FPC;
+      delete data.vars.FPC_LOW_WATERMARK;
       writeFileSync(
         path,
         `// PLACEHOLDER: REGISTRY, OPERATOR and D1 database_id remain undecided until contract deployment.\n${JSON.stringify(data, null, 2)}\n`,
@@ -1204,4 +1208,63 @@ test('frontend preview builds the canonical site and uploads a Netlify draft onl
       'fog:abc1234-dirty',
     ],
   ]);
+});
+
+import { mainnetDeploymentConfigMismatches } from './deployment-config.mjs';
+test('a sponsored mainnet binds both Worker configs to the manifest sponsor and its balance slot', (t) => {
+  const { root, update } = fixture(t);
+  const paths = ['ops/wrangler-mainnet.jsonc', 'ops/wrangler-monitor-mainnet.jsonc'];
+  const editWorkers = (edit) => {
+    for (const file of paths) {
+      const path = new URL(file, root);
+      const data = JSON.parse(
+        readFileSync(path, 'utf8')
+          .split('\n')
+          .filter((line) => !line.trimStart().startsWith('//'))
+          .join('\n'),
+      );
+      edit(data.vars);
+      writeFileSync(path, JSON.stringify(data, null, 2));
+    }
+  };
+  const manifest = JSON.parse(readFileSync(new URL('deployments/mainnet.json', root), 'utf8'));
+  assert.equal(manifest.feePayment, 'sponsored');
+  assert.deepEqual(mainnetDeploymentConfigMismatches(root), []);
+
+  editWorkers((vars) => {
+    vars.SPONSORED_FPC = '0x' + '9'.repeat(64);
+  });
+  assert.ok(mainnetDeploymentConfigMismatches(root).some((p) => p.includes('vars.SPONSORED_FPC')));
+  editWorkers((vars) => {
+    vars.SPONSORED_FPC = manifest.sponsoredFpc;
+    vars.FPC_LOW_WATERMARK = '0';
+  });
+  assert.ok(
+    mainnetDeploymentConfigMismatches(root).some((p) => p.includes('invalid FPC_LOW_WATERMARK')),
+  );
+  editWorkers((vars) => {
+    vars.FPC_LOW_WATERMARK = '100000000000000000000';
+  });
+  assert.deepEqual(mainnetDeploymentConfigMismatches(root), []);
+
+  update('web/src/public-metadata.json', (m) => {
+    delete m.sponsorBalanceSlots[manifest.sponsoredFpc];
+  });
+  assert.ok(
+    mainnetDeploymentConfigMismatches(root).includes(
+      'mainnet sponsoredFpc has no balance slot in web/src/public-metadata.json',
+    ),
+  );
+
+  // An account-paid mainnet forbids a sponsor in the Worker configs.
+  update('deployments/mainnet.json', (m) => {
+    m.feePayment = 'fee-juice';
+    m.sponsoredFpc = null;
+  });
+  editWorkers((vars) => {
+    vars.FEE_PAYMENT = 'fee-juice';
+  });
+  assert.ok(
+    mainnetDeploymentConfigMismatches(root).some((p) => p.includes('forbidden configuration')),
+  );
 });

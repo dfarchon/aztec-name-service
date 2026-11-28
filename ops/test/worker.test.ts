@@ -324,6 +324,31 @@ test('fee-juice monitor enforces operator watermark at its precomputed slot', as
   } finally { f.sqlite.close(); }
 });
 
+test('sponsored monitor reads a dedicated FPC balance at its own slot, and flags an unknown FPC', async () => {
+  const slots: Record<string, string> = metadata.sponsorBalanceSlots;
+  const dedicated = Object.keys(slots).find((address) => address !== metadata.fpcAddress)!;
+  assert.ok(dedicated, 'metadata lists a dedicated sponsor');
+  const f = fixture(); f.env.SPONSORED_FPC = dedicated;
+  const fetcher = (async (input: any, init?: RequestInit) => {
+    if (init?.body) {
+      const req = JSON.parse(String(init.body));
+      if (req.method === 'aztec_getPublicStorageAt') {
+        assert.deepEqual(req.params, [100, metadata.feeJuice, slots[dedicated]]);
+        return Response.json({ result: '0x1bc16d674ec80000' });
+      }
+    }
+    return f.fetcher(input, init);
+  }) as typeof fetch;
+  try {
+    const state = await probe(f.env, Date.now(), fetcher);
+    assert.deepEqual(state.checks.find(c => c.name === 'sponsor'), { name: 'sponsor', ok: true, detail: '6.0.0 FPC class' });
+    assert.deepEqual(state.checks.find(c => c.name === 'balance'), { name: 'balance', ok: true, detail: '2 Fee Juice' });
+    f.env.SPONSORED_FPC = '0x' + '9'.repeat(64);
+    const unknown = await probe(f.env, Date.now(), f.fetcher);
+    assert.deepEqual(unknown.checks.find(c => c.name === 'sponsor'), { name: 'sponsor', ok: false, detail: 'FPC read metadata needs regeneration' });
+  } finally { f.sqlite.close(); }
+});
+
 test('monitor recognizes launch registrar class with the exact registry binding', async()=>{
   const {inspectModules}=await import('../src/modular.js');
   const registry=`0x${'1'.padStart(64,'0')}`,registrar=2n,resolver=3n;

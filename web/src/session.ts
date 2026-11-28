@@ -337,8 +337,9 @@ export async function selectAccount(address: AztecAddress) {
         if (publicPayer) await publicPayer.assertFeeJuiceFunded(reader.node, account);
         requireLiveNetwork();
       },
-      // Users pay their own fees here: declare estimated gas so the required balance matches real usage.
-      estimateGas: !!feeJuice,
+      // Declare estimated gas when users pay their own fees, so the required balance matches real usage, and on
+      // mainnet, where a dedicated sponsor must cover each transaction's declared maximum fee.
+      estimateGas: !!feeJuice || config.network === 'mainnet',
       checkFee: publicPayer
         ? async (account, gas) => {
             requireLiveNetwork();

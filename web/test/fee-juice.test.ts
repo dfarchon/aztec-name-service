@@ -30,14 +30,16 @@ test('public config requires explicit network and fee mode; local DEV defaults s
     {},
     { VITE_NETWORK: 'wrong' },
     { VITE_NETWORK: 'testnet-v6' },
-    { VITE_NETWORK: 'mainnet', VITE_FEE_PAYMENT: 'sponsored' },
+    { VITE_NETWORK: 'mainnet' },
     { VITE_NETWORK: 'testnet-v6', VITE_FEE_PAYMENT: 'wrong' },
   ])
     assert.throws(() => parseNetworkConfig(env));
-  assert.equal(
-    parseNetworkConfig({ VITE_NETWORK: 'mainnet', VITE_FEE_PAYMENT: 'fee-juice' }).feePayment,
-    'fee-juice',
-  );
+  // Mainnet may use a dedicated sponsor or let accounts pay; the build must name one explicitly.
+  for (const feePayment of ['fee-juice', 'sponsored'] as const)
+    assert.equal(
+      parseNetworkConfig({ VITE_NETWORK: 'mainnet', VITE_FEE_PAYMENT: feePayment }).feePayment,
+      feePayment,
+    );
 });
 test('FPC derivation is confined to proof-disabled local chain identity', () => {
   assert(canDeriveSponsor({ l1ChainId: 31337, realProofs: false }));

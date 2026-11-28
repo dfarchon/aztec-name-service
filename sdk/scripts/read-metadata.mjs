@@ -3,6 +3,7 @@ import { readFileSync } from 'node:fs';
 import assert from 'node:assert/strict';
 import { getContractClassFromArtifact, getContractInstanceFromInstantiationParams } from '@aztec-labs/stdlib/contract';
 import { Fr } from '@aztec-labs/aztec.js/fields';
+import { AztecAddress } from '@aztec-labs/aztec.js/addresses';
 import { SPONSORED_FPC_SALT } from '@aztec-labs/constants';
 import { loadContractArtifact } from '@aztec-labs/stdlib/abi';
 import { TokenContract } from '@aztec-labs/noir-contracts.js/Token';
@@ -22,6 +23,16 @@ const metadata = {
 };
 await writeFile(new URL('../src/artifacts/read-metadata.json', import.meta.url), JSON.stringify(metadata, null, 2) + '\n');
 const fpc = (await getContractInstanceFromInstantiationParams(SponsoredFPCContractArtifact, { salt: new Fr(SPONSORED_FPC_SALT) })).address;
+const balanceSlot = async (address) =>
+  (await deriveStorageSlotInMap(FeeJuiceArtifact.storageLayout.balances.slot, address.toField())).toString();
+// Every sponsor a public deployment names: the shared testnet FPC and any separately deployed FPC (same class).
+const sponsors = [fpc.toString()];
+for (const file of ['testnet-v6.json', 'mainnet.json']) {
+  const { sponsoredFpc } = JSON.parse(readFileSync(new URL(`../../deployments/${file}`, import.meta.url), 'utf8'));
+  if (sponsoredFpc && !sponsors.includes(sponsoredFpc)) sponsors.push(sponsoredFpc);
+}
+const sponsorBalanceSlots = {};
+for (const address of sponsors) sponsorBalanceSlots[address] = await balanceSlot(AztecAddress.fromStringUnsafe(address));
 const publicMetadata = {
   tokenClassId: (await getContractClassFromArtifact(TokenContract.artifact)).id.toString(),
   tokenDecimalsSlot: TokenContract.storage.decimals.slot.toString(),
@@ -29,7 +40,8 @@ const publicMetadata = {
   fpcAddress: fpc.toString(),
   fpcClassId: (await getContractClassFromArtifact(SponsoredFPCContractArtifact)).id.toString(),
   feeJuice: '0x' + '3'.padStart(64, '0'),
-  fpcBalanceSlot: (await deriveStorageSlotInMap(FeeJuiceArtifact.storageLayout.balances.slot, fpc.toField())).toString(),
+  fpcBalanceSlot: await balanceSlot(fpc),
+  sponsorBalanceSlots,
 };
 await writeFile(new URL('../../web/src/public-metadata.json', import.meta.url), JSON.stringify(publicMetadata, null, 2) + '\n');
 console.log('Generated verified read metadata');

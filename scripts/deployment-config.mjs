@@ -308,7 +308,7 @@ export function v6ManifestProblems(m, { expectNetwork } = {}) {
       'mainnet admin must match bound owner',
     );
     if (launch) check(m.maxRenewAhead === '31536000', 'mainnet maxRenewAhead must be 31536000');
-    check(fee === 'fee-juice', 'v6 mainnet feePayment');
+    // Mainnet may name a dedicated SponsoredFPC; the generic check above binds it to feePayment.
     for (const key of ['chainId', 'rollupVersion', 'rollup', 'realProofs'])
       check(m[key] === V6_MAINNET[key], `v6 mainnet ${key}`);
   }
@@ -365,13 +365,24 @@ export function mainnetDeploymentConfigMismatches(root = repository) {
     CHAIN_ID: deployment.chainId,
     ROLLUP_VERSION: deployment.rollupVersion,
     ROLLUP: deployment.rollup,
-    FEE_PAYMENT: 'fee-juice',
+    FEE_PAYMENT: deployment.feePayment,
+    ...(deployment.feePayment === 'sponsored' ? { SPONSORED_FPC: deployment.sponsoredFpc } : {}),
     NETWORK_LABEL: 'mainnet',
   };
+  if (
+    deployment.feePayment === 'sponsored' &&
+    !read('web/src/public-metadata.json', root).sponsorBalanceSlots?.[deployment.sponsoredFpc]
+  )
+    problems.push('mainnet sponsoredFpc has no balance slot in web/src/public-metadata.json');
   configs.forEach((c, i) => {
     for (const [key, value] of Object.entries(expected))
       if (c.vars?.[key] !== value)
         problems.push(`${paths[i]} vars.${key}=${c.vars?.[key]} expected ${value}`);
+    if (
+      deployment.feePayment === 'sponsored' &&
+      !/^[1-9][0-9]*$/.test(c.vars?.FPC_LOW_WATERMARK ?? '')
+    )
+      problems.push(`${paths[i]} invalid FPC_LOW_WATERMARK`);
     const siteUrl = parseCleanHttpsUrl(c.vars?.SITE_URL);
     if (!siteUrl) {
       problems.push(`${paths[i]} vars.SITE_URL must be clean HTTPS`);
@@ -415,7 +426,7 @@ export function mainnetDeploymentConfigMismatches(root = repository) {
     if (
       'account_id' in c ||
       'RELEASE' in (c.vars ?? {}) ||
-      'SPONSORED_FPC' in (c.vars ?? {}) ||
+      (deployment.feePayment !== 'sponsored' && 'SPONSORED_FPC' in (c.vars ?? {})) ||
       'ALLOW_V8_REHEARSAL_SUCCESSOR' in (c.vars ?? {})
     )
       problems.push(`${paths[i]} forbidden configuration`);
